@@ -36,6 +36,11 @@ jobs:
 
       # --- Run both services ---
       - name: Run Flask + Bridge
+        env:
+          FLASK_PORT: 8000
+          PYTHON_URL: http://127.0.0.1:8000
+          NODE_ENV: production
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           nohup python app.py &
           npm start
