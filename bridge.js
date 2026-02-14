@@ -130,6 +130,8 @@ async function connectWA() {
       const msg = messages[0];
       const from = msg.key.remoteJid || "";
       const isGroup = from.endsWith("@g.us");
+      const sender = msg.key.remoteJid || "";
+      const res = await axios.post(`${pythonUrl}/status`, { sender, action: "get" });
 
       if (!msg.message || msg.key.fromMe) return;
     
