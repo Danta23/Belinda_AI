@@ -1,12 +1,13 @@
 {
-  "name": "bridge",
+  "name": "belinda-bridge",
   "version": "1.0.0",
   "main": "bridge.js",
   "scripts": {
     "start": "node bridge.js"
   },
   "dependencies": {
+    "@whiskeysockets/baileys": "^6.0.0",
     "dotenv": "^16.0.0",
-    "baileys": "^6.0.0"
+    "axios": "^1.6.0"
   }
 }
