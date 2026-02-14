@@ -128,7 +128,7 @@ async function connectWA() {
         if (!m.message || m.key.fromMe) return;
 
         const sender = m.key.remoteJid;
-        const text = getMessageText(msg);
+        const text = getMessageText(m);
         const isGroup = sender.endsWith('@g.us');
         const participant = m.key.participant || sender;
         
