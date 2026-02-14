@@ -16,7 +16,7 @@ module.exports = {
       script: "bridge.js",
       interpreter: "node",
       env: {
-        PYTHON_URL: "http://127.0.0.1:5000"
+        PYTHON_URL: "http://127.0.0.1:8000"
       },
       autorestart: true,
       restart_delay: 5000,
