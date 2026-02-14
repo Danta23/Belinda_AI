@@ -31,7 +31,7 @@ async function connectWA() {
     const sock = makeWASocket({
         version,
         auth: state,
-        printQRInTerminal: true, // still works for QR if supported
+        printQRInTerminal: false,
         browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
 
