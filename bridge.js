@@ -114,61 +114,15 @@ async function connectWA() {
             console.log("Gagal membuat kuis.");
         }
     }
-    
-    // Helper untuk ambil teks dari berbagai tipe pesan
-    function getMessageText(msg) {
-      if (msg.message?.conversation) return msg.message.conversation;
-      if (msg.message?.extendedTextMessage?.text) return msg.message.extendedTextMessage.text;
-      if (msg.message?.imageMessage?.caption) return msg.message.imageMessage.caption;
-      if (msg.message?.videoMessage?.caption) return msg.message.videoMessage.caption;
-      if (msg.message?.documentMessage?.caption) return msg.message.documentMessage.caption;
-      return ""; // default kosong kalau tidak ada teks
-    }
-    
-    // Event listener untuk pesan masuk
-    sock.ev.on("messages.upsert", async ({ messages }) => {
-      const msg = messages[0];
-      const from = msg.key.remoteJid || "";
-      const isGroup = from.endsWith("@g.us");
-      const sender = msg.key.remoteJid || "";
-      const res = await axios.post(`${pythonUrl}/status`, { sender, action: "get" });
 
-      if (!msg.message || msg.key.fromMe) return;
-    
-      const text = getMessageText(msg);
-      console.log("Pesan diterima:", text);
-    
-      // Regex command handler
-      if (typeof text === "string") {
-        if (text.match(/^!status$/i)) {
-          await sock.sendMessage(msg.key.remoteJid, { text: "✅ Bot aktif dan siap membantu!" });
-        } else if (text.match(/^!toggle$/i)) {
-          try {
-            const res = await axios.post(`${process.env.PYTHON_URL}/status`, {
-              sender: msg.key.remoteJid,
-              action: "toggle"
-            });
-            const status = res.data.active ? "aktif" : "nonaktif";
-            await sock.sendMessage(msg.key.remoteJid, { text: `🔁 Status bot sekarang: ${status}` });
-          } catch (err) {
-            console.error("Gagal toggle status:", err);
-            await sock.sendMessage(msg.key.remoteJid, { text: "⚠️ Gagal mengubah status bot." });
-          }
-        } else {
-          // Kirim ke Flask untuk respon AI
-          try {
-            const res = await axios.post(`${process.env.PYTHON_URL}/chat`, {
-              msg: text
-            });
-            await sock.sendMessage(msg.key.remoteJid, { text: res.data.reply || "⚠️ Tidak ada respon dari AI." });
-          } catch (err) {
-            console.error("Gagal kirim ke Flask:", err);
-            await sock.sendMessage(msg.key.remoteJid, { text: "⚠️ Terjadi gangguan teknis pada server AI Belinda." });
-          }
-        }
-      } else {
-        console.warn("Pesan bukan string, dilewati.");
-      }
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        const m = messages[0];
+        if (!m.message || m.key.fromMe) return;
+
+        const sender = m.key.remoteJid;
+        const text = (m.message.conversation || m.message.extendedTextMessage?.text || "").trim();
+        const isGroup = sender.endsWith('@g.us');
+        const participant = m.key.participant || sender;
 
         async function isAdmin() {
             if (!isGroup) return true;
