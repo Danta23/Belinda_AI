@@ -128,6 +128,9 @@ async function connectWA() {
     // Event listener untuk pesan masuk
     sock.ev.on("messages.upsert", async ({ messages }) => {
       const msg = messages[0];
+      const from = msg.key.remoteJid || "";
+      const isGroup = from.endsWith("@g.us");
+
       if (!msg.message || msg.key.fromMe) return;
     
       const text = getMessageText(msg);
