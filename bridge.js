@@ -114,16 +114,30 @@ async function connectWA() {
             console.log("Gagal membuat kuis.");
         }
     }
+    function getMessageText(msg) {
+      if (msg.message?.conversation) return msg.message.conversation;
+      if (msg.message?.extendedTextMessage?.text) return msg.message.extendedTextMessage.text;
+      if (msg.message?.imageMessage?.caption) return msg.message.imageMessage.caption;
+      if (msg.message?.videoMessage?.caption) return msg.message.videoMessage.caption;
+      if (msg.message?.documentMessage?.caption) return msg.message.documentMessage.caption;
+      return ""; // default kosong kalau tidak ada teks
+    }
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const m = messages[0];
         if (!m.message || m.key.fromMe) return;
 
         const sender = m.key.remoteJid;
-        const text = (m.message.conversation || m.message.extendedTextMessage?.text || "").trim();
+        const text = getMessageText(msg);
         const isGroup = sender.endsWith('@g.us');
         const participant = m.key.participant || sender;
-
+        
+        console.log("Pesan diterima:", text);
+        
+        // Pastikan hanya string yang diproses dengan .match()
+        if (typeof text === "string" && text.match(/halo/i)) {
+            await sock.sendMessage(msg.key.remoteJid, { text: "Hai juga 👋" });
+        }
         async function isAdmin() {
             if (!isGroup) return true;
             const meta = await sock.groupMetadata(sender);
