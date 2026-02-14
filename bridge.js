@@ -199,6 +199,8 @@ async function connectWA() {
             console.log("Gagal membuat kuis:", e.message);
         }
     }
+    
+    // Helper untuk ambil teks dari berbagai tipe pesan
     function getMessageText(msg) {
       if (msg.message?.conversation) return msg.message.conversation;
       if (msg.message?.extendedTextMessage?.text) return msg.message.extendedTextMessage.text;
@@ -238,6 +240,10 @@ async function connectWA() {
         if (typeof text === "string" && text.match(/halo/i)) {
             await sock.sendMessage(m.key.remoteJid, { text: "Hai juga 👋" });
         }
+      } else {
+        console.warn("Pesan bukan string, dilewati.");
+      }
+
         async function isAdmin() {
             if (!isGroup) return true;
             const meta = await sock.groupMetadata(sender);
