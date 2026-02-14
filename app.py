@@ -24,22 +24,24 @@ bot_status = {}
 
 @app.route('/status', methods=['POST'])
 def status():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     sender = data.get('sender')
     action = data.get('action')
-    if sender not in bot_status: bot_status[sender] = True
-    if action == "toggle": bot_status[sender] = not bot_status[sender]
+    if sender not in bot_status:
+        bot_status[sender] = True
+    if action == "toggle":
+        bot_status[sender] = not bot_status[sender]
     return jsonify({"active": bot_status[sender]})
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     msg = data.get('msg')
-    
+
     # Ambil Waktu Real-Time Sekarang
     now = datetime.now()
     waktu_sekarang = now.strftime("%A, %d %B %Y | %H:%M:%S")
-    milidetik = now.strftime("%f")[:3] # Ambil 3 angka awal milidetik
+    milidetik = now.strftime("%f")[:3]  # Ambil 3 angka awal milidetik
 
     def get_ai_response(message, model_index=0):
         if model_index >= len(MODEL_LIST):
@@ -51,7 +53,7 @@ def chat():
                 model=current_model,
                 messages=[
                     {
-                        "role": "system", 
+                        "role": "system",
                         "content": (
                             f"Kamu adalah Belinda AI, asisten cerdas buatan Studio 234 oleh Danta (The River). "
                             f"Website: https://danta23.github.io/Studio-234/index.html\n\n"
@@ -69,15 +71,16 @@ def chat():
                 max_tokens=1024,
             )
             return completion.choices[0].message.content
-        
+
         except Exception as e:
             error_str = str(e).lower()
             if "rate_limit" in error_str or "429" in error_str:
                 return get_ai_response(message, model_index + 1)
             return "⚠️ Terjadi gangguan teknis pada server AI Belinda."
 
-    return get_ai_response(msg)
+    # Ensure Flask returns a proper response object
+    return jsonify({"reply": get_ai_response(msg)})
 
 if __name__ == '__main__':
     PORT = int(os.getenv("FLASK_PORT", 8000))
-    app.run(port=PORT)
+    app.run(host="0.0.0.0", port=PORT)
