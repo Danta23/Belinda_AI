@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Flask + Bridge (Hot Reload)",
+      "type": "shell",
+      "command": "watchmedo auto-restart --pattern='*.py' --recursive -- python app.py & nodemon bridge.js && wait",
+      "problemMatcher": []
+    }
+  ]
+}
