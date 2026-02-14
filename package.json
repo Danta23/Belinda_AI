@@ -1,17 +1,12 @@
 {
-  "name": "belinda-bot",
+  "name": "bridge",
   "version": "1.0.0",
   "main": "bridge.js",
   "scripts": {
-    "start": "nodemon bridge.js"
+    "start": "node bridge.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.0.0",
-    "axios": "^1.6.0",
-    "qrcode-terminal": "^0.12.0",
-    "dotenv": "^16.0.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.0"
+    "dotenv": "^16.0.0",
+    "baileys": "^6.0.0"
   }
 }
