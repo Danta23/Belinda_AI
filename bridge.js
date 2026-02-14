@@ -136,7 +136,7 @@ async function connectWA() {
         
         // Pastikan hanya string yang diproses dengan .match()
         if (typeof text === "string" && text.match(/halo/i)) {
-            await sock.sendMessage(msg.key.remoteJid, { text: "Hai juga 👋" });
+            await sock.sendMessage(m.key.remoteJid, { text: "Hai juga 👋" });
         }
         async function isAdmin() {
             if (!isGroup) return true;
