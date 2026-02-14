@@ -1,5 +1,0 @@
-.env
-auth_info/
-node_modules/
-.venv/
-__pycache__/
