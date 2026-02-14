@@ -39,10 +39,6 @@ async function connectWA() {
 
     sock.ev.on('connection.update', async (update) => {
         const { qr, connection, pairingCode } = update;
-        if (connection === 'close') {
-            console.log("⚠️ Connection closed, reconnecting...");
-            connectWA();
-        }
 
         if (qr) {
             console.log("Scan this QR with WhatsApp:");
