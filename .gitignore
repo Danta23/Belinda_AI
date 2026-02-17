@@ -1,0 +1,42 @@
+# ==========================
+# Python
+# ==========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.log
+
+# Virtual environments
+.env/
+venv/
+.venv/
+
+# ==========================
+# Node.js
+# ==========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==========================
+# Auth & Config
+# ==========================
+auth_info/
+auth_info_*/
+.env
+.env.*
+
+# ==========================
+# VS Code
+# ==========================
+.vscode/
+*.code-workspace
+
+# ==========================
+# OS / Misc
+# ==========================
+.DS_Store
+Thumbs.db
