@@ -776,4 +776,5 @@ async function connectWA() {
         }
     });
 }
+
 connectWA();

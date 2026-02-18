@@ -18,6 +18,12 @@ BELINDA_AI is an integrated ecosystem combining a **Flask (Python)** backend and
   - `!reset` → Wipe quiz data for the current group.
   - `!lanjut` → Restart the previous quiz settings.
   - `!selesai` → Terminate the quiz session.
+  - `!kick {tag/number}` → Remove a member from the group (admin only).
+  - `!add {number}` → Add a new member to the group (admin only).
+  - `!open` → Allow all members to send messages in the group (admin only).
+  - `!close` → Restrict group chat to admins only (admin only).
+  - `!zero` → Clear all stored chat history (admin only).
+  - `!log` → Show the chat history/logs (available to all members).
 
 ---
 
