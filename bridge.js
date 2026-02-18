@@ -2,6 +2,7 @@ require('dotenv').config(); // support .env
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const axios = require('axios');
+const fs = require('fs');
 
 // --- KONFIGURASI ---
 const toxicWords = [
@@ -13,6 +14,19 @@ const toxicWords = [
     'anj', 'ajg', 'anjg', 'mnyet', 'ppk', 'kntl', 'mmk', 'pukimak', 'telang', 'lasso', 'dodol', 'bengak', 'pilat', 'gathel', 'gegares', 'geladak', 'beal', 'gelayaran', 'mampus', 'bacot', 'cungur'
 ];
 const pythonUrl = process.env.PYTHON_URL || 'http://127.0.0.1:8000';
+
+// --- CHAT HISTORY ---
+const historyFile = 'chat_history.json';
+function loadHistory() {
+    if (fs.existsSync(historyFile)) {
+        return JSON.parse(fs.readFileSync(historyFile, 'utf8'));
+    }
+    return [];
+}
+function saveHistory(history) {
+    fs.writeFileSync(historyFile, JSON.stringify(history, null, 2));
+}
+let chatHistory = loadHistory();
 
 // IP & Port Bridge (default: 127.0.0.1:9000)
 const bridgeHost = process.env.BRIDGE_HOST || '127.0.0.1';
@@ -109,7 +123,7 @@ async function connectWA() {
         }
     }
 
-    // --- MESSAGE HANDLER ---
+// --- MESSAGE HANDLER ---
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const m = messages[0];
         if (!m.message || m.key.fromMe) return;
@@ -125,7 +139,7 @@ async function connectWA() {
             return meta.participants.filter(p => p.admin).map(p => p.id).includes(participant);
         }
 
-        // ANTI-TOXIC
+        // --- ANTI-TOXIC ---
         if (isGroup && text) {
             const cleanText = normalizeText(text);
             const words = cleanText.split(/\s+/);
@@ -134,18 +148,77 @@ async function connectWA() {
             }
         }
 
-        // COMMANDS (semua tetap, kecuali !everyone dihapus)
+        // --- CHAT HISTORY ---
+        if (text && !text.startsWith('!')) {
+            chatHistory.push({ sender, participant, text, time: new Date().toISOString() });
+            saveHistory(chatHistory);
+        }
+
+        // --- COMMANDS ---
         if (text.startsWith('!')) {
             const args = text.split(' ');
             const cmd = args[0].toLowerCase();
 
+            // NEW COMMANDS
+            if (cmd === '!kick') {
+                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
+                const target = args[1]?.replace('@','').replace(/[^0-9]/g,'') + '@s.whatsapp.net';
+                try {
+                    await sock.groupParticipantsUpdate(sender, [target], 'remove');
+                    await sock.sendMessage(sender, { text: `👢 Removed ${args[1]} from the group.` });
+                } catch (e) { sock.sendMessage(sender, { text: "⚠️ Failed to remove member." }); }
+            }
+
+            if (cmd === '!add') {
+                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
+                const target = args[1]?.replace(/[^0-9]/g,'') + '@s.whatsapp.net';
+                try {
+                    await sock.groupParticipantsUpdate(sender, [target], 'add');
+                    await sock.sendMessage(sender, { text: `➕ Added ${args[1]} to the group.` });
+                } catch (e) { sock.sendMessage(sender, { text: "⚠️ Failed to add member." }); }
+            }
+
+            if (cmd === '!open') {
+                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
+                await sock.groupSettingUpdate(sender, 'not_announcement');
+                await sock.sendMessage(sender, { text: "🔓 Group is now open for all members." });
+            }
+
+            if (cmd === '!close') {
+                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
+                await sock.groupSettingUpdate(sender, 'announcement');
+                await sock.sendMessage(sender, { text: "🔒 Group is now restricted to admins only." });
+            }
+
+            if (cmd === '!zero') {
+                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
+                chatHistory = [];
+                saveHistory(chatHistory);
+                await sock.sendMessage(sender, { text: "🧹 Chat history cleared." });
+            }
+
+            if (cmd === '!log') {
+                if (chatHistory.length === 0) return sock.sendMessage(sender, { text: "📭 No chat history available." });
+                const logs = chatHistory.map(h => `${h.time} | ${h.participant}: ${h.text}`).join('\n');
+                await sock.sendMessage(sender, { text: `📝 Chat Log:\n\n${logs.slice(-4000)}` });
+            }
+
+            // EXISTING COMMANDS (help, quiz, next, info, bot, reset, lanjut, selesai)
             if (cmd === '!help') {
-                return sock.sendMessage(sender, { text: `╔══════════════════╗\n║     🤖 *BELINDA HELP* ║\n╚══════════════════╝\n\n` +
-                    `┣ 📝 *!quiz* [jml] [mapel] [level]\n` +
-                    `┣ ⏭️ *!next* (Butuh 2 org)\n` +
-                    `┣ ℹ️ *!info*\n┣ 🤖 *!bot*\n┣ 🧹 *!reset*\n\n` +
-                    `*MAPEL:* tik, mtk, ipa, ips, b.ing, b.indo, umum, sbdp, pkwu, pai, pkn\n` +
-                    `*LEVEL:* ez, mid, hrd` });
+                return sock.sendMessage(sender, { text: `🤖 *BELINDA HELP*\n\n` +
+                    `📝 !quiz [amount] [subject] [level]\n` +
+                    `⏭️ !next (needs 2 users)\n` +
+                    `ℹ️ !info\n` +
+                    `🤖 !bot\n` +
+                    `🧹 !reset\n` +
+                    `🔄 !lanjut\n` +
+                    `🏁 !selesai\n` +
+                    `👢 !kick {number}\n` +
+                    `➕ !add {number}\n` +
+                    `🔓 !open\n` +
+                    `🔒 !close\n` +
+                    `🧹 !zero\n` +
+                    `📝 !log\n` });
             }
 
             if (cmd === '!quiz') {
@@ -236,4 +309,5 @@ async function connectWA() {
         }
     });
 }
+
 connectWA();
