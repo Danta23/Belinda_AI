@@ -1,5 +1,5 @@
 require('dotenv').config(); // support .env
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const axios = require('axios');
 const fs = require('fs');
@@ -44,9 +44,14 @@ function normalizeText(str) {
 
 async function connectWA() {
     const { state, saveCreds } = await useMultiFileAuthState(process.env.SESSION_NAME || 'auth_info');
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`);
+
     const sock = makeWASocket({
+        version,
         auth: state,
-        browser: ["Ubuntu","Chrome","20.0.04"]
+        browser: ["Ubuntu","Chrome","121.0.6167.85"],
+        logger: require('pino')({ level: 'silent' })
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -63,7 +68,12 @@ async function connectWA() {
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode;
             console.log(`❌ Koneksi tutup, alasan: ${reason}`);
-            setTimeout(connectWA, 5000);
+            
+            if (reason === DisconnectReason.loggedOut) {
+                console.log("⚠️ Session logged out. Please delete the auth folder and scan again.");
+            } else {
+                setTimeout(connectWA, 5000);
+            }
         }
     });
 
