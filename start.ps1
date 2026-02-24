@@ -1,19 +1,13 @@
-# Load environment variables dari .env
-$envFile = ".env"
-if (Test-Path $envFile) {
-    Get-Content $envFile | ForEach-Object {
-        if ($_ -match "^(.*?)=(.*)$") {
-            $name = $matches[1]
-            $value = $matches[2]
-            [System.Environment]::SetEnvironmentVariable($name, $value)
-        }
-    }
+# start.ps1 - Start Belinda_AI on Windows 11
+Write-Host "🚀 Starting Flask server..." -ForegroundColor Cyan
+if (Test-Path "venv\Scripts\python.exe") {
+    Start-Process "venv\Scripts\python.exe" -ArgumentList "app.py" -NoNewWindow
+} else {
+    Start-Process "python" -ArgumentList "app.py" -NoNewWindow
 }
 
-Write-Host "🚀 Starting Flask server..."
-Start-Process powershell -ArgumentList "python app.py" -NoNewWindow
-
+Write-Host "⏳ Waiting for Flask to initialize..." -ForegroundColor Yellow
 Start-Sleep -Seconds 5
 
-Write-Host "🤖 Starting Belinda Bridge on $env:BRIDGE_HOST:$env:BRIDGE_PORT (Session: $env:SESSION_NAME)..."
-Start-Process powershell -ArgumentList "node bridge.js" -NoNewWindow
+Write-Host "🔗 Starting WhatsApp Bridge..." -ForegroundColor Cyan
+node bridge.js

@@ -104,25 +104,32 @@ graph TD
 ```bash
 pip install -r requirements.txt
 npm install
-
 ```
 
+2. **Run using Scripts (Recommended)**:
+   - **Linux (Arch Linux/XFCE4)**:
+     ```bash
+     chmod +x start.sh
+     ./start.sh
+     ```
+   - **Windows 11 (PowerShell)**:
+     ```powershell
+     .\start.ps1
+     ```
 
-2. **Start Flask Backend**:
-```bash
-python app.py
-
-```
-
-
-3. **Start WhatsApp Bridge**:
-```bash
-node bridge.js
-
-```
-
+3. **Manual Start (Alternative)**:
+   - Start Flask: `python app.py`
+   - Start Bridge: `node bridge.js`
 
 4. **Link WhatsApp**: Scan the QR Code or use the Pairing Code provided in the terminal.
+
+---
+
+## 📝 Change Log (v1.1.0 - Feb 24, 2026)
+- **WhatsApp Bridge**: Added dynamic Baileys version fetching and updated browser identity to Chrome 121 for better stability.
+- **Improved Scripts**: `start.sh` now supports Python virtual environments (`venv`) and `stop.sh` has improved process targeting.
+- **Permissions**: Fixed executable permissions for all `.sh` scripts.
+- **Cleanup**: Optimized `chat_history.json` and added better session logout handling.
 
 ---
 
