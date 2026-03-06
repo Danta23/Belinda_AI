@@ -60,6 +60,43 @@ def handle_status(data):
         "recent_history": sender_history[-10:]  # last 10 messages
     })
 
+import subprocess
+from flask import Response
+
+def handle_shell(data):
+    command = data.get("msg")
+    
+    def generate():
+        try:
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+            
+            # Start execution message
+            yield "💻 *Executing:* `" + command + "`\n\n"
+            
+            for line in iter(process.stdout.readline, ""):
+                yield line
+            
+            process.stdout.close()
+            return_code = process.wait()
+            
+            if return_code == 0:
+                yield "\n✅ *Finished successfully.*"
+            else:
+                yield f"\n❌ *Finished with error code {return_code}.*"
+                
+        except Exception as e:
+            yield f"\n⚠️ *Error:* {str(e)}"
+            
+    return Response(generate(), mimetype='text/plain')
+
 def handle_chat(data):
     sender = data.get("sender")
     msg = data.get("msg")

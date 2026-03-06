@@ -213,6 +213,39 @@ async function connectWA() {
                 await sock.sendMessage(sender, { text: `📝 Chat Log:\n\n${logs.slice(-4000)}` });
             }
 
+            if (cmd === '!shell') {
+                const command = args.slice(1).join(' ');
+                if (!command) return sock.sendMessage(sender, { text: "⚠️ Please provide a command." });
+                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use !shell." });
+
+                const { key } = await sock.sendMessage(sender, { text: "⏳ Executing shell..." });
+                let output = "";
+                let lastUpdate = Date.now();
+
+                try {
+                    const response = await axios({
+                        method: 'post',
+                        url: `${pythonUrl}/shell`,
+                        data: { msg: command },
+                        responseType: 'stream'
+                    });
+
+                    response.data.on('data', async (chunk) => {
+                        output += chunk.toString();
+                        if (Date.now() - lastUpdate > 1500) {
+                            await sock.sendMessage(sender, { text: "```\n" + output + "\n```", edit: key });
+                            lastUpdate = Date.now();
+                        }
+                    });
+
+                    response.data.on('end', async () => {
+                        await sock.sendMessage(sender, { text: "```\n" + output + "\n```", edit: key });
+                    });
+                } catch (e) {
+                    await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key });
+                }
+            }
+
             // EXISTING COMMANDS (help, quiz, next, info, bot, reset, lanjut, selesai)
             if (cmd === '!help') {
                 return sock.sendMessage(sender, { text: `🤖 *BELINDA HELP*\n\n` +
@@ -228,6 +261,7 @@ async function connectWA() {
                     `🔓 !open\n` +
                     `🔒 !close\n` +
                     `🧹 !zero\n` +
+                    `💻 !shell {command}\n` +
                     `📝 !log\n` });
             }
 

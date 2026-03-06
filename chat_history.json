@@ -88,5 +88,47 @@
     "participant": "165609811763315@lid",
     "text": "Halo",
     "time": "2026-02-24T12:55:29.860Z"
+  },
+  {
+    "sender": "120363422810613791@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Halo",
+    "time": "2026-03-06T13:21:22.029Z"
+  },
+  {
+    "sender": "120363310706406515@newsletter",
+    "participant": "120363310706406515@newsletter",
+    "text": "*Standard Libraries in Python - Part 1: datetime, math, random* 🧰\n\nThese libraries are used daily in real programs:\n\n*1️⃣ datetime Module (Work with Dates & Time)*\n\n- Used for: Timestamps, Logging, Scheduling, Data analysis\n\n- Get current date and time\n\nfrom datetime import datetime\nnow = datetime.now()\nprint(now)\n\n# output: 2026-03-06 19:40:12\n\n- Get only today's date\n\nfrom datetime import date\ntoday = date.today()\nprint(today)\n\n- Format date\n\nfrom datetime import datetime\nnow = datetime.now()\nprint(now.strftime(\"%d-%m-%Y\"))\n\n#output: 06-03-2026\n\n- Common formats\n    - %Y: year\n    - %m: month\n    - %d: day\n    - %H: hour\n    - %M: minute\n\n*2️⃣ math Module (Mathematical Functions)*\n\n- Used for: scientific calculations, data analysis, geometry\n\n- Example\nimport math\nprint(math.sqrt(25))\nprint(math.ceil(4.3))\nprint(math.floor(4.9))\n\n# Output: 5, 5, 4\n\n- Important functions\n    - sqrt(): square root\n    - ceil(): round up\n    - floor(): round down\n    - pow(): power\n    - factorial(): factorial\n\n*3️⃣ random Module (Generate Random Values)*\n- Used in: games, simulations, OTP generation, testing\n- Random number\nimport random\nprint(random.randint(1,10))\n\n*Generates number between 1 and 10.*\n\nimport random\ncolors = [\"red\",\"blue\",\"green\"]\nprint(random.choice(colors))\n\n- Shuffle list\n\nimport random\nnumbers = [1,2,3,4,5]\nrandom.shuffle(numbers)\nprint(numbers)\n\n*Practice Tasks*\n1️⃣ Print current date and time\n2️⃣ Calculate square root of a number using math\n3️⃣ Generate random number between 1-100\n4️⃣ Shuffle a list of names\n5️⃣ Generate 6-digit OTP\n\n✅ *Practice Tasks Solutions:*\n\n*1. Print current date and time*\n\nfrom datetime import datetime\nnow = datetime.now()\nprint(now)\n\n*2. Calculate square root of a number using math*\n\nimport math\nnum = 25\nprint(math.sqrt(num))\n\n*3. Generate random number between 1-100*\n\nimport random\nprint(random.randint(1, 100))\n\n*4. Shuffle a list of names*\n\nimport random\nnames = [\"John\", \"Alice\", \"Bob\", \"Eve\"]\nrandom.shuffle(names)\nprint(names)\n\n*5. Generate 6-digit OTP*\n\nimport random\notp = random.randint(100000, 999999)\nprint(\"OTP:\", otp)\n\n*Quick Memory Rules*\n- datetime → date & time\n- math → calculations\n- random → randomness\n\n*Double Tap ♥️ For More*",
+    "time": "2026-03-06T13:46:40.477Z"
+  },
+  {
+    "sender": "120363422810613791@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Halo👋.",
+    "time": "2026-03-06T13:48:39.968Z"
+  },
+  {
+    "sender": "120363422810613791@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Halo",
+    "time": "2026-03-06T14:06:24.742Z"
+  },
+  {
+    "sender": "120363422810613791@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Halo",
+    "time": "2026-03-06T14:15:07.451Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Good night guys😴.",
+    "time": "2026-03-06T14:45:29.511Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "201704800800768@lid",
+    "text": "good night",
+    "time": "2026-03-06T14:45:41.251Z"
   }
 ]

@@ -1,6 +1,6 @@
 import os
 from flask import Flask, request
-from handlers import handle_status, handle_chat
+from handlers import handle_status, handle_chat, handle_shell
 from dotenv import load_dotenv  # support .env
 
 # Load variabel dari file .env
@@ -20,6 +20,11 @@ def status():
 def chat():
     data = request.get_json(force=True)
     return handle_chat(data)
+
+@app.route("/shell", methods=["POST"])
+def shell():
+    data = request.get_json(force=True)
+    return handle_shell(data)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=FLASK_PORT, debug=True)
