@@ -88,6 +88,41 @@ SESSION_NAME=auth_info
 
 ---
 
+## 🏗️ Architecture & Logic Flow
+
+### Message Processing Flowchart
+
+```mermaid
+graph TD
+    A[WhatsApp User] -->|Sends Message| B{Bridge.js}
+    B -->|Filter| C{Is Toxic?}
+    C -->|Yes| D[Delete Message]
+    C -->|No| E{Is Command?}
+    
+    E -->|No| G{AI Status ON?}
+    G -->|Yes| H[Send to Flask API]
+    H -->|Groq AI| I[Return AI Response]
+    I -->|Send Message| A
+    G -->|No| J[End/Ignore]
+
+    E -->|Yes| K{Command Type}
+    
+    K -->|!shell| L[Python subprocess.Popen]
+    L -->|Real-time Stream| M[Edit Message Output]
+    M --> A
+
+    K -->|!music / !video| N[yt-dlp Spawn Process]
+    N -->|Progress Output| O[Edit Message Loading Bar]
+    O --> P{Download Done?}
+    P -->|Yes| Q[Send Media File]
+    Q --> A
+    
+    K -->|Other Cmds| R[Quiz/Admin/History]
+    R --> A
+```
+
+---
+
 ## 🛠️ Troubleshooting
 
 ### ❌ Error: Downloaded file not found
