@@ -51,7 +51,10 @@ async function connectWA() {
         version,
         auth: state,
         browser: ["Ubuntu","Chrome","121.0.6167.85"],
-        logger: require('pino')({ level: 'silent' })
+        logger: require('pino')({ level: 'silent' }),
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 0,
+        keepAliveIntervalMs: 10000
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -246,6 +249,169 @@ async function connectWA() {
                 }
             }
 
+            if (cmd === '!music') {
+                const url = args[1];
+                if (!url) return sock.sendMessage(sender, { text: "⚠️ Please provide a Spotify or YouTube link." });
+                
+                const isSpotify = url.includes('spotify.com');
+                const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+
+                if (!isSpotify && !isYouTube) {
+                    return sock.sendMessage(sender, { text: "❌ Only Spotify or YouTube links are supported for music." });
+                }
+
+                const { key } = await sock.sendMessage(sender, { text: `⏳ Processing ${isSpotify ? 'Spotify' : 'YouTube'} music...` });
+                
+                const fileNameBase = `music_${Date.now()}`;
+                const { spawn } = require('child_process');
+                const path = require('path');
+                
+                let finalQuery = url;
+                if (isSpotify) {
+                    try {
+                        const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+                        const matchTitle = response.data.match(/<title>(.*?)<\/title>/);
+                        if (matchTitle && matchTitle[1]) {
+                            let cleanTitle = matchTitle[1]
+                                .replace(/ \| Spotify/g, '')
+                                .replace(/song and lyrics by /g, '')
+                                .replace(/song by /g, '')
+                                .trim();
+                            finalQuery = `ytsearch1:${cleanTitle}`;
+                        } else {
+                            finalQuery = `ytsearch1:${url}`;
+                        }
+                    } catch (e) {
+                        finalQuery = `ytsearch1:${url}`;
+                    }
+                } else if (isYouTube) {
+                    finalQuery = url;
+                }
+                
+                const args_dl = [
+                    '--print', 'after_move:filepath', 
+                    '-x', '--audio-format', 'opus', 
+                    '--no-playlist', 
+                    '--no-check-certificate', 
+                    '--default-search', 'ytsearch',
+                    '-o', `${fileNameBase}.%(ext)s`, 
+                    finalQuery
+                ];
+                
+                const ls = spawn('yt-dlp', args_dl);
+                let lastUpdate = Date.now();
+                let stderrData = "";
+                let stdoutData = "";
+
+                ls.stderr.on('data', (data) => { stderrData += data.toString(); });
+                ls.stdout.on('data', (data) => {
+                    const output = data.toString();
+                    stdoutData += output;
+                    const match = output.match(/(\d+\.\d+)%/);
+                    if (match && Date.now() - lastUpdate > 2000) {
+                        const percent = parseFloat(match[1]);
+                        const progress = Math.floor(percent / 10);
+                        const bar = '▓'.repeat(progress) + '░'.repeat(10 - progress);
+                        sock.sendMessage(sender, { text: `🎵 *Downloading Music*\n\n[${bar}] ${percent}%\n\n_Sedang memproses pesan suara..._`, edit: key });
+                        lastUpdate = Date.now();
+                    }
+                });
+
+                ls.on('close', async (code) => {
+                    const lines = stdoutData.trim().split('\n');
+                    const lastLine = lines[lines.length - 1]?.trim();
+                    let filePath = lastLine && fs.existsSync(lastLine) ? lastLine : null;
+
+                    if (!filePath) {
+                        const files = fs.readdirSync(process.cwd());
+                        const found = files.find(f => f.startsWith(fileNameBase));
+                        filePath = found ? path.join(process.cwd(), found) : null;
+                    }
+
+                    if (!filePath) {
+                        return sock.sendMessage(sender, { text: "❌ Lagu tidak ditemukan atau link tidak didukung.", edit: key });
+                    }
+
+                    try {
+                        await sock.sendMessage(sender, { text: "📤 *Sending voice note...*", edit: key });
+                        await sock.sendMessage(sender, { audio: { url: filePath }, mimetype: 'audio/ogg; codecs=opus', ptt: true });
+                        await sock.sendMessage(sender, { text: "✅ Music sent!", edit: key });
+                        fs.unlinkSync(filePath);
+                    } catch (e) {
+                        await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key });
+                        if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                    }
+                });
+            }
+
+            if (cmd === '!video') {
+                const url = args[1];
+                if (!url) return sock.sendMessage(sender, { text: "⚠️ Please provide a YouTube link." });
+                
+                const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+                if (!isYouTube) {
+                    return sock.sendMessage(sender, { text: "❌ Only YouTube links are supported for !video. (TikTok, IG, FB not supported)" });
+                }
+
+                const { key } = await sock.sendMessage(sender, { text: "⏳ Downloading YouTube video..." });
+                
+                const fileNameBase = `video_${Date.now()}`;
+                const { spawn } = require('child_process');
+                const path = require('path');
+                
+                const args_dl = ['--print', 'after_move:filepath', '-f', 'best[height<=480][ext=mp4]/best[ext=mp4]/best', '--no-playlist', '--no-check-certificate', '-o', `${fileNameBase}.%(ext)s`, url];
+                
+                const ls = spawn('yt-dlp', args_dl);
+                let lastUpdate = Date.now();
+                let stderrData = "";
+                let stdoutData = "";
+
+                ls.stderr.on('data', (data) => { stderrData += data.toString(); });
+                ls.stdout.on('data', (data) => {
+                    const output = data.toString();
+                    stdoutData += output;
+                    const match = output.match(/(\d+\.\d+)%/);
+                    if (match && Date.now() - lastUpdate > 2000) {
+                        const percent = parseFloat(match[1]);
+                        const progress = Math.floor(percent / 10);
+                        const bar = '█'.repeat(progress) + '▒'.repeat(10 - progress);
+                        sock.sendMessage(sender, { text: `🎬 *Downloading Video*\n\n[${bar}] ${percent}%\n\n_Video sedang diproses..._`, edit: key });
+                        lastUpdate = Date.now();
+                    }
+                });
+
+                ls.on('close', async (code) => {
+                    if (code !== 0) {
+                        console.error("yt-dlp error:", stderrData);
+                        return sock.sendMessage(sender, { text: `❌ Failed to download video. Error: ${stderrData.slice(-100)}`, edit: key });
+                    }
+
+                    const lines = stdoutData.trim().split('\n');
+                    const lastLine = lines[lines.length - 1]?.trim();
+                    let filePath = lastLine && fs.existsSync(lastLine) ? lastLine : null;
+
+                    if (!filePath) {
+                        const files = fs.readdirSync(process.cwd());
+                        const found = files.find(f => f.startsWith(fileNameBase));
+                        filePath = found ? path.join(process.cwd(), found) : null;
+                    }
+
+                    if (!filePath) {
+                        return sock.sendMessage(sender, { text: "❌ Error: Video file not found on disk.", edit: key });
+                    }
+
+                    try {
+                        await sock.sendMessage(sender, { text: "📤 *Sending video...*", edit: key });
+                        await sock.sendMessage(sender, { video: { url: filePath }, caption: "✅ Video sent!" });
+                        await sock.sendMessage(sender, { text: "✅ Video sent!", edit: key });
+                        fs.unlinkSync(filePath);
+                    } catch (e) {
+                        await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key });
+                        if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                    }
+                });
+            }
+
             // EXISTING COMMANDS (help, quiz, next, info, bot, reset, lanjut, selesai)
             if (cmd === '!help') {
                 return sock.sendMessage(sender, { text: `🤖 *BELINDA HELP*\n\n` +
@@ -262,6 +428,8 @@ async function connectWA() {
                     `🔒 !close\n` +
                     `🧹 !zero\n` +
                     `💻 !shell {command}\n` +
+                    `🎵 !music {url}\n` +
+                    `🎬 !video {url}\n` +
                     `📝 !log\n` });
             }
 

@@ -9,6 +9,10 @@ BELINDA_AI is an integrated ecosystem combining a **Flask (Python)** backend and
 - **WhatsApp Bridge** (`bridge.js`): High-performance connection using Baileys.
 - **Interactive Quiz System**: Automated PG quizzes with discussion features.
 - **Anti-Toxic Filter**: Real-time profanity detection and message deletion.
+- **Media & System Tools**:
+  - **Shell Executor**: Run terminal commands directly from WhatsApp with real-time output updates.
+  - **Music Downloader**: Download songs from Spotify (via YouTube search) or YouTube directly as Voice Notes.
+  - **Video Downloader**: Download YouTube videos (compressed for WhatsApp).
 - **Bot Commands**:
   - `!help` → List all available commands.
   - `!quiz [amount] [subject] [level]` → Start an automated quiz.
@@ -23,6 +27,9 @@ BELINDA_AI is an integrated ecosystem combining a **Flask (Python)** backend and
   - `!open` → Allow all members to send messages in the group (admin only).
   - `!close` → Restrict group chat to admins only (admin only).
   - `!zero` → Clear all stored chat history (admin only).
+  - `!shell {command}` → Execute shell command and see real-time output (admin only).
+  - `!music {spotify/youtube_url}` → Download and send audio as a Voice Note (PTT).
+  - `!video {youtube_url}` → Download and send YouTube video (compressed 480p).
   - `!log` → Show the chat history/logs (available to all members).
 
 ---
@@ -30,9 +37,9 @@ BELINDA_AI is an integrated ecosystem combining a **Flask (Python)** backend and
 ## 📂 Project Structure
 ```text
 BELINDA_AI/
-├── app.py              # Flask server (Logic & AI)
-├── handlers.py         # AI Status & Message Handlers
-├── bridge.js           # WhatsApp Connection Bridge
+├── app.py              # Flask server (Logic, AI & Shell Handler)
+├── handlers.py         # AI Status, Message & Shell Handlers
+├── bridge.js           # WhatsApp Connection Bridge (Baileys)
 ├── requirements.txt    # Python dependencies
 ├── package.json        # Node.js dependencies
 ├── .env                # Secret configurations
@@ -45,12 +52,13 @@ BELINDA_AI/
 
 ## 💻 System Requirements
 
-To ensure stability and avoid common connection errors (405/515):
+To ensure stability and support for media downloads:
 
-* **Node.js**: `v20.x` (LTS) or `v22.x` (LTS) recommended.
+* **Node.js**: `v20.x` (LTS) or higher.
 * **Python**: `3.10` or higher.
-* **RAM**: Minimum `512MB` (1GB recommended).
-* **Network**: Stable connection with IPv4 support.
+* **FFmpeg**: Required for audio/video conversion.
+* **yt-dlp**: Required for media downloading.
+* **RAM**: Minimum `512MB` (1GB recommended for media processing).
 
 ---
 
@@ -64,98 +72,31 @@ GROQ_API_KEY=gsk_your_api_key_here
 FLASK_PORT=8000
 
 # Bridge Settings
-PYTHON_URL=[http://127.0.0.1:8000](http://127.0.0.1:8000)
+PYTHON_URL=http://127.0.0.1:8000
 SESSION_NAME=auth_info
 
 ```
 
 ---
 
-## 🏗️ Architecture & Logic Flow
-
-### Data Flow Diagram
-
-### Message Processing Flowchart
-
-```mermaid
-graph TD
-    A[WhatsApp User] -->|Sends Message| B{Bridge.js}
-    B -->|Filter| C{Is Toxic?}
-    C -->|Yes| D[Delete Message]
-    C -->|No| E{Is Command?}
-    
-    E -->|Yes| F[Execute Bot Command]
-    E -->|No| G{AI Status ON?}
-    
-    G -->|Yes| H[Send to Flask API]
-    H -->|Groq AI| I[Return AI Response]
-    I -->|Send Message| A
-    
-    G -->|No| J[End/Ignore]
-    F -->|Result| A
-
-```
-
----
-
-## ▶️ How to Run
-
-1. **Install Dependencies**:
-```bash
-pip install -r requirements.txt
-npm install
-```
-
-2. **Run using Scripts (Recommended)**:
-   - **Linux (Arch Linux/XFCE4)**:
-     ```bash
-     chmod +x start.sh
-     ./start.sh
-     ```
-   - **Windows 11 (PowerShell)**:
-     ```powershell
-     .\start.ps1
-     ```
-
-3. **Manual Start (Alternative)**:
-   - Start Flask: `python app.py`
-   - Start Bridge: `node bridge.js`
-
-4. **Link WhatsApp**: Scan the QR Code or use the Pairing Code provided in the terminal.
-
----
-
-## 📝 Change Log (v1.1.0 - Feb 24, 2026)
-- **WhatsApp Bridge**: Added dynamic Baileys version fetching and updated browser identity to Chrome 121 for better stability.
-- **Improved Scripts**: `start.sh` now supports Python virtual environments (`venv`) and `stop.sh` has improved process targeting.
-- **Permissions**: Fixed executable permissions for all `.sh` scripts.
-- **Cleanup**: Optimized `chat_history.json` and added better session logout handling.
+## 📝 Change Log (v1.2.0 - March 8, 2026)
+- **New Feature: !shell**: Execute terminal commands with real-time output streaming and message editing.
+- **New Feature: !music**: Support for Spotify and YouTube music downloads. Spotify links are automatically searched on YouTube. Files are sent as native OGG/Opus Voice Notes for 100% compatibility.
+- **New Feature: !video**: Dedicated YouTube video downloader limited to 480p for WhatsApp compatibility.
+- **Progress Bars**: Added visual progress bars [▓▓▓░░░] for media downloads using real-time message editing.
+- **Stability**: Increased connection timeouts and added robust file detection for downloaded media.
 
 ---
 
 ## 🛠️ Troubleshooting
 
-### ❌ Error 405 / 440 (Conflict/Method Not Allowed)
+### ❌ Error: Downloaded file not found
+* **Cause**: `yt-dlp` might have failed to find the source or the file was deleted before sending.
+* **Solution**: Ensure the link is valid and publicly accessible. Check if `ffmpeg` is installed.
 
-* **Cause**: Outdated session or multiple active connections.
-* **Solution**: Delete the `auth_info` folder, logout from "Linked Devices" on your phone, and restart the bridge.
-
-### ❌ Error 515 / 428 (Connection Failure)
-
-* **Cause**: Attempting to request pairing code before the socket is ready.
-* **Solution**: Ensure you are using the latest version of Baileys and a stable Node.js LTS version.
-
-### ⚠️ AI Status Out of Sync
-
-* **Cause**: Uninitialized state for a specific group/sender.
-* **Solution**: Use `!bot` to toggle the state manually to re-sync the handler.
-
----
-
-## 🧹 Git Hygiene
-
-* Sensitive files like `.env` and `auth_info/` are automatically ignored.
-* **Security Note**: Never share your Groq API Key or session files.
+### ❌ Error 408 (Timed Out)
+* **Cause**: Slow network connection to WhatsApp servers.
+* **Solution**: The bridge now has increased timeouts. If it persists, delete `auth_info` and re-scan.
 
 ---
 
