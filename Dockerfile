@@ -1,18 +1,33 @@
 # Gunakan Arch Linux sebagai base image
 FROM archlinux:latest
 
-# Update sistem dan instal paket dasar
-# Kita instal nodejs, npm, python, pip, ffmpeg, dan curl
+# Update sistem dan instal paket dasar + Paket Seru/Essential + Bahasa Pemrograman
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm \
     nodejs \
     npm \
     python \
     python-pip \
+    lua \
     ffmpeg \
     curl \
     git \
-    base-devel
+    base-devel \
+    fastfetch \
+    toilet \
+    cowsay \
+    lolcat \
+    figlet \
+    speedtest-cli \
+    fortune-mod \
+    htop \
+    neovim \
+    nano \
+    tree \
+    unzip \
+    wget \
+    translate-shell \
+    gawk
 
 # Instal yt-dlp secara manual untuk versi terbaru
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
@@ -26,7 +41,6 @@ COPY package*.json ./
 RUN npm install
 
 # Copy requirements dan instal dependensi Python
-# Di Arch Linux, pip mewajibkan penggunaan virtual environment
 COPY requirements.txt ./
 RUN python -m venv /app/venv && \
     /app/venv/bin/pip install --no-cache-dir -r requirements.txt
@@ -37,5 +51,5 @@ COPY . .
 # Expose port Flask
 EXPOSE 8000
 
-# Jalankan backend Python dan bridge Node.js secara bersamaan
+# Jalankan backend Python dan bridge Node.js
 CMD ["bash", "-c", "/app/venv/bin/python app.py & node bridge.js"]
