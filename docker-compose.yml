@@ -3,6 +3,8 @@ services:
     image: ghcr.io/danta23/belinda_ai:latest
     container_name: belinda-ai-bot
     restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     volumes:
       - ./auth_info:/app/auth_info
       - ./chat_history.json:/app/chat_history.json
@@ -13,3 +15,20 @@ services:
     environment:
       - PYTHON_URL=http://localhost:8000
       - SESSION_NAME=auth_info
+
+  # Satpam otomatis untuk update bot
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 60 --cleanup --label-enable
+    # Baris di bawah memberitahu watchtower untuk hanya memantau bot ini
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+# Tambahkan label ke bot agar dipantau watchtower
+networks:
+  default:
+    name: belinda_network

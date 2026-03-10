@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: danta23/belinda_ai # Nama image sesuai repo Anda
+  IMAGE_NAME: danta23/belinda_ai
 
 jobs:
   build:
@@ -37,36 +37,3 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    
-    steps:
-      - name: Deploy to Server via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            # Buat folder jika belum ada
-            mkdir -p /home/danta/Belinda_AI
-            cd /home/danta/Belinda_AI
-            
-            # Login ke GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # Pastikan file docker-compose.yml ada di server
-            # Jika Anda belum menyalinnya secara manual, GitHub bisa mengunduhnya dari repo
-            curl -s https://raw.githubusercontent.com/Danta23/Belinda_AI/main/docker-compose.yml -o docker-compose.yml
-            
-            # Pull image terbaru
-            docker compose pull || sudo docker-compose pull
-            
-            # Restart bot
-            (docker compose up -d || sudo docker-compose up -d)
-            
-            # Cleanup
-            docker image prune -f || sudo docker image prune -f
