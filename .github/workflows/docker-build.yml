@@ -51,15 +51,22 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Ganti folder ini dengan lokasi folder project di server Anda
-            cd /home/danta/Belinda_AI 
+            # Buat folder jika belum ada
+            mkdir -p /home/danta/Belinda_AI
+            cd /home/danta/Belinda_AI
             
-            # Login ke GitHub Container Registry
+            # Login ke GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Tarik image terbaru dan jalankan
-            sudo docker-compose pull
-            sudo docker-compose up -d
+            # Pastikan file docker-compose.yml ada di server
+            # Jika Anda belum menyalinnya secara manual, GitHub bisa mengunduhnya dari repo
+            curl -s https://raw.githubusercontent.com/Danta23/Belinda_AI/main/docker-compose.yml -o docker-compose.yml
             
-            # Bersihkan image lama
-            sudo docker image prune -f
+            # Pull image terbaru
+            docker compose pull || sudo docker-compose pull
+            
+            # Restart bot
+            (docker compose up -d || sudo docker-compose up -d)
+            
+            # Cleanup
+            docker image prune -f || sudo docker image prune -f
