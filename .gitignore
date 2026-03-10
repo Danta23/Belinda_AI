@@ -7,11 +7,14 @@ __pycache__/
 *.pyd
 *.sqlite3
 *.log
+.pytest_cache/
+.mypy_cache/
 
 # Virtual environments
 .env/
 venv/
 .venv/
+env/
 
 # ==========================
 # Node.js
@@ -20,6 +23,7 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.npm/
 
 # ==========================
 # Auth & Config
@@ -30,14 +34,28 @@ auth_info_*/
 .env.*
 
 # ==========================
+# Media / Temp Downloads
+# ==========================
+music_*
+video_*
+test_debug*
+*.mp3
+*.mp4
+*.m4a
+*.webm
+*.opus
+*.ogg
+
+# ==========================
 # Chat History / Logs
 # ==========================
 chat_history.json
 
 # ==========================
-# VS Code
+# VS Code / IDE
 # ==========================
 .vscode/
+.idea/
 *.code-workspace
 
 # ==========================

@@ -1,5 +1,6 @@
 require('dotenv').config(); // support .env
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('baileys');
+const { sendButtons } = require('@ryuu-reinzz/button-helper');
 const qrcode = require('qrcode-terminal');
 const axios = require('axios');
 const fs = require('fs');
@@ -99,12 +100,23 @@ async function connectWA() {
     // --- FUNGSI CREATE QUIZ ---
     async function createQuiz(group) {
         const data = quizData[group];
-        const botNumber = sock.user.id.split(':')[0];
-
         if (data.currentNum >= data.maxSoal) {
-            const finishMsg = `🏁 *QUIZ SELESAI!*\n\nBerhasil menyelesaikan ${data.maxSoal} soal *${data.mapel.toUpperCase()}* (${data.diff.toUpperCase()}).\n\n` +
-                `*PILIH OPSI:* \n1️⃣ *Lanjutkan:* https://wa.me/${botNumber}?text=!lanjut\n2️⃣ *Selesai:* https://wa.me/${botNumber}?text=!selesai`;
-            return sock.sendMessage(group, { text: finishMsg });
+            const content = {
+                text: `🏁 *QUIZ SELESAI!*\n\nBerhasil menyelesaikan ${data.maxSoal} soal *${data.mapel.toUpperCase()}* (${data.diff.toUpperCase()}).\n\n_Pilih opsi di bawah untuk lanjut atau berhenti._`,
+                footer: "🤖 Belinda AI Quiz",
+                buttons: [
+                    { id: '!lanjut', text: '🔄 Lanjutkan' },
+                    { id: '!selesai', text: '🏁 Selesai' }
+                ]
+            };
+            
+            try {
+                await sendButtons(sock, group, content);
+            } catch (e) {
+                console.error("Gagal mengirim tombol:", e);
+                await sock.sendMessage(group, { text: content.text + "\n\n1. !lanjut\n2. !selesai" });
+            }
+            return;
         }
 
         data.currentNum++;
@@ -142,7 +154,22 @@ async function connectWA() {
         if (!m.message || m.key.fromMe) return;
 
         const sender = m.key.remoteJid;
-        const text = (m.message.conversation || m.message.extendedTextMessage?.text || "").trim();
+        
+        // Handle button responses
+        const buttonText = m.message.buttonsResponseMessage?.selectedDisplayText || m.message.templateButtonReplyMessage?.selectedDisplayText || "";
+        const buttonId = m.message.buttonsResponseMessage?.selectedButtonId || m.message.templateButtonReplyMessage?.selectedId || "";
+        const interactiveResponse = m.message.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
+        let interactiveId = "";
+        if (interactiveResponse) {
+            try {
+                const parsed = JSON.parse(interactiveResponse);
+                interactiveId = parsed.id;
+            } catch (e) {}
+        }
+
+        const text_orig = (m.message.conversation || m.message.extendedTextMessage?.text || "").trim();
+        const text = (interactiveId || buttonId || buttonText || text_orig).trim();
+        
         const isGroup = sender.endsWith('@g.us');
         const participant = m.key.participant || sender;
 
@@ -235,17 +262,28 @@ async function connectWA() {
 
                     response.data.on('data', async (chunk) => {
                         output += chunk.toString();
-                        if (Date.now() - lastUpdate > 1500) {
-                            await sock.sendMessage(sender, { text: "```\n" + output + "\n```", edit: key });
-                            lastUpdate = Date.now();
+                        // Increased throttle to 3 seconds for shell output to be safe
+                        if (Date.now() - lastUpdate > 3000) {
+                            try {
+                                await sock.sendMessage(sender, { text: "```\n" + output.slice(-4000) + "\n```", edit: key });
+                                lastUpdate = Date.now();
+                            } catch (err) {
+                                console.error("Rate limit or edit error in shell:", err.message);
+                            }
                         }
                     });
 
                     response.data.on('end', async () => {
-                        await sock.sendMessage(sender, { text: "```\n" + output + "\n```", edit: key });
+                        try {
+                            await sock.sendMessage(sender, { text: "```\n" + output.slice(-4000) + "\n```", edit: key });
+                        } catch (err) {
+                            console.error("Final shell update error:", err.message);
+                        }
                     });
                 } catch (e) {
-                    await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key });
+                    try {
+                        await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key });
+                    } catch (err) {}
                 }
             }
 
@@ -266,28 +304,26 @@ async function connectWA() {
                 const { spawn } = require('child_process');
                 const path = require('path');
                 
-                let finalQuery = url;
+                let searchQuery = url;
                 if (isSpotify) {
                     try {
                         const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
                         const matchTitle = response.data.match(/<title>(.*?)<\/title>/);
                         if (matchTitle && matchTitle[1]) {
+                            // Clean Spotify title: remove "song and lyrics by", "| Spotify", etc.
                             let cleanTitle = matchTitle[1]
                                 .replace(/ \| Spotify/g, '')
                                 .replace(/song and lyrics by /g, '')
                                 .replace(/song by /g, '')
                                 .trim();
-                            finalQuery = `ytsearch1:${cleanTitle}`;
-                        } else {
-                            finalQuery = `ytsearch1:${url}`;
+                            searchQuery = cleanTitle;
                         }
                     } catch (e) {
-                        finalQuery = `ytsearch1:${url}`;
+                        console.error("Spotify fetch error:", e.message);
                     }
-                } else if (isYouTube) {
-                    finalQuery = url;
                 }
                 
+                const finalQuery = `ytsearch1:${searchQuery}`;
                 const args_dl = [
                     '--print', 'after_move:filepath', 
                     '-x', '--audio-format', 'opus', 
@@ -308,11 +344,12 @@ async function connectWA() {
                     const output = data.toString();
                     stdoutData += output;
                     const match = output.match(/(\d+\.\d+)%/);
-                    if (match && Date.now() - lastUpdate > 2000) {
+                    // Increased throttle to 4 seconds for media progress
+                    if (match && Date.now() - lastUpdate > 4000) {
                         const percent = parseFloat(match[1]);
                         const progress = Math.floor(percent / 10);
                         const bar = '▓'.repeat(progress) + '░'.repeat(10 - progress);
-                        sock.sendMessage(sender, { text: `🎵 *Downloading Music*\n\n[${bar}] ${percent}%\n\n_Sedang memproses pesan suara..._`, edit: key });
+                        sock.sendMessage(sender, { text: `🎵 *Downloading Music*\n\n[${bar}] ${percent}%\n\n_Sedang memproses pesan suara..._`, edit: key }).catch(() => {});
                         lastUpdate = Date.now();
                     }
                 });
@@ -329,16 +366,17 @@ async function connectWA() {
                     }
 
                     if (!filePath) {
-                        return sock.sendMessage(sender, { text: "❌ Lagu tidak ditemukan atau link tidak didukung.", edit: key });
+                        try { await sock.sendMessage(sender, { text: "❌ Lagu tidak ditemukan atau link tidak didukung.", edit: key }); } catch (e) {}
+                        return;
                     }
 
                     try {
-                        await sock.sendMessage(sender, { text: "📤 *Sending voice note...*", edit: key });
+                        try { await sock.sendMessage(sender, { text: "📤 *Sending voice note...*", edit: key }); } catch (e) {}
                         await sock.sendMessage(sender, { audio: { url: filePath }, mimetype: 'audio/ogg; codecs=opus', ptt: true });
-                        await sock.sendMessage(sender, { text: "✅ Music sent!", edit: key });
+                        try { await sock.sendMessage(sender, { text: "✅ Music sent!", edit: key }); } catch (e) {}
                         fs.unlinkSync(filePath);
                     } catch (e) {
-                        await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key });
+                        try { await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key }); } catch (err) {}
                         if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
                     }
                 });
@@ -350,7 +388,7 @@ async function connectWA() {
                 
                 const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
                 if (!isYouTube) {
-                    return sock.sendMessage(sender, { text: "❌ Only YouTube links are supported for !video. (TikTok, IG, FB not supported)" });
+                    return sock.sendMessage(sender, { text: "❌ Only YouTube links are supported untuk !video. (TikTok, IG, FB tidak didukung)" });
                 }
 
                 const { key } = await sock.sendMessage(sender, { text: "⏳ Downloading YouTube video..." });
@@ -371,11 +409,12 @@ async function connectWA() {
                     const output = data.toString();
                     stdoutData += output;
                     const match = output.match(/(\d+\.\d+)%/);
-                    if (match && Date.now() - lastUpdate > 2000) {
+                    // Increased throttle to 4 seconds for media progress
+                    if (match && Date.now() - lastUpdate > 4000) {
                         const percent = parseFloat(match[1]);
                         const progress = Math.floor(percent / 10);
                         const bar = '█'.repeat(progress) + '▒'.repeat(10 - progress);
-                        sock.sendMessage(sender, { text: `🎬 *Downloading Video*\n\n[${bar}] ${percent}%\n\n_Video sedang diproses..._`, edit: key });
+                        sock.sendMessage(sender, { text: `🎬 *Downloading Video*\n\n[${bar}] ${percent}%\n\n_Video sedang diproses..._`, edit: key }).catch(() => {});
                         lastUpdate = Date.now();
                     }
                 });
@@ -383,7 +422,8 @@ async function connectWA() {
                 ls.on('close', async (code) => {
                     if (code !== 0) {
                         console.error("yt-dlp error:", stderrData);
-                        return sock.sendMessage(sender, { text: `❌ Failed to download video. Error: ${stderrData.slice(-100)}`, edit: key });
+                        try { await sock.sendMessage(sender, { text: `❌ Failed to download video. Error: ${stderrData.slice(-100)}`, edit: key }); } catch (e) {}
+                        return;
                     }
 
                     const lines = stdoutData.trim().split('\n');
@@ -397,16 +437,17 @@ async function connectWA() {
                     }
 
                     if (!filePath) {
-                        return sock.sendMessage(sender, { text: "❌ Error: Video file not found on disk.", edit: key });
+                        try { await sock.sendMessage(sender, { text: "❌ Error: Video file not found on disk.", edit: key }); } catch (e) {}
+                        return;
                     }
 
                     try {
-                        await sock.sendMessage(sender, { text: "📤 *Sending video...*", edit: key });
+                        try { await sock.sendMessage(sender, { text: "📤 *Sending video...*", edit: key }); } catch (e) {}
                         await sock.sendMessage(sender, { video: { url: filePath }, caption: "✅ Video sent!" });
-                        await sock.sendMessage(sender, { text: "✅ Video sent!", edit: key });
+                        try { await sock.sendMessage(sender, { text: "✅ Video sent!", edit: key }); } catch (e) {}
                         fs.unlinkSync(filePath);
                     } catch (e) {
-                        await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key });
+                        try { await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key }); } catch (err) {}
                         if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
                     }
                 });

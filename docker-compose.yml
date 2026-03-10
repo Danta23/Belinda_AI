@@ -1,0 +1,15 @@
+services:
+  belinda-ai:
+    build: .
+    container_name: belinda-ai-bot
+    restart: always
+    volumes:
+      - ./auth_info:/app/auth_info
+      - ./chat_history.json:/app/chat_history.json
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHON_URL=http://localhost:8000
+      - SESSION_NAME=auth_info

@@ -27,4 +27,6 @@ def shell():
     return handle_shell(data)
 
 if __name__ == "__main__":
+    # Ensure subprocesses in Docker can find python if needed
+    os.environ["PATH"] = os.getcwd() + "/venv/bin:" + os.environ["PATH"]
     app.run(host="0.0.0.0", port=FLASK_PORT, debug=True)
