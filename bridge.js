@@ -406,6 +406,7 @@ async function connectWA() {
                         const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
                         const matchTitle = response.data.match(/<title>(.*?)<\/title>/);
                         if (matchTitle && matchTitle[1]) {
+                            // Clean Spotify title: remove "song and lyrics by", "| Spotify", etc.
                             let cleanTitle = matchTitle[1]
                                 .replace(/ \| Spotify/g, '')
                                 .replace(/song and lyrics by /g, '')
