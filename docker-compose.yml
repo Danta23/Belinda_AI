@@ -1,6 +1,6 @@
 services:
   belinda-ai:
-    build: .
+    image: ghcr.io/danta23/belinda_ai:latest
     container_name: belinda-ai-bot
     restart: always
     volumes:
