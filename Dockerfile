@@ -1,7 +1,7 @@
 # Gunakan Arch Linux sebagai base image
 FROM archlinux:latest
 
-# Update sistem dan instal paket dasar + Paket Seru/Essential + Bahasa Pemrograman
+# Update sistem dan instal paket dasar + Essential Tools + Dev Tools
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm \
     nodejs \
@@ -27,7 +27,8 @@ RUN pacman -Syu --noconfirm && \
     unzip \
     wget \
     translate-shell \
-    gawk
+    gawk \
+    jq
 
 # Instal yt-dlp secara manual untuk versi terbaru
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
@@ -43,6 +44,7 @@ RUN npm install
 # Copy requirements dan instal dependensi Python
 COPY requirements.txt ./
 RUN python -m venv /app/venv && \
+    /app/venv/bin/python -m pip install --upgrade pip && \
     /app/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Copy semua file project

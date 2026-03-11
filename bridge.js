@@ -123,7 +123,11 @@ async function connectWA() {
         await sock.sendMessage(group, { text: `⏳ Menyiapkan soal ke-${data.currentNum}/${data.maxSoal}...` });
 
         try {
-            const prompt = `Buatkan 1 soal PG ${data.mapel} untuk tingkat ${data.diff} (A-E). Tulis 'KUNCI: X' di akhir.`;
+            // Added variety and randomness to prompt to prevent repetition
+            const prompt = `Buatkan 1 soal PG (Pilihan Ganda) ${data.mapel} untuk tingkat ${data.diff} (A-E). ` +
+                           `Pastikan soalnya variatif, menantang, dan berbeda dari topik umum. ` +
+                           `Berikan pilihan jawaban A sampai E. Tulis 'KUNCI: X' di akhir soal. [Seed: ${Math.random().toString(36).substring(7)}]`;
+            
             const res = await axios.post(`${pythonUrl}/chat`, { sender: group, msg: prompt });
 
             const parts = res.data.split('KUNCI:');
@@ -139,12 +143,12 @@ async function connectWA() {
             });
 
             data.msgId = poll.key.id;
-            data.question = cleanText;
+            data.question = cleanText; // Store actual question text
             data.index = ['A','B','C','D','E'].indexOf(keyChar);
             nextRequests[group] = [];
         } catch (e) {
             data.currentNum--;
-            console.log("Gagal membuat kuis.");
+            console.log("Gagal membuat kuis:", e.message);
         }
     }
 
@@ -453,6 +457,29 @@ async function connectWA() {
                 });
             }
 
+            if (cmd === '!quran') {
+                const query = args[1];
+                if (!query || !query.includes(':')) return sock.sendMessage(sender, { text: "⚠️ Format: !quran {surah}:{ayah} (Contoh: !quran 1:1)" });
+                
+                const [surah, ayah] = query.split(':');
+                
+                try {
+                    const url = `https://api.alquran.cloud/v1/ayah/${surah}:${ayah}/editions/quran-uthmani,id.indonesian,en.transliteration`;
+                    const response = await axios.get(url);
+                    const data = response.data.data;
+
+                    const arab = data[0].text;
+                    const arti = data[1].text;
+                    const latin = data[2].text;
+                    const surahName = data[0].surah.englishName;
+
+                    const result = `\n📖 *Surah ${surahName} (${surah}:${ayah})*\n\n${arab}\n\n_(${latin})_\n\n*Artinya:* ${arti}`;
+                    await sock.sendMessage(sender, { text: result });
+                } catch (e) {
+                    await sock.sendMessage(sender, { text: `❌ Gagal mengambil ayat: ${e.message}` });
+                }
+            }
+
             // EXISTING COMMANDS (help, quiz, next, info, bot, reset, lanjut, selesai)
             if (cmd === '!help') {
                 return sock.sendMessage(sender, { text: `🤖 *BELINDA HELP*\n\n` +
@@ -471,6 +498,7 @@ async function connectWA() {
                     `💻 !shell {command}\n` +
                     `🎵 !music {url}\n` +
                     `🎬 !video {url}\n` +
+                    `📖 !quran {surah}:{ayah}\n` +
                     `📝 !log\n` });
             }
 
@@ -509,9 +537,16 @@ async function connectWA() {
                 const data = quizData[sender];
                 const keyLetter = ['A', 'B', 'C', 'D', 'E'][data.index];
                 try {
-                    const exp = await axios.post(`${pythonUrl}/chat`, { sender, msg: `Jelaskan secara singkat soal kuis ${data.mapel} tadi. Jawabannya adalah ${keyLetter}.` });
+                    // Send specific question and answer for explanation
+                    const explanationPrompt = `Ini adalah soal kuis ${data.mapel}: "${data.question}". ` +
+                                             `Jawabannya adalah ${keyLetter}. ` +
+                                             `Tolong berikan penjelasan/pembahasan singkat kenapa itu jawabannya.`;
+                    
+                    const exp = await axios.post(`${pythonUrl}/chat`, { sender, msg: explanationPrompt });
                     await sock.sendMessage(sender, { text: `📢 *PEMBAHASAN*\n\n✅ Kunci: *${keyLetter}*\n📖 ${exp.data}` });
-                } catch (e) {}
+                } catch (e) {
+                    console.error("Gagal mendapatkan penjelasan:", e.message);
+                }
                 await createQuiz(sender);
                 return;
             }
