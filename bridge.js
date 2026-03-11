@@ -215,11 +215,43 @@ async function connectWA() {
 
             if (cmd === '!add') {
                 if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
-                const target = args[1]?.replace(/[^0-9]/g,'') + '@s.whatsapp.net';
+                if (!args[1]) return sock.sendMessage(sender, { text: "⚠️ Format: !add {nomor} (Contoh: !add 628xxx atau !add 1234xxx)" });
+                
+                // Bersihkan nomor dari simbol +, spasi, atau tanda kurung
+                let num = args[1].replace(/[^0-9]/g,'');
+                
+                // Jika nomor diawali '0', ubah ke kode negara default (Indonesia: 62)
+                if (num.startsWith('0')) {
+                    num = '62' + num.substring(1);
+                }
+                
+                const target = num + '@s.whatsapp.net';
+                
                 try {
-                    await sock.groupParticipantsUpdate(sender, [target], 'add');
-                    await sock.sendMessage(sender, { text: `➕ Added ${args[1]} to the group.` });
-                } catch (e) { sock.sendMessage(sender, { text: "⚠️ Failed to add member." }); }
+                    const response = await sock.groupParticipantsUpdate(sender, [target], 'add');
+                    const result = response[0];
+                    
+                    if (result.status === "200") {
+                        await sock.sendMessage(sender, { text: `✅ Berhasil menambahkan @${num} ke grup.`, mentions: [target] });
+                    } else if (result.status === "403") {
+                        // Jika kena privasi, bot ambil link undangan grup
+                        const code = await sock.groupInviteCode(sender);
+                        const inviteLink = `https://chat.whatsapp.com/${code}`;
+                        await sock.sendMessage(sender, { 
+                            text: `⚠️ Tidak bisa menambahkan @${num} secara langsung karena pengaturan privasi mereka.\n\n*Solusi:* Silakan kirimkan link undangan ini ke mereka:\n${inviteLink}`,
+                            mentions: [target]
+                        });
+                    } else if (result.status === "408") {
+                        await sock.sendMessage(sender, { text: `❌ Nomor @${num} baru saja keluar dari grup. Tunggu beberapa saat.`, mentions: [target] });
+                    } else if (result.status === "409") {
+                        await sock.sendMessage(sender, { text: `ℹ️ Nomor @${num} sudah ada di dalam grup.`, mentions: [target] });
+                    } else {
+                        await sock.sendMessage(sender, { text: `❌ Gagal menambahkan. Status: ${result.status}` });
+                    }
+                } catch (e) { 
+                    console.error("Add error:", e);
+                    sock.sendMessage(sender, { text: "⚠️ Pastikan bot adalah Admin dan nomor valid dengan kode negara." }); 
+                }
             }
 
             if (cmd === '!open') {

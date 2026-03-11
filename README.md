@@ -226,6 +226,7 @@ If you cannot use Docker, follow the guide for your specific OS. Ensure **FFmpeg
 | `!quran {s:a}` | Get Ayah (e.g., !quran 1:1) | All |
 | `!quiz {args}` | Start educational quiz | All |
 | `!kick {user}` | Remove member from group | Admin |
+| `!add {num}` | Add member (Global support + Auto-invite fallback) | Admin |
 | `!open` / `!close` | Group permission control | Admin |
 | `!zero` | Wipe chat history | Admin |
 | `!log` | View recent chat logs | All |

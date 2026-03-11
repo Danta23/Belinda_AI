@@ -1420,5 +1420,587 @@
     "participant": "120363310706406515@newsletter",
     "text": "✅ *Working with External Packages Part 1: pip & Virtual Environments*\n\n📦 So far you used built-in libraries (math, datetime, json). \n\nNow we will learn how to install external packages created by the Python community.\n\nExamples of popular packages:\n- requests → API calls\n- numpy → numerical computing\n- pandas → data analysis\n- flask → web apps\n- django → web framework\n\n*1️⃣ What is pip*\npip = Python package manager. It installs external libraries from PyPI (Python Package Index).\n\nExample command: \n\n`pip install requests`\n\nAfter installing, you can use it in Python.\nimport requests\n\n*2️⃣ Check installed packages*\n\n`pip list` Shows all installed libraries.\n\n*3️⃣ Check package information*\n\n`pip show requests` \n\nDisplays: version, location, dependencies\n\n*4️⃣ Upgrade a package*\n\n`pip install --upgrade requests`\n\n*5️⃣ Uninstall a package*\n\n`pip uninstall requests`\n\n*6️⃣ What is a Virtual Environment*\n\nA virtual environment isolates project dependencies.\n\nWithout virtual environments:\n\n- Project A → requests 2.25\n- Project B → requests 3.0\n\nConflict occurs.\n\nVirtual environments solve this. Each project has its own packages.\n\n*7️⃣ Create a Virtual Environment*\n\n`python -m venv myenv` \n\nThis creates a folder: myenv/\n\n*8️⃣ Activate Virtual Environment*\n\n- Windows: `myenv\\Scripts\\activate`\n- Mac/Linux: `source myenv/bin/activate`\n\nTerminal will show: `(myenv)`\n\nNow packages install only in this environment.\n\n*9️⃣ Install package inside environment*\n\n`pip install requests`\n\n*🔟 Deactivate environment*\n`deactivate`\n\n✅ *Real Example*\n\nimport requests\nresponse = requests.get(\"https://api.github.com\")\nprint(response.status_code)\n\n*Practice Tasks*\n\n1️⃣ Check installed packages using `pip list`\n2️⃣ Install requests package\n3️⃣ Create a virtual environment\n4️⃣ Activate virtual environment\n5️⃣ Install a package inside environment\n\n✅ *Practice Task Solutions — Try it yourself first*\n\nThese tasks are done in the terminal/command prompt, not inside Python code.\n\n*Task 1. Check installed packages using pip list*\n\nCommand: `pip list`\n\nExample output:\n\nPackage    Version\n------------ -------\npip        23.0\nrequests   2.31.0\nnumpy      1.26.0\n\nShows all installed Python libraries.\n\n*Task 2. Install requests package*\n\nCommand: `pip install requests`\n\nAfter installation you can use it in Python:\n\nimport requests\nresponse = requests.get(\"https://api.github.com\")\nprint(response.status_code)\n\n*Task 3. Create a virtual environment*\n\nCommand: `python -m venv myenv`\n\nThis creates a folder: myenv/\n\nInside it Python creates isolated environment files.\n\n*Task 4. Activate virtual environment*\n\n- Windows: `myenv\\Scripts\\activate`\n- Mac/Linux: `source myenv/bin/activate`\n\nTerminal will show: `(myenv)`\n\nNow the environment is active.\n\n*Task 5. Install package inside virtual environment*\n\nOnce environment is active: \n`pip install requests`\n\nNow the package installs only inside this environment.\n\nDeactivate environment\n\n`deactivate`\n\nReturns terminal to global Python environment.\n\n✅ *Key Learning*\n- pip installs external libraries\n- pip list shows installed packages\n- venv isolates project dependencies\n- Always use virtual environments for projects\n\n💬 *Double Tap ♥️ For More* 🌐🚀",
     "time": "2026-03-11T12:13:09.300Z"
+  },
+  {
+    "sender": "120363273850450240@g.us",
+    "participant": "127024312143877@lid",
+    "text": "·  𖹠‌‎ׄ  ֵ ⤾ 𝗁𝖾𝗒! ─𝖾𝗒 𝖼.𝗎𝗍𝖾 see u @180827048681536 \n ۫ 𝗍𝗈 𝖻𝗈꯭𝗍  🍒 ִ ׄ ⸼ 𝗁𝗎𝗆𝗉𝗌! 𝗌𝗈𝗈 𝗍𝗋𝗎𝗌𝗍𝖾𝖽 ‹\n       ֵ ⸼ 드러! 𝗍𝗁𝖺𝗇𝗄𝗌 𝖿𝗈𝗋 𝗌𝗍𝗈𝗉𝗉𝗂𝗇𝗀 𝖻𝖻𝗒’𝗌\n    ⢀⣄⡀           ⢀⣤⡀\n    ⣿⣿⣿⣷⣀⣀⣾⣿⣿⣿    ꘓꘓ ׄ 𝖼𝗅𝖾𝗉─𝖼𝗅𝖺𝗉!\n    ⠙⠿⢛⣩⠎⠱⣝⡛⠿⠋〡 ֵ ׄ 🎀〡ֵ ׄ 🎀〡ֵ ׄ 🎀〡    \n     ⣾⠇( 𝗁𝖾𝗒¡!) 𝗅𝖾𝗍’𝗌 𝗈𝗎𝗋 𝖺𝗍𝗍𝖾𝗇𝗍𝗂𝗈𝗇 ‹\n\n   ╭ᥴ⃘ᦱ ֵ ╮𝗍𝗒𝗉𝖾 𝗅𝗂𝗌𝗍 𝖿𝗈𝗋 𝗌𝖾𝖾 𝗆𝖾𝗇𝗎 𝗌𝗁𝗈𝗉\n   ╰ᥴ⃘ᦱ ֵ ╯𝗍𝗒𝗉𝖾 𝗉𝖺𝗒 𝖿𝗈𝗋 𝗉𝖺𝗒𝗆𝖾𝗇𝗍 𝗌𝗁𝗈𝗉\n\n     ˓ 𖬺.  𝗈𝗈𝗉𝗌.. 𝗴𝗼𝗼𝗱 𝗯𝘆𝗲𝗲 ‹",
+    "time": "2026-03-11T12:58:06.250Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Halo @all nya👋.",
+    "time": "2026-03-11T13:03:37.311Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Hayy",
+    "time": "2026-03-11T13:03:51.253Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Coba kamu pake command !quran",
+    "time": "2026-03-11T13:04:17.345Z"
+  },
+  {
+    "sender": "120363273850450240@g.us",
+    "participant": "112081735012543@lid",
+    "text": "quran Surat at taubah 183",
+    "time": "2026-03-11T13:05:00.672Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Gimana jirr",
+    "time": "2026-03-11T13:05:29.441Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "112081735012543@lid",
+    "text": "Coba cari at taubah 173",
+    "time": "2026-03-11T13:05:34.359Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Coba kamu cari dan",
+    "time": "2026-03-11T13:05:44.901Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "At Taubah ayat nya berapa?",
+    "time": "2026-03-11T13:07:26.991Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Wahh, ai nya bisa cari surah² jg yaah",
+    "time": "2026-03-11T13:07:35.272Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Iya hehehe 😁.",
+    "time": "2026-03-11T13:07:49.820Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "112081735012543@lid",
+    "text": "Sala",
+    "time": "2026-03-11T13:08:25.874Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "112081735012543@lid",
+    "text": "Beda surah",
+    "time": "2026-03-11T13:08:35.491Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Surah apa ya?",
+    "time": "2026-03-11T13:08:52.083Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "@112081735012543 Surah apa?",
+    "time": "2026-03-11T13:10:34.794Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Nih guys cara pake nya",
+    "time": "2026-03-11T13:10:59.987Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Surah dan ayat nya menggunakan angka keduanya",
+    "time": "2026-03-11T13:12:08.300Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "int Surah, Ayat;",
+    "time": "2026-03-11T13:12:42.191Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Contoh nih ayat kursi ya",
+    "time": "2026-03-11T13:14:13.529Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Yok admin sini gw ajarin command-command di arch linux",
+    "time": "2026-03-11T13:16:10.266Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Dari mulai basic",
+    "time": "2026-03-11T13:16:18.362Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Itu namanya echo/print kalo di python",
+    "time": "2026-03-11T13:16:51.849Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Ayat paling agung",
+    "time": "2026-03-11T13:18:11.315Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Lalu ada `ls` untuk list directory",
+    "time": "2026-03-11T13:18:23.085Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Ini semua file untuk bikin AI ini berkerja",
+    "time": "2026-03-11T13:18:52.376Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Lalu ada yang namanya `cat` untuk read/baca file contoh:",
+    "time": "2026-03-11T13:20:52.690Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Ini dokumentasi AI nya btw",
+    "time": "2026-03-11T13:21:37.962Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Lalu ada `pwd` untuk print working directory atau kita masuk ke folder sekarang contoh:",
+    "time": "2026-03-11T13:23:12.785Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Berarti ada di folder app",
+    "time": "2026-03-11T13:23:36.545Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Yg lain kemana?",
+    "time": "2026-03-11T13:24:44.125Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Aaaaaaaammm",
+    "time": "2026-03-11T13:24:50.478Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Gtw",
+    "time": "2026-03-11T13:24:50.788Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Oke langsung ke level intermediate",
+    "time": "2026-03-11T13:25:56.743Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Lalu ada command `pacman` untuk update dan install package manager",
+    "time": "2026-03-11T13:26:24.388Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Uhuiii sukaa sma ainyaa",
+    "time": "2026-03-11T13:27:23.265Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Artinya dash/- adalah sebuah flag kayak -Syyu untuk S=install yy=sinkronisasi sistem packages dan u=upgrade",
+    "time": "2026-03-11T13:28:42.631Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Bisa cari apa aja ainya dan",
+    "time": "2026-03-11T13:29:16.539Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Lalu ada flag kedua menggunakan double Dash/-- contoh --noconfirm artinya kita tidak perlu untuk konfirmasi update lagi...",
+    "time": "2026-03-11T13:29:59.744Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Halo",
+    "time": "2026-03-11T13:30:52.999Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Be dj lah kalian😂",
+    "time": "2026-03-11T13:32:33.361Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Iya coba ajarin command-command di arch linux apa saja dari basic sampai advance...",
+    "time": "2026-03-11T13:32:53.018Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Banyak jir sebenarnya",
+    "time": "2026-03-11T13:33:38.179Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Ini informasi laptop gw btw",
+    "time": "2026-03-11T13:34:30.710Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Nah",
+    "time": "2026-03-11T13:34:49.858Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Ini bisa di tambah gitu dan??",
+    "time": "2026-03-11T13:35:53.866Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Maksudnya command nya di tambahin lagi???",
+    "time": "2026-03-11T13:36:23.760Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Haa iya",
+    "time": "2026-03-11T13:36:32.060Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Bisa sihh tapi mau command apa aja?",
+    "time": "2026-03-11T13:36:53.469Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "93781231665311@lid",
+    "text": "HAI TEMAN TEMAN IMUP MANIS NAN COMEL",
+    "time": "2026-03-11T13:36:57.260Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "93781231665311@lid",
+    "text": "i'm backk",
+    "time": "2026-03-11T13:37:05.342Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Tambahin dan biar bisa nyari yg lain😆",
+    "time": "2026-03-11T13:37:25.518Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "93781231665311@lid",
+    "text": "HAI",
+    "time": "2026-03-11T13:37:25.624Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Heloo",
+    "time": "2026-03-11T13:37:31.050Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Lagu apa itu jir?",
+    "time": "2026-03-11T13:39:17.239Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Hummm padahal mau share lagu favorite",
+    "time": "2026-03-11T13:39:20.386Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Bener ini kan?",
+    "time": "2026-03-11T13:41:14.551Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Chatting sambil idupin lagu🤭nggk perlu capek² idupkan spotify",
+    "time": "2026-03-11T13:41:30.832Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Benarr",
+    "time": "2026-03-11T13:41:38.817Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Wkwkwk",
+    "time": "2026-03-11T13:41:51.808Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Coba lagu phonk dan",
+    "time": "2026-03-11T13:42:26.614Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Oke",
+    "time": "2026-03-11T13:42:35.610Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Jedag jedugnya itu lohhh",
+    "time": "2026-03-11T13:44:23.328Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Rawrr bgtt dan",
+    "time": "2026-03-11T13:44:34.797Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "`REBOLA no bailao, Tu REBOLA no bailao.`",
+    "time": "2026-03-11T13:46:04.498Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Cuman hafal lirik ini doang",
+    "time": "2026-03-11T13:46:30.099Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Btw Kalian @all sibuk ngapain saja nih guys? Aku sibuk bikin AI",
+    "time": "2026-03-11T13:47:52.112Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Lagi duduk😊",
+    "time": "2026-03-11T13:53:49.184Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Siapa yg kamu culik dan?",
+    "time": "2026-03-11T13:55:28.709Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Oohhh aku lagi rebahan hehehe😁.",
+    "time": "2026-03-11T13:55:36.591Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Waduhhh kok ketauan ya padahal udah ku hapus",
+    "time": "2026-03-11T13:56:05.773Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Hmmm kok gabisa ya hmmmmmm",
+    "time": "2026-03-11T13:57:44.690Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Bisa tuh ya",
+    "time": "2026-03-11T13:58:49.919Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Penculikann🫠",
+    "time": "2026-03-11T13:59:03.540Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Wkwkwk",
+    "time": "2026-03-11T13:59:10.192Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Ehh jeng nia ngk on ya?",
+    "time": "2026-03-11T13:59:52.794Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Iya",
+    "time": "2026-03-11T13:59:59.116Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Tumbenn bgt nggk on",
+    "time": "2026-03-11T14:00:10.002Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Gw juga pernah ga on",
+    "time": "2026-03-11T14:00:26.509Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Kecuali AI on setiap saat",
+    "time": "2026-03-11T14:00:44.195Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Wkwk",
+    "time": "2026-03-11T14:00:51.466Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Kayaknya sibukk nia",
+    "time": "2026-03-11T14:00:58.646Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Iya",
+    "time": "2026-03-11T14:01:04.466Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "184868327690486@lid",
+    "text": "Mau off dulu bye",
+    "time": "2026-03-11T14:02:07.125Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Bye",
+    "time": "2026-03-11T14:02:14.006Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Maaf guys gw mau culik orang",
+    "time": "2026-03-11T14:10:58.914Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Demi testing aja guys ya",
+    "time": "2026-03-11T14:12:12.709Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "201704800800768@lid",
+    "text": "haii guys",
+    "time": "2026-03-11T14:12:14.878Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Hai",
+    "time": "2026-03-11T14:12:20.185Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "112081735012543@lid",
+    "text": "Jadikan gw admin tinggal gw culik tu nomor gw",
+    "time": "2026-03-11T14:12:28.799Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Wkwkwk",
+    "time": "2026-03-11T14:12:48.244Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Hmmm ini kenapa yah? 🤔",
+    "time": "2026-03-11T14:14:07.499Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "201704800800768@lid",
+    "text": "krna dia priv itu, gak boleh kita nambahin ke grup",
+    "time": "2026-03-11T14:14:31.044Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Iya",
+    "time": "2026-03-11T14:14:42.106Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "201704800800768@lid",
+    "text": "gak bisa wkwkwk",
+    "time": "2026-03-11T14:29:07.485Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Iya Weh wkwkwk",
+    "time": "2026-03-11T14:29:15.557Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "201704800800768@lid",
+    "text": "kirim tautan aja",
+    "time": "2026-03-11T14:30:02.742Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Iya",
+    "time": "2026-03-11T14:30:19.251Z"
   }
 ]
