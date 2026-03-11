@@ -45,7 +45,7 @@ def handle_status(data):
     action = data.get("action")
 
     if sender not in bot_status:
-        bot_status[sender] = True
+        bot_status[sender] = False
 
     if action == "toggle":
         bot_status[sender] = not bot_status[sender]
@@ -101,7 +101,7 @@ def handle_chat(data):
     sender = data.get("sender")
     msg = data.get("msg")
 
-    if not bot_status.get(sender, True):
+    if not bot_status.get(sender, False):
         return "⚠️ Belinda AI is currently OFF."
 
     now = datetime.now()

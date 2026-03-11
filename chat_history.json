@@ -1168,5 +1168,65 @@
     "participant": "165609811763315@lid",
     "text": "Halo",
     "time": "2026-03-10T09:37:03.356Z"
+  },
+  {
+    "sender": "120363273850450240@g.us",
+    "participant": "127024312143877@lid",
+    "text": "_kamu butuh bantuan, [danta@RIVER ~]$_ ?_",
+    "time": "2026-03-10T10:34:41.580Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Halo guys 👋.",
+    "time": "2026-03-10T10:37:16.819Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "165609811763315@lid",
+    "text": "@all maafin gw ya guys kalo gw ada salah-salah kata atau salah-salah perbuatan tolong untuk dimaafkan ya guys 🙏🙏🙏🙏🙏.",
+    "time": "2026-03-10T10:38:17.938Z"
+  },
+  {
+    "sender": "120363421161011630@g.us",
+    "participant": "201704800800768@lid",
+    "text": "yaa",
+    "time": "2026-03-10T10:38:41.321Z"
+  },
+  {
+    "sender": "120363422810613791@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Halo",
+    "time": "2026-03-10T10:51:16.087Z"
+  },
+  {
+    "sender": "120363422810613791@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Oohhh itu coba masukin archlinux ke WhatsApp",
+    "time": "2026-03-10T10:52:03.606Z"
+  },
+  {
+    "sender": "120363422810613791@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Nih ya command nya pertama adalah fastfetch",
+    "time": "2026-03-10T10:52:39.956Z"
+  },
+  {
+    "sender": "120363422810613791@g.us",
+    "participant": "165609811763315@lid",
+    "text": "Tuh command fastfetch",
+    "time": "2026-03-10T10:53:06.785Z"
+  },
+  {
+    "sender": "120363422810613791@g.us",
+    "participant": "165609811763315@lid",
+    "text": "```\n💻 *Executing:* `fastfetch`\n\n                  -`\n                 .o+`\n                `ooo/\n               `+oooo:\n              `+oooooo:\n              -+oooooo+:\n            `/:-:++oooo+:\n           `/++++/+++++++:\n          `/++++++++++++++:\n         `/+++ooooooooooooo/`\n        ./ooosssso++osssssso+`\n       .oossssso-````/ossssss+`\n      -osssssso.      :ssssssso.\n     :osssssss/        osssso+++.\n    /ossssssss/        +ssssooo/-\n  `/ossssso+/:-        -:/+osssso+-\n `+sso+:-`                 `.-/+oso:\n`++:.                           `-/+/\n.`                                 `/\u001b[1G\u001b[18A\u001b[41Croot@23fcee1d0d60\n\u001b[41C-----------------\n\u001b[41COS: Arch Linux x86_64\n\u001b[41CHost: HP Laptop 14-em0xxx\n\u001b[41CKernel: Linux 6.19.6-arch1-1\n\u001b[41CUptime: 2 hours, 21 mins\n\u001b[41CPackages: 355 (pacman)\n\u001b[41CShell: app.py\n\u001b[41CDisplay (AUODC90): 1920x1080 in 14\", 60 Hz [Built-in]\n\u001b[41CCursor: Adwaita\n\u001b[41CTerminal: python\n\u001b[41CCPU: AMD Athlon Silver 7120U (2) @ 3.56 GHz\n\u001b[41CGPU: AMD Radeon 610M [Integrated]\n\u001b[41CMemory: 1.95 GiB / 7.00 GiB (28%)\n\u001b[41CSwap: 536.50 MiB / 3.50 GiB (15%)\n\u001b[41CDisk (/): 40.62 GiB / 47.93 GiB (85%) - overlay\n\u001b[41CLocal IP (eth0): 172.18.0.2/16\n\u001b[41CBattery (Primary): 22% (1 hour, 11 mins remaining) [Discharging]\n\u001b[41CLocale: C.UTF-8\n\u001b[41C\n\u001b[41C\u001b[40m   \u001b[41m   \u001b[42m   \u001b[43m   \u001b[44m   \u001b[45m   \u001b[46m   \u001b[47m   \u001b[m\n\u001b[41C\u001b[100m   \u001b[101m   \u001b[102m   \u001b[103m   \u001b[104m   \u001b[105m   \u001b[106m   \u001b[107m   \u001b[m\n\n✅ *Finished successfully.*\n```",
+    "time": "2026-03-10T10:54:00.145Z"
+  },
+  {
+    "sender": "120363273850450240@g.us",
+    "participant": "279001511768082@lid",
+    "text": ".afk",
+    "time": "2026-03-11T06:42:28.213Z"
   }
 ]
