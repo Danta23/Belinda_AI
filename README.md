@@ -30,7 +30,7 @@
 <p align="center">
   <img src="https://img.shields.io/github/stars/Danta23/Belinda_AI?style=social" />
   <img src="https://img.shields.io/github/forks/Danta23/Belinda_AI?style=social" />
-  <img src="https://img.shields.io/github/license/Danta23/Belinda_AI?style=social" />
+  <img src="https://img.shields.io/github/license/Danta23/Belinda_AI?style=for-the-badge&logo=opensourceinitiative&logoColor=white&color=yellow" />
 </p>
 
 ---
