@@ -14,6 +14,9 @@
   <a href="#">
     <img src="https://img.shields.io/badge/Coverage-100%25-orange?style=for-the-badge&logo=checkmarx&logoColor=white" />
   </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge&logo=opensourceinitiative&logoColor=white" />
+  </a>
 </p>
 
 <p align="center">
@@ -240,6 +243,12 @@ If you cannot use Docker, follow the guide for your specific OS. Ensure **FFmpeg
 - **Missing File Error**: Ensure `ffmpeg` is installed. In Docker, this is automatic.
 - **QR Code not appearing**: Check logs via `docker-compose logs -f`.
 - **429 Rate Limit**: Wait a few seconds; the bot will resume automatically.
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for more details.
 
 ---
 
