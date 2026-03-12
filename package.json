@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@ryuu-reinzz/button-helper": "^2.2.3",
-    "baileys": "npm:@whiskeysockets/baileys@^6.7.9",
+    "baileys": "npm:@whiskeysockets/baileys@latest",
     "axios": "^1.6.0",
     "dotenv": "^16.3.1",
     "pino": "^8.16.1",

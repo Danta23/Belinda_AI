@@ -1,7 +1,8 @@
-# Gunakan Arch Linux sebagai base image
+# Use Arch Linux as base image
 FROM archlinux:latest
 
-# Update sistem dan instal paket dasar + Essential Tools + Dev Tools
+# Update system and install packages
+# We use -Syu to ensure the entire system is up-to-date
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm \
     nodejs \
@@ -30,28 +31,35 @@ RUN pacman -Syu --noconfirm && \
     gawk \
     jq
 
-# Instal yt-dlp secara manual untuk versi terbaru
+# Install the absolute latest yt-dlp
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp
 
-# Set direktori kerja
+# Set working directory
 WORKDIR /app
 
-# Copy package files dan instal dependensi Node.js
+# Copy package files
 COPY package*.json ./
-RUN npm install
 
-# Copy requirements dan instal dependensi Python
+# Force NPM to install the latest versions of dependencies
+# We delete the lockfile to ensure it doesn't stick to old versions
+RUN rm -f package-lock.json && \
+    npm install && \
+    npm update
+
+# Copy requirements
 COPY requirements.txt ./
+
+# Update pip and install latest python requirements
 RUN python -m venv /app/venv && \
     /app/venv/bin/python -m pip install --upgrade pip && \
-    /app/venv/bin/pip install --no-cache-dir -r requirements.txt
+    /app/venv/bin/pip install --no-cache-dir -U -r requirements.txt
 
-# Copy semua file project
+# Copy all project files
 COPY . .
 
-# Expose port Flask
+# Expose Flask port
 EXPOSE 8000
 
-# Jalankan backend Python dan bridge Node.js
+# Run both Python backend and Node bridge
 CMD ["bash", "-c", "/app/venv/bin/python app.py & node bridge.js"]

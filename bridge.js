@@ -51,11 +51,16 @@ async function connectWA() {
     const sock = makeWASocket({
         version,
         auth: state,
-        browser: ["Ubuntu","Chrome","121.0.6167.85"],
+        // Use a more recent and standard browser string
+        browser: ["Belinda AI", "Chrome", "131.0.0.0"],
         logger: require('pino')({ level: 'silent' }),
-        connectTimeoutMs: 60000,
+        connectTimeoutMs: 90000, // Increased to 90s
         defaultQueryTimeoutMs: 0,
-        keepAliveIntervalMs: 10000
+        keepAliveIntervalMs: 30000,
+        generateHighQualityLinkPreview: true,
+        getMessage: async (key) => {
+            return { conversation: 'Belinda AI is active' };
+        }
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -63,7 +68,10 @@ async function connectWA() {
     sock.ev.on('connection.update', (update) => {
         const { connection, qr, lastDisconnect } = update;
 
-        if (qr) qrcode.generate(qr, { small: true });
+        if (qr) {
+            console.log("📸 New QR Code generated. Please scan:");
+            qrcode.generate(qr, { small: true });
+        }
 
         if (connection === 'open') {
             console.log(`✅ BOT BELINDA ONLINE (Bridge: ${bridgeHost}:${bridgePort})`);
@@ -71,12 +79,15 @@ async function connectWA() {
 
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode;
-            console.log(`❌ Koneksi tutup, alasan: ${reason}`);
+            const shouldReconnect = reason !== DisconnectReason.loggedOut;
             
-            if (reason === DisconnectReason.loggedOut) {
-                console.log("⚠️ Session logged out. Please delete the auth folder and scan again.");
+            console.log(`❌ Connection closed. Reason code: ${reason}. Reconnecting: ${shouldReconnect}`);
+            
+            if (shouldReconnect) {
+                // Exponential backoff or simple delay to avoid spamming 408
+                setTimeout(connectWA, 10000);
             } else {
-                setTimeout(connectWA, 5000);
+                console.log("⚠️ Session logged out. Please delete the auth folder and scan again.");
             }
         }
     });
@@ -346,7 +357,6 @@ async function connectWA() {
                         const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
                         const matchTitle = response.data.match(/<title>(.*?)<\/title>/);
                         if (matchTitle && matchTitle[1]) {
-                            // Clean Spotify title: remove "song and lyrics by", "| Spotify", etc.
                             let cleanTitle = matchTitle[1]
                                 .replace(/ \| Spotify/g, '')
                                 .replace(/song and lyrics by /g, '')
@@ -371,26 +381,54 @@ async function connectWA() {
                 ];
                 
                 const ls = spawn('yt-dlp', args_dl);
-                let lastUpdate = Date.now();
                 let stderrData = "";
                 let stdoutData = "";
+                let lastPercent = 0;
+                let spinIdx = 0;
+                const spinners = ["|", "/", "-", "\\"];
+
+                // Interval to show "smooth" animation even if yt-dlp is slow
+                const animationInterval = setInterval(() => {
+                    spinIdx = (spinIdx + 1) % spinners.length;
+                    const totalBlocks = 20;
+                    const progress = Math.round((lastPercent / 100) * totalBlocks);
+                    const bar = '█'.repeat(progress) + '░'.repeat(totalBlocks - progress);
+                    
+                    const statusText = `⏳ Processing ${isSpotify ? 'Spotify' : 'YouTube'} music... ${spinners[spinIdx]}\n\n` +
+                                     `🎵 *Downloading Audio*\n` +
+                                     `\`[${bar}] ${lastPercent.toFixed(1)}%\` \n\n` +
+                                     `_Please wait, optimizing media for WhatsApp..._`;
+                    
+                    sock.sendMessage(sender, { text: statusText, edit: key }).catch(() => {});
+                }, 4000);
 
                 ls.stderr.on('data', (data) => { stderrData += data.toString(); });
                 ls.stdout.on('data', (data) => {
                     const output = data.toString();
                     stdoutData += output;
                     const match = output.match(/(\d+\.\d+)%/);
-                    // Increased throttle to 4 seconds for media progress
-                    if (match && Date.now() - lastUpdate > 4000) {
-                        const percent = parseFloat(match[1]);
-                        const progress = Math.floor(percent / 10);
-                        const bar = '▓'.repeat(progress) + '░'.repeat(10 - progress);
-                        sock.sendMessage(sender, { text: `🎵 *Downloading Music*\n\n[${bar}] ${percent}%\n\n_Sedang memproses pesan suara..._`, edit: key }).catch(() => {});
-                        lastUpdate = Date.now();
+                    if (match) {
+                        lastPercent = parseFloat(match[1]);
                     }
                 });
 
                 ls.on('close', async (code) => {
+                    clearInterval(animationInterval);
+                    
+                    if (code === 0) {
+                        // Smooth finish: Show 100% bar before proceeding
+                        const fullBar = '█'.repeat(20);
+                        const finishText = `⏳ Processing ${isSpotify ? 'Spotify' : 'YouTube'} music... ✅\n\n` +
+                                         `🎵 *Downloading Audio*\n` +
+                                         `\`[${fullBar}] 100.0%\` \n\n` +
+                                         `_Finishing up, sending to WhatsApp..._`;
+                        
+                        await sock.sendMessage(sender, { text: finishText, edit: key }).catch(() => {});
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // 2s pause to see the 100% bar
+                    } else {
+                        return sock.sendMessage(sender, { text: `❌ Failed to download music. (Code ${code})`, edit: key });
+                    }
+
                     const lines = stdoutData.trim().split('\n');
                     const lastLine = lines[lines.length - 1]?.trim();
                     let filePath = lastLine && fs.existsSync(lastLine) ? lastLine : null;
@@ -409,7 +447,7 @@ async function connectWA() {
                     try {
                         try { await sock.sendMessage(sender, { text: "📤 *Sending voice note...*", edit: key }); } catch (e) {}
                         await sock.sendMessage(sender, { audio: { url: filePath }, mimetype: 'audio/ogg; codecs=opus', ptt: true });
-                        try { await sock.sendMessage(sender, { text: "✅ Music sent!", edit: key }); } catch (e) {}
+                        try { await sock.sendMessage(sender, { text: "✅ Music successfully delivered!", edit: key }); } catch (e) {}
                         fs.unlinkSync(filePath);
                     } catch (e) {
                         try { await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key }); } catch (err) {}
@@ -424,10 +462,10 @@ async function connectWA() {
                 
                 const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
                 if (!isYouTube) {
-                    return sock.sendMessage(sender, { text: "❌ Only YouTube links are supported untuk !video. (TikTok, IG, FB tidak didukung)" });
+                    return sock.sendMessage(sender, { text: "❌ Only YouTube links are supported for !video." });
                 }
 
-                const { key } = await sock.sendMessage(sender, { text: "⏳ Downloading YouTube video..." });
+                const { key } = await sock.sendMessage(sender, { text: "⏳ Initializing YouTube download..." });
                 
                 const fileNameBase = `video_${Date.now()}`;
                 const { spawn } = require('child_process');
@@ -436,27 +474,50 @@ async function connectWA() {
                 const args_dl = ['--print', 'after_move:filepath', '-f', 'best[height<=480][ext=mp4]/best[ext=mp4]/best', '--no-playlist', '--no-check-certificate', '-o', `${fileNameBase}.%(ext)s`, url];
                 
                 const ls = spawn('yt-dlp', args_dl);
-                let lastUpdate = Date.now();
                 let stderrData = "";
                 let stdoutData = "";
+                let lastPercent = 0;
+                let spinIdx = 0;
+                const spinners = ["|", "/", "-", "\\"];
+
+                const animationInterval = setInterval(() => {
+                    spinIdx = (spinIdx + 1) % spinners.length;
+                    const totalBlocks = 20;
+                    const progress = Math.round((lastPercent / 100) * totalBlocks);
+                    const bar = '█'.repeat(progress) + '▒'.repeat(totalBlocks - progress);
+                    
+                    const statusText = `⏳ Processing YouTube Video... ${spinners[spinIdx]}\n\n` +
+                                     `🎬 *Downloading Video*\n` +
+                                     `\`[${bar}] ${lastPercent.toFixed(1)}%\` \n\n` +
+                                     `_Compressing for optimal playback..._`;
+                    
+                    sock.sendMessage(sender, { text: statusText, edit: key }).catch(() => {});
+                }, 4000);
 
                 ls.stderr.on('data', (data) => { stderrData += data.toString(); });
                 ls.stdout.on('data', (data) => {
                     const output = data.toString();
                     stdoutData += output;
                     const match = output.match(/(\d+\.\d+)%/);
-                    // Increased throttle to 4 seconds for media progress
-                    if (match && Date.now() - lastUpdate > 4000) {
-                        const percent = parseFloat(match[1]);
-                        const progress = Math.floor(percent / 10);
-                        const bar = '█'.repeat(progress) + '▒'.repeat(10 - progress);
-                        sock.sendMessage(sender, { text: `🎬 *Downloading Video*\n\n[${bar}] ${percent}%\n\n_Video sedang diproses..._`, edit: key }).catch(() => {});
-                        lastUpdate = Date.now();
+                    if (match) {
+                        lastPercent = parseFloat(match[1]);
                     }
                 });
 
                 ls.on('close', async (code) => {
-                    if (code !== 0) {
+                    clearInterval(animationInterval);
+                    
+                    if (code === 0) {
+                        // Smooth finish: Show 100% bar before proceeding
+                        const fullBar = '█'.repeat(20);
+                        const finishText = `⏳ Processing YouTube Video... ✅\n\n` +
+                                         `🎬 *Downloading Video*\n` +
+                                         `\`[${fullBar}] 100.0%\` \n\n` +
+                                         `_Finishing up, sending to WhatsApp..._`;
+                        
+                        await sock.sendMessage(sender, { text: finishText, edit: key }).catch(() => {});
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // 2s pause
+                    } else {
                         console.error("yt-dlp error:", stderrData);
                         try { await sock.sendMessage(sender, { text: `❌ Failed to download video. Error: ${stderrData.slice(-100)}`, edit: key }); } catch (e) {}
                         return;
@@ -478,8 +539,8 @@ async function connectWA() {
                     }
 
                     try {
-                        try { await sock.sendMessage(sender, { text: "📤 *Sending video...*", edit: key }); } catch (e) {}
-                        await sock.sendMessage(sender, { video: { url: filePath }, caption: "✅ Video sent!" });
+                        try { await sock.sendMessage(sender, { text: "📤 *Sending video file...*", edit: key }); } catch (e) {}
+                        await sock.sendMessage(sender, { video: { url: filePath }, caption: "✅ Video successfully delivered!" });
                         try { await sock.sendMessage(sender, { text: "✅ Video sent!", edit: key }); } catch (e) {}
                         fs.unlinkSync(filePath);
                     } catch (e) {
