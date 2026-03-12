@@ -42,7 +42,6 @@ WORKDIR /app
 COPY package*.json ./
 
 # Force NPM to install the latest versions of dependencies
-# We delete the lockfile to ensure it doesn't stick to old versions
 RUN rm -f package-lock.json && \
     npm install && \
     npm update

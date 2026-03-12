@@ -9,9 +9,11 @@
   },
   "dependencies": {
     "@ryuu-reinzz/button-helper": "^2.2.3",
-    "baileys": "npm:@whiskeysockets/baileys@latest",
     "axios": "^1.6.0",
+    "baileys": "npm:@whiskeysockets/baileys@latest",
     "dotenv": "^16.3.1",
+    "hercai": "^14.0.3",
+    "jimp": "^1.6.0",
     "pino": "^8.16.1",
     "qrcode-terminal": "^0.12.0"
   },

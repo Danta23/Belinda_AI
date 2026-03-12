@@ -1,6 +1,6 @@
 import os
 from flask import Flask, request
-from handlers import handle_status, handle_chat, handle_shell
+from handlers import handle_status, handle_chat, handle_shell, handle_gen, handle_weather
 from dotenv import load_dotenv  # support .env
 
 # Load variabel dari file .env
@@ -25,6 +25,16 @@ def chat():
 def shell():
     data = request.get_json(force=True)
     return handle_shell(data)
+
+@app.route("/gen", methods=["POST"])
+def gen():
+    data = request.get_json(force=True)
+    return handle_gen(data)
+
+@app.route("/weather", methods=["POST"])
+def weather():
+    data = request.get_json(force=True)
+    return handle_weather(data)
 
 if __name__ == "__main__":
     # Ensure subprocesses in Docker can find python if needed

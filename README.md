@@ -223,6 +223,8 @@ If you cannot use Docker, follow the guide for your specific OS. Ensure **FFmpeg
 | `!shell {cmd}` | Run Linux commands (real-time) | Admin |
 | `!music {url}` | Download Spotify/YouTube to VN | All |
 | `!video {url}` | Download YouTube Video (480p) | All |
+| `!gen {doc:fmt} {p}`| AI Gen Documents: ppt, word, excel | All |
+| `!cuaca {city}` | Real-time Weather Report | All |
 | `!quran {s:a}` | Get Ayah (e.g., !quran 1:1) | All |
 | `!quiz {args}` | Start educational quiz | All |
 | `!kick {user}` | Remove member from group | Admin |
