@@ -139,7 +139,7 @@ import io
 
 def handle_gen(data):
     sender = data.get("sender")
-    format_type = data.get("format") # doc:ppt, doc:word, doc:excel
+    format_type = data.get("format") # doc:ppt, doc:word, doc:excel, scr:ext, 3dm:ext
     prompt = data.get("msg")
 
     if format_type.startswith("doc:"):
@@ -194,7 +194,107 @@ def handle_gen(data):
         except Exception as e:
             return f"❌ Error generating document: {str(e)}"
 
-    return "❌ Invalid format. Only doc:word, doc:ppt, or doc:excel are supported."
+    elif format_type.startswith("scr:"):
+        ext = format_type.split(":")[1].lower()
+        
+        # Supported programming language extensions
+        valid_scr_exts = [
+            "py", "lua", "pas", "js", "html", "css", "cpp", "c", "cs", "php", 
+            "gd", "java", "go", "rs", "ts", "rb", "sql", "pl", "curl", "asm", 
+            "vb", "ps1", "sh", "fish", "zsh", "bat", "vbs"
+        ]
+        
+        if ext not in valid_scr_exts:
+            return f"❌ Unsupported language extension: `.{ext}`. \n" \
+                   f"Supported: {', '.join(valid_scr_exts)}."
+
+        system_prompt = f"You are an expert programmer. Write a high-quality, complete, and commented {ext} script for: {prompt}. " \
+                        "Provide ONLY the code, no conversational filler. Do not wrap in markdown code blocks unless necessary for clarity."
+        
+        code = get_ai_response(prompt, system_prompt=system_prompt)
+        file_path = f"script_{sender.split('@')[0]}_{datetime.now().strftime('%H%M%S')}.{ext}"
+        
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(code.replace("```" + ext, "").replace("```", "").strip())
+            return jsonify({"type": "document", "path": file_path, "format": ext})
+        except Exception as e:
+            return f"❌ Error creating script: {str(e)}"
+
+    elif format_type.startswith("3dm:"):
+        ext = format_type.split(":")[1].lower()
+        
+        # Validation for 3D formats
+        valid_3d_exts = ["fbx", "obj", "stl", "glb", "gltf"]
+        if ext not in valid_3d_exts:
+            return f"❌ Invalid 3D format: `.{ext}`. \nSupported: {', '.join(valid_3d_exts)}."
+
+        from googlesearch import search as gsearch
+        import shutil
+        
+        try:
+            # --- STAGE 1: AGGRESSIVE SEARCH ---
+            search_queries = [
+                f'site:github.com "{prompt}" extension:{ext}',
+                f'"{prompt}" filetype:{ext}',
+                f'"{prompt}" 3d model direct link {ext}'
+            ]
+            
+            for query in search_queries:
+                try:
+                    results = gsearch(query, num_results=10)
+                    for url in results:
+                        u_low = url.lower()
+                        target_url = None
+                        if "github.com" in u_low and f".{ext}" in u_low:
+                            target_url = u_low.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
+                        elif u_low.endswith(f".{ext}"):
+                            target_url = url
+                        
+                        if target_url:
+                            file_path = f"model_{sender.split('@')[0]}_{datetime.now().strftime('%H%M%S')}.{ext}"
+                            resp = requests.get(target_url, stream=True, timeout=15)
+                            if resp.status_code == 200 and "text/html" not in resp.headers.get("Content-Type", ""):
+                                with open(file_path, 'wb') as f:
+                                    for chunk in resp.iter_content(chunk_size=8192): f.write(chunk)
+                                return jsonify({"type": "document", "path": file_path, "format": ext, "status": "found"})
+                except: continue
+
+            # --- STAGE 2: MULTI-SPACE AI GENERATION ---
+            from gradio_client import Client
+            # List of spaces to try in order of reliability
+            spaces = ["huggingface-projects/Shap-E", "shinasum/Shap-E", "TencentARC/InstantMesh"]
+            
+            for space in spaces:
+                try:
+                    client = Client(space)
+                    # Different spaces have different API names/params
+                    if "InstantMesh" in space:
+                        # InstantMesh usually needs an image, so we skip for direct text-to-3d
+                        continue 
+                    
+                    result = client.predict(prompt, api_name="/text_to_3d") if "huggingface-projects" in space else \
+                             client.predict(prompt, 1, 15, api_name="/predict")
+                    
+                    if result and os.path.exists(result):
+                        ai_ext = "glb"
+                        file_path = f"ai_gen_{sender.split('@')[0]}_{datetime.now().strftime('%H%M%S')}.{ai_ext}"
+                        shutil.copy(result, file_path)
+                        return jsonify({"type": "document", "path": file_path, "format": ai_ext, "status": "generated"})
+                except Exception as e:
+                    print(f"Space {space} failed: {e}")
+                    continue
+
+            # --- STAGE 3: SMART LINK FALLBACK ---
+            return f"⚠️ *Status:* Search failed & AI servers are busy.\n\n" \
+                   f"I couldn't generate the literal file right now, but you can download it here:\n" \
+                   f"🔗 https://poly.pizza/search/{urllib.parse.quote(prompt)}\n" \
+                   f"🔗 https://sketchfab.com/search?q={urllib.parse.quote(prompt)}"
+                
+        except Exception as e:
+            return f"❌ 3D Engine Error: {str(e)}"
+
+    return "❌ Invalid format. Supported: doc:word|ppt|excel, scr:ext, 3dm:ext."
 
 import requests
 

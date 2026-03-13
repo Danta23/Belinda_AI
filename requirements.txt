@@ -3,6 +3,8 @@ requests
 python-dotenv
 groq
 gunicorn
+googlesearch-python
+gradio_client
 python-docx
 python-pptx
 openpyxl

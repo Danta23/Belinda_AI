@@ -223,15 +223,17 @@ If you cannot use Docker, follow the guide for your specific OS. Ensure **FFmpeg
 | `!shell {cmd}` | Run Linux commands (real-time) | Admin |
 | `!music {url}` | Download Spotify/YouTube to VN | All |
 | `!video {url}` | Download YouTube Video (480p) | All |
-| `!gen {doc:fmt} {p}`| AI Gen Documents: ppt, word, excel | All |
+| `!gen doc:{fmt}`| AI Documents (ppt, word, excel) | All |
+| `!gen scr:{ext}`| Generate Script (py, lua, etc) | All |
+| `!gen 3dm:{ext}`| AI Generate/Search 3D Models | All |
 | `!cuaca {city}` | Real-time Weather Report | All |
 | `!quran {s:a}` | Get Ayah (e.g., !quran 1:1) | All |
-| `!quiz {args}` | Start educational quiz | All |
 | `!kick {user}` | Remove member from group | Admin |
-| `!add {num}` | Add member (Global support + Auto-invite fallback) | Admin |
+| `!add {num}` | Add member (Global support) | Admin |
 | `!open` / `!close` | Group permission control | Admin |
-| `!zero` | Wipe chat history | Admin |
+| `!zero` | Wipe chat history (Admin Only) | Admin |
 | `!log` | View recent chat logs | All |
+| `!reset`| Reset quiz session data | All |
 
 ---
 
