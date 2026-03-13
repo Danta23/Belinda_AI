@@ -275,6 +275,18 @@ async function connectWA() {
                 return;
             }
 
+            if (cmd === '!cuaca') {
+                const city = args.slice(1).join(' ');
+                if (!city) return sock.sendMessage(sender, { text: "⚠️ Format: !cuaca {nama_kota}" });
+
+                try {
+                    const res = await axios.post(`${pythonUrl}/weather`, { msg: city });
+                    await sock.sendMessage(sender, { text: res.data });
+                } catch (e) {
+                    await sock.sendMessage(sender, { text: `❌ Error: ${e.message}` });
+                }
+            }
+
             if (cmd === '!add') {
                 if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
                 if (!args[1]) return sock.sendMessage(sender, { text: "⚠️ Format: !add {nomor} (Contoh: !add 628xxx atau !add 1234xxx)" });
