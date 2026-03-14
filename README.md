@@ -39,6 +39,7 @@
 
 ### 🧠 Intelligence & Conversation
 - **Groq AI Integration**: Lightning-fast, intelligent conversations using Llama 3 models.
+- **Voice Note Support**: Send Voice Notes to the bot to get transcribed AI-generated replies when AI mode is ON.
 - **Context Awareness**: Remembers recent chat history for more natural responses.
 - **Default-OFF Logic**: AI is disabled by default for privacy; activate it per-chat using `!bot`.
 
@@ -263,6 +264,8 @@ npm install
 | :--- | :--- | :--- |
 | `!help` | Display interactive menu | All |
 | `!bot` | Toggle AI Mode (Enable/Disable) | Admin |
+| `!quiz` | Start a trivia quiz | All |
+| `!next` | Next quiz question (min. 2 users) | All |
 | `!shell {cmd}` | Run Linux commands (real-time) | Admin |
 | `!music {url}` | Download Spotify/YouTube to VN | All |
 | `!video {url}` | Download YouTube Video (480p) | All |

@@ -1,6 +1,6 @@
 import os
 from flask import Flask, request
-from handlers import handle_status, handle_chat, handle_shell, handle_gen, handle_weather
+from handlers import handle_status, handle_chat, handle_shell, handle_gen, handle_weather, handle_voice
 from dotenv import load_dotenv  # support .env
 
 # Load variabel dari file .env
@@ -20,6 +20,10 @@ def status():
 def chat():
     data = request.get_json(force=True)
     return handle_chat(data)
+
+@app.route("/voice", methods=["POST"])
+def voice():
+    return handle_voice(request)
 
 @app.route("/shell", methods=["POST"])
 def shell():

@@ -38,7 +38,7 @@ def load_chat_history():
         try:
             with open(HISTORY_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, IsADirectoryError):
             return []
     return []
 
@@ -344,3 +344,57 @@ def handle_chat(data):
     )
 
     return get_ai_response(msg, recent_context=recent_context)
+
+def handle_voice(req):
+    sender = req.form.get("sender")
+    
+    if not bot_status.get(sender, False):
+        return "⚠️ Belinda AI is currently OFF."
+
+    if 'audio' not in req.files:
+        return "❌ No audio file received."
+
+    audio_file = req.files['audio']
+    temp_path = f"temp_voice_{sender.split('@')[0]}_{datetime.now().strftime('%H%M%S')}.ogg"
+    
+    try:
+        audio_file.save(temp_path)
+        
+        with open(temp_path, "rb") as file:
+            transcription = client.audio.transcriptions.create(
+                file=(temp_path, file.read()),
+                model="whisper-large-v3",
+                response_format="text",
+                language="id" # Default id, whisper will still auto-detect if spoken in English generally.
+            )
+            
+            transcript_text = transcription.strip()
+            
+            if not transcript_text:
+                raise ValueError("Could not transcribe voice note.")
+            
+            # Now pass text to the AI model
+            history = load_chat_history()
+            sender_history = [h for h in history if h.get("sender") == sender]
+            recent_context = "\n".join(
+                [f"{h['participant']}: {h['text']}" for h in sender_history[-5:]]
+            )
+            
+            # Optionally add a note to AI that this was spoken
+            system_prompt = (
+                f"You are Belinda AI, an intelligent assistant. The user just sent a voice note that was transcribed to text.\n"
+                f"Recent chat context:\n{recent_context}"
+            )
+            
+            ai_reply = get_ai_response(transcript_text, system_prompt=system_prompt, recent_context=recent_context)
+            
+            # Format the output nicely to show what the bot heard
+            final_response = ai_reply
+            
+            return final_response
+            
+    except Exception as e:
+        return f"❌ Error processing voice note: {str(e)}"
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
