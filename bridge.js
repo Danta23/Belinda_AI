@@ -20,12 +20,31 @@ const pythonUrl = process.env.PYTHON_URL || 'http://127.0.0.1:8000';
 const historyFile = 'chat_history.json';
 function loadHistory() {
     if (fs.existsSync(historyFile)) {
-        return JSON.parse(fs.readFileSync(historyFile, 'utf8'));
+        try {
+            if (fs.statSync(historyFile).isDirectory()) {
+                console.error(`Error: '${historyFile}' is a directory, not a file. Chat history will not be loaded or saved until this is manually resolved.`);
+                return [];
+            }
+            const data = fs.readFileSync(historyFile, 'utf8');
+            if (!data) return []; // Handle empty file
+            return JSON.parse(data);
+        } catch (e) {
+            console.log(`Warning: Could not read or parse '${historyFile}'. A new one will be created. Error: ${e.message}`);
+            return [];
+        }
     }
     return [];
 }
 function saveHistory(history) {
-    fs.writeFileSync(historyFile, JSON.stringify(history, null, 2));
+    try {
+        if (fs.existsSync(historyFile) && fs.statSync(historyFile).isDirectory()) {
+            // Do not attempt to write if it's a directory. The error is already logged in loadHistory.
+            return;
+        }
+        fs.writeFileSync(historyFile, JSON.stringify(history, null, 2));
+    } catch (e) {
+        console.error(`Error saving chat history: ${e.message}`);
+    }
 }
 let chatHistory = loadHistory();
 
