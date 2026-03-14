@@ -62,8 +62,22 @@ function normalizeText(str) {
 }
 
 async function connectWA() {
+    console.log("⏳ Starting connection in 5 seconds to wait for network...");
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
     const { state, saveCreds } = await useMultiFileAuthState(process.env.SESSION_NAME || 'auth_info');
-    const { version, isLatest } = await fetchLatestBaileysVersion();
+    
+    let version, isLatest;
+    try {
+        const v = await fetchLatestBaileysVersion();
+        version = v.version;
+        isLatest = v.isLatest;
+    } catch (e) {
+        console.log("⚠️ Could not fetch latest WA version, using default.");
+        version = [2, 3000, 1015901307]; // Fallback version
+        isLatest = false;
+    }
+    
     console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
     const sock = makeWASocket({
@@ -92,11 +106,18 @@ async function connectWA() {
             console.log(`✅ BOT BELINDA ONLINE (Bridge: ${bridgeHost}:${bridgePort})`);
         }
         if (connection === 'close') {
-            const reason = lastDisconnect?.error?.output?.statusCode;
+            const reason = lastDisconnect?.error?.output?.statusCode || 0;
             const shouldReconnect = reason !== DisconnectReason.loggedOut;
             console.log(`❌ Connection closed. Reason code: ${reason}. Reconnecting: ${shouldReconnect}`);
+            
+            if (reason === 408) {
+                console.log("⚠️ Request Timeout (408). This usually means the network is unstable or blocked.");
+            }
+
             if (shouldReconnect) {
-                setTimeout(connectWA, 10000);
+                const delay = reason === 408 ? 15000 : 10000;
+                console.log(`⏳ Reconnecting in ${delay/1000}s...`);
+                setTimeout(connectWA, delay);
             } else {
                 console.log("⚠️ Session logged out. Please delete the auth folder and scan again.");
             }
