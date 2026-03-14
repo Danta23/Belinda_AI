@@ -194,6 +194,49 @@ Using Docker is the **highly recommended** method. It ensures you have the full 
 
 If you cannot use Docker, follow the guide for your specific OS. Ensure **FFmpeg** and **yt-dlp** are installed on your system path.
 
+#### 📦 Environment Setup & Dependencies Installation
+Before starting the bot, you must create a virtual environment, activate it, and install all required packages.
+
+**🐧 Arch Linux**
+- **Bash/Zsh**:
+  ```bash
+  python -m venv .venv
+  source .venv/bin/activate
+  pip install -r requirements.txt
+  npm install
+  ```
+- **Fish Shell**:
+  ```fish
+  python -m venv .venv
+  source .venv/bin/activate.fish
+  pip install -r requirements.txt
+  npm install
+  ```
+
+**🪟 Windows 11**
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+npm install
+```
+
+**🍎 macOS**
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+npm install
+```
+
+**📱 Android (Termux)**
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+npm install
+```
+
 #### 🐧 Linux (Arch/Ubuntu/Debian)
 - **Bash/Zsh**: `chmod +x start.sh && ./start.sh`
 - **Fish Shell**: `chmod +x start.fish && ./start.fish`
