@@ -1,12 +1,12 @@
 # Maintainer: Danta <danta@studio234.id>
 pkgname=belinda-ai
-pkgver=1.0.0
+pkgver=1.1.0
 pkgrel=1
-pkgdesc="WhatsApp Bot Belinda AI - Intelligent assistant with Python and Node.js bridge"
+pkgdesc="WhatsApp Bot Belinda AI - Intelligent assistant with GUI setup and cross-platform support"
 arch=('any')
-url="https://github.com/danta/Belinda_AI"
+url="https://github.com/Danta23/Belinda_AI"
 license=('MIT')
-depends=('python' 'nodejs' 'npm' 'ffmpeg' 'yt-dlp')
+depends=('python' 'python-pyqt5' 'python-qtawesome' 'python-dotenv' 'nodejs' 'npm' 'ffmpeg' 'yt-dlp')
 makedepends=('git')
 source=("belinda-ai.service" 
         "belinda-ai.sh"
@@ -14,25 +14,35 @@ source=("belinda-ai.service"
         "handlers.py"
         "bridge.js"
         "package.json"
-        "requirements.txt")
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+        "requirements.txt"
+        "installer_app.py"
+        "installer_styles.py"
+        "installer_settings_manager.py"
+        "installer_translations.py")
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # 1. Create directory
-  mkdir -p "$pkgdir/opt/$pkgname"
+  mkdir -p "$pkgdir/opt/$pkgname/installer"
   mkdir -p "$pkgdir/usr/bin"
   mkdir -p "$pkgdir/usr/lib/systemd/user"
 
-  # 2. Copy project files from source
+  # 2. Copy main project files
   cp "$srcdir/app.py" "$pkgdir/opt/$pkgname/"
   cp "$srcdir/handlers.py" "$pkgdir/opt/$pkgname/"
   cp "$srcdir/bridge.js" "$pkgdir/opt/$pkgname/"
   cp "$srcdir/package.json" "$pkgdir/opt/$pkgname/"
   cp "$srcdir/requirements.txt" "$pkgdir/opt/$pkgname/"
+  
+  # 3. Copy installer files (restoring original names)
+  cp "$srcdir/installer_app.py" "$pkgdir/opt/$pkgname/installer/app.py"
+  cp "$srcdir/installer_styles.py" "$pkgdir/opt/$pkgname/installer/styles.py"
+  cp "$srcdir/installer_settings_manager.py" "$pkgdir/opt/$pkgname/installer/settings_manager.py"
+  cp "$srcdir/installer_translations.py" "$pkgdir/opt/$pkgname/installer/translations.py"
 
-  # 3. Install start script
+  # 4. Install start script (GUI Launcher)
   install -Dm755 "$srcdir/belinda-ai.sh" "$pkgdir/usr/bin/belinda-ai"
 
-  # 4. Install systemd service (as user service)
+  # 5. Install systemd service
   install -Dm644 "$srcdir/belinda-ai.service" "$pkgdir/usr/lib/systemd/user/belinda-ai.service"
 }
