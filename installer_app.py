@@ -663,18 +663,26 @@ class BelindaSetup(QMainWindow):
         super().__init__()
         # Dynamic path detection for both DEV and COMPILED (EXE) modes
         if getattr(sys, 'frozen', False):
-            # Run as bundled EXE
             base_dir = os.path.dirname(sys.executable)
         else:
-            # Run as script
             base_dir = os.path.dirname(os.path.abspath(__file__))
             
-        if os.path.basename(base_dir) == "installer":
-            self.root_dir = os.path.dirname(base_dir)
+        # Detect if we are in a system-wide read-only directory
+        is_system = any(p in base_dir for p in ["/usr/lib", "/opt", "C:\\Program Files"])
+        
+        if is_system:
+            # Use home directory for writable files
+            self.root_dir = os.path.expanduser("~/.local/share/belinda-ai")
+            self.engine_dir = os.path.dirname(base_dir) if os.path.basename(base_dir) == "installer" else base_dir
         else:
-            # If EXE is in a separate folder, look for Belinda_AI next to it
-            self.root_dir = os.path.join(base_dir, "Belinda_AI")
+            # Local/Portable mode
+            if os.path.basename(base_dir) == "installer":
+                self.root_dir = os.path.dirname(base_dir)
+            else:
+                self.root_dir = base_dir
+            self.engine_dir = self.root_dir
             
+        os.makedirs(self.root_dir, exist_ok=True)
         self.sm = SettingsManager(self.root_dir)
         
         self.setWindowFlags(Qt.FramelessWindowHint)
@@ -696,7 +704,7 @@ class BelindaSetup(QMainWindow):
             self.page_installer.check_dependencies(self.root_dir)
 
     def is_project_ready(self):
-        # Look for the root folder and bridge.js precisely
+        # Ready if bridge.js exists in our writable root
         return os.path.exists(os.path.join(self.root_dir, "bridge.js"))
 
     def check_docker(self):
