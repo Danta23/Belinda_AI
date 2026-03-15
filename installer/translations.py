@@ -21,6 +21,13 @@ TRANSLATIONS = {
         "status_cloning": "Cloning repository from GitHub...",
         "btn_clone_now": "CLONE & SETUP PROJECT",
         "clone_fail": "Setup failed. Please check your internet connection.",
+        "lbl_execution_mode": "Execution Mode",
+        "mode_local": "Local Mode (Native)",
+        "mode_docker": "Docker Mode (Container)",
+        "status_venv": "Creating virtual environment...",
+        "status_pip": "Installing Python dependencies...",
+        "status_npm": "Installing Node.js dependencies...",
+        "status_env": "Initializing .env file...",
         "section_ui": "🎨 UI APPEARANCE",
         "section_loc": "🌍 LOCALIZATION",
         "section_ai": "🤖 AI SETTINGS",
@@ -36,7 +43,9 @@ TRANSLATIONS = {
         "ai_eco": "AI ECOSYSTEM",
         "bot_online": "BOT BELINDA IS ONLINE!",
         "task_finished": "Task completed!",
-        "starting_ai": "Starting AI Systems..."
+        "starting_ai": "Starting AI Systems...",
+        "prompt_api_title": "API Key Required",
+        "prompt_api_desc": "Please enter your Groq API Key to initialize the system:"
     },
     "Indonesian": {
         "nav_dashboard": "Beranda",
@@ -59,6 +68,13 @@ TRANSLATIONS = {
         "status_cloning": "Mengunduh repositori dari GitHub...",
         "btn_clone_now": "CLONE & SIAPKAN PROYEK",
         "clone_fail": "Persiapan gagal. Periksa koneksi internet Anda.",
+        "lbl_execution_mode": "Mode Eksekusi",
+        "mode_local": "Mode Lokal (Native)",
+        "mode_docker": "Mode Docker (Kontainer)",
+        "status_venv": "Membuat virtual environment...",
+        "status_pip": "Menginstal dependensi Python...",
+        "status_npm": "Menginstal dependensi Node.js...",
+        "status_env": "Menginisialisasi file .env...",
         "section_ui": "🎨 TAMPILAN UI",
         "section_loc": "🌍 LOKALISASI",
         "section_ai": "🤖 PENGATURAN AI",
@@ -74,7 +90,9 @@ TRANSLATIONS = {
         "ai_eco": "EKOSISTEM AI",
         "bot_online": "BOT BELINDA AKTIF!",
         "task_finished": "Tugas selesai!",
-        "starting_ai": "Memulai Sistem AI..."
+        "starting_ai": "Memulai Sistem AI...",
+        "prompt_api_title": "Membutuhkan API Key",
+        "prompt_api_desc": "Masukkan Groq API Key Anda untuk inisialisasi sistem:"
     },
     "Japanese": {
         "nav_dashboard": "ダッシュボード",
@@ -97,6 +115,13 @@ TRANSLATIONS = {
         "status_cloning": "GitHub からリポジトリをクローン中...",
         "btn_clone_now": "クローンしてセットアップ",
         "clone_fail": "セットアップに失敗しました。インターネット接続を確認してください。",
+        "lbl_execution_mode": "実行モード",
+        "mode_local": "ローカルモード (ネイティブ)",
+        "mode_docker": "Dockerモード (コンテナ)",
+        "status_venv": "仮想環境を作成中...",
+        "status_pip": "Python依存関係をインストール中...",
+        "status_npm": "Node.js依存関係をインストール中...",
+        "status_env": ".envファイルを初期化中...",
         "section_ui": "🎨 外観設定",
         "section_loc": "🌍 言語設定",
         "section_ai": "🤖 AI設定",
@@ -112,6 +137,8 @@ TRANSLATIONS = {
         "ai_eco": "AIエコシステム",
         "bot_online": "ボットがオンラインになりました！",
         "task_finished": "タスク完了！",
-        "starting_ai": "AIシステムを起動中..."
+        "starting_ai": "AIシステムを起動中...",
+        "prompt_api_title": "APIキーが必要です",
+        "prompt_api_desc": "システムを初期化するためにGroq APIキーを入力してください:"
     }
 }

@@ -91,6 +91,19 @@ QProgressBar::chunk {{
     border: 1px solid rgba(255, 255, 255, 10);
     border-radius: 12px;
 }}
+
+QDialog {{
+    background-color: #1a1a20;
+    border: 1px solid #36BCF7;
+}}
+
+QComboBox {{
+    background-color: rgba(0, 0, 0, 80);
+    border: 1px solid rgba(255, 255, 255, 20);
+    border-radius: 6px;
+    padding: 5px;
+    color: white;
+}}
 """
 
 LIGHT_STYLE_TEMPLATE = """
@@ -183,5 +196,18 @@ QProgressBar::chunk {{
     background-color: rgba(0, 0, 0, 5);
     border: 1px solid rgba(0, 0, 0, 10);
     border-radius: 12px;
+}}
+
+QDialog {{
+    background-color: #f0f0f5;
+    border: 1px solid #2D9CDB;
+}}
+
+QComboBox {{
+    background-color: white;
+    border: 1px solid rgba(0, 0, 0, 20);
+    border-radius: 6px;
+    padding: 5px;
+    color: #333333;
 }}
 """

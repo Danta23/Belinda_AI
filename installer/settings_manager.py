@@ -17,7 +17,8 @@ class SettingsManager:
             "APP_LANGUAGE": "English",
             "APP_FONT_SIZE": "14",
             "APP_FONT_FAMILY": "Segoe UI",
-            "APP_TITLE_SIZE": "24"
+            "APP_TITLE_SIZE": "24",
+            "EXECUTION_MODE": "local"
         }
         
         if not os.path.exists(self.env_path):

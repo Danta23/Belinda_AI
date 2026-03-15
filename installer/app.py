@@ -93,13 +93,25 @@ class Worker(QThread):
     finished = pyqtSignal(bool, str)
     log_output = pyqtSignal(str) # New signal for direct log streaming
 
-    def __init__(self, task, root_dir):
+    def __init__(self, task, root_dir, settings_mgr, api_key=None):
         super().__init__()
         self.task = task
         self.root_dir = root_dir
+        self.sm = settings_mgr
+        self.api_key = api_key
 
     def get_scripts(self):
         os_name = platform.system().lower()
+        mode = self.sm.get("EXECUTION_MODE", "local")
+        
+        if mode == "docker":
+            return {
+                "start": "docker-compose up -d --build",
+                "stop": "docker-compose down",
+                "reset": "docker-compose down -v",
+                "shell": "docker"
+            }
+            
         if os_name == "windows":
             return {"start": "start.ps1", "stop": "stop.ps1", "reset": "reset.ps1", "shell": "powershell"}
         elif os_name == "darwin":
@@ -130,19 +142,58 @@ class Worker(QThread):
 
         try:
             if self.task == "install":
-                self.progress.emit(10, "Checking dependencies...")
-                self.progress.emit(30, "Creating virtual environment...")
+                self.progress.emit(10, "status_env")
+                env_proto = os.path.join(self.root_dir, ".env.example")
+                env_file = os.path.join(self.root_dir, ".env")
+                if os.path.exists(env_proto) and not os.path.exists(env_file):
+                    import shutil
+                    shutil.copy(env_proto, env_file)
+
+                if self.api_key:
+                    self.sm.set("GROQ_API_KEY", self.api_key)
+                
+                if self.sm.get("EXECUTION_MODE") == "docker":
+                    self.progress.emit(50, "Pulling/Building Docker Containers...")
+                    subprocess.run(["docker-compose", "build"], cwd=self.root_dir, shell=True, check=True)
+                    self.progress.emit(100, "Docker Ready!")
+                    self.finished.emit(True, "Installation completed!")
+                    return
+
+                self.progress.emit(30, "status_venv")
                 if not os.path.exists(os.path.join(self.root_dir, ".venv")):
-                    subprocess.run([sys.executable, "-m", "venv", ".venv"], cwd=self.root_dir, check=True)
+                    # Find system python (sys.executable is the EXE when frozen)
+                    py_cmd = "python"
+                    try:
+                        subprocess.run([py_cmd, "--version"], capture_output=True, check=True, shell=True)
+                    except:
+                        py_cmd = "python3"
+                        try:
+                            subprocess.run([py_cmd, "--version"], capture_output=True, check=True, shell=True)
+                        except:
+                            self.finished.emit(False, "System Python not found! Please install Python 3.10+ and add it to PATH.")
+                            return
+                    
+                    subprocess.run([py_cmd, "-m", "venv", ".venv"], cwd=self.root_dir, check=True, shell=True)
                 
-                self.progress.emit(60, "Installing Python requirements...")
+                self.progress.emit(60, "status_pip")
                 pip_path = os.path.join(self.root_dir, ".venv", "Scripts", "pip") if os.name == 'nt' else os.path.join(self.root_dir, ".venv", "bin", "pip")
-                subprocess.run([pip_path, "install", "-r", "requirements.txt"], cwd=self.root_dir, check=True)
+                # Upgrade pip first
+                subprocess.run([pip_path, "install", "--upgrade", "pip"], cwd=self.root_dir, check=False, shell=True)
+                # Install requirements
+                pip_proc = subprocess.run([pip_path, "install", "-r", "requirements.txt"], cwd=self.root_dir, capture_output=True, text=True, shell=True)
+                with open(log_file, 'a', encoding='utf-8') as f:
+                    f.write("\n--- PIP INSTALL ---\n" + (pip_proc.stdout or "") + (pip_proc.stderr or ""))
                 
-                self.progress.emit(80, "Installing Node.js dependencies...")
-                subprocess.run(["npm", "install"], cwd=self.root_dir, shell=True, check=True)
+                self.progress.emit(80, "status_npm")
+                npm_proc = subprocess.run(["npm", "install", "--no-audit", "--no-fund"], cwd=self.root_dir, shell=True, capture_output=True, text=True)
+                with open(log_file, 'a', encoding='utf-8') as f:
+                    f.write("\n--- NPM INSTALL ---\n" + npm_proc.stdout + npm_proc.stderr)
                 
-                self.progress.emit(100, "Finalizing installation...")
+                if pip_proc.returncode != 0 or npm_proc.returncode != 0:
+                    self.finished.emit(False, "Dependency installation failed. Check Console for details.")
+                    return
+                
+                self.progress.emit(100, "task_finished")
                 self.finished.emit(True, "Installation completed!")
             
             elif self.task == "session":
@@ -160,14 +211,18 @@ class Worker(QThread):
                     self.finished.emit(True, "No session data found to clear.")
             
             elif self.task in ["start", "stop", "reset"]:
-                script_name = scripts[self.task]
-                self.progress.emit(20, f"Preparing {script_name}...")
-                
-                if scripts["shell"] == "powershell":
-                    cmd = f"powershell -ExecutionPolicy Bypass -File ./{script_name}"
+                if scripts["shell"] == "docker":
+                    cmd = scripts[self.task]
+                    self.progress.emit(50, f"Executing Docker: {self.task}...")
                 else:
-                    subprocess.run(["chmod", "+x", script_name], cwd=self.root_dir)
-                    cmd = f"./{script_name}"
+                    script_name = scripts[self.task]
+                    self.progress.emit(20, f"Preparing {script_name}...")
+                    
+                    if scripts["shell"] == "powershell":
+                        cmd = f"powershell -ExecutionPolicy Bypass -File ./{script_name}"
+                    else:
+                        subprocess.run(["chmod", "+x", script_name], cwd=self.root_dir)
+                        cmd = f"./{script_name}"
                 
                 self.log_output.emit(f"> Executing: {cmd}\n")
                 
@@ -182,7 +237,7 @@ class Worker(QThread):
                     errors='replace',
                     bufsize=1,
                     universal_newlines=True,
-                    shell=True # Use shell=True for easier path resolution and script execution
+                    shell=True
                 )
 
                 # Capture output loop
@@ -239,36 +294,60 @@ class CloneWorker(QThread):
 
     def run(self):
         try:
+            import shutil
             repo_url = "https://github.com/Danta23/Belinda_AI.git"
-            self.progress.emit(20, "status_detecting")
+            self.progress.emit(10, "status_detecting")
             
-            # The target_dir is where we want the project to be
             parent_dir = os.path.dirname(self.target_dir)
             if not os.path.exists(parent_dir):
-                os.makedirs(parent_dir)
+                os.makedirs(parent_dir, exist_ok=True)
 
-            self.progress.emit(40, "status_cloning")
-            # Clone only if folder doesn't exist
+            self.progress.emit(30, "status_cloning")
+            
+            # Robust check: If folder exists but is not a git repo, or is empty, remove and re-clone
+            is_valid_repo = os.path.exists(os.path.join(self.target_dir, ".git"))
+            if os.path.exists(self.target_dir) and not is_valid_repo:
+                try:
+                    shutil.rmtree(self.target_dir)
+                except:
+                    # If rmtree fails (e.g. file in use), try to at least clear what we can
+                    pass
+
             if not os.path.exists(self.target_dir):
+                self.progress.emit(40, "status_cloning")
+                # Use --progress to force progress output even if not a terminal
                 process = subprocess.Popen(
-                    ["git", "clone", repo_url],
-                    cwd=parent_dir,
+                    f"git clone --progress {repo_url} \"{self.target_dir}\"",
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
-                    shell=True
+                    shell=True,
+                    bufsize=1,
+                    universal_newlines=True
                 )
+                
                 while True:
                     line = process.stdout.readline()
                     if not line and process.poll() is not None:
                         break
-                    if "Receiving objects" in line:
-                        self.progress.emit(70, "status_cloning")
+                    if line:
+                        # Parse git progress e.g. "Receiving objects:  95% (123/129)"
+                        match = re.search(r"(\d+)%", line)
+                        if match:
+                            percent = int(match.group(1))
+                            # Map 0-100 git progress to 40-95 app progress
+                            app_percent = 40 + int(percent * 0.55)
+                            self.progress.emit(app_percent, "status_cloning")
                 
                 process.wait()
                 if process.returncode != 0:
                     self.finished.emit(False, "clone_fail")
                     return
+            
+            # Verify cloning succeeded
+            if not os.path.exists(os.path.join(self.target_dir, "bridge.js")):
+                self.finished.emit(False, "clone_incomplete")
+                return
 
             self.progress.emit(100, "task_finished")
             self.finished.emit(True, "Project ready.")
@@ -346,6 +425,12 @@ class PageInstaller(QWidget):
         
         layout.addWidget(self.card)
 
+        self.warning_label = QLabel("")
+        self.warning_label.setStyleSheet("color: #FF4B4B; font-weight: bold;")
+        self.warning_label.setWordWrap(True)
+        self.warning_label.setVisible(False)
+        layout.addWidget(self.warning_label)
+
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(15)
 
@@ -389,6 +474,27 @@ class PageInstaller(QWidget):
         self.reset_btn.setText(self.get_text("btn_reset"))
         self.session_btn.setText(self.get_text("btn_reset_session"))
         self.install_btn.setText(self.get_text("btn_deploy"))
+
+    def check_dependencies(self, root_dir):
+        # Quick check for .venv and node_modules
+        has_venv = os.path.exists(os.path.join(root_dir, ".venv"))
+        has_node_modules = os.path.exists(os.path.join(root_dir, "node_modules"))
+        has_env = os.path.exists(os.path.join(root_dir, ".env"))
+        
+        missing = []
+        if not has_venv: missing.append("Python VENV")
+        if not has_node_modules: missing.append("Node modules")
+        if not has_env: missing.append(".env Config")
+        
+        if missing:
+            self.warning_label.setText(f"⚠ Missing dependencies: {', '.join(missing)}. Please run FULL DEPLOYMENT.")
+            self.warning_label.setVisible(True)
+            self.start_btn.setEnabled(False)
+            self.status_label.setText("Status: Settings Needed")
+        else:
+            self.warning_label.setVisible(False)
+            self.start_btn.setEnabled(True)
+            self.status_label.setText(self.get_text("status_ready"))
 
 class PageLogs(QWidget):
     def __init__(self, root_dir, get_text_func):
@@ -456,21 +562,38 @@ class PageSettings(QWidget, ):
         self.labels = {}
         
         # UI Appearance
-        self.sections.append(self.add_section("section_ui"))
-        self.labels["APP_THEME"] = self.add_combo("APP_THEME", "lbl_theme", ["dark", "light"], self.form_layout)
-        self.labels["APP_FONT_FAMILY"] = self.add_field("APP_FONT_FAMILY", "lbl_font", "Segoe UI", self.form_layout)
-        self.labels["APP_FONT_SIZE"] = self.add_field("APP_FONT_SIZE", "lbl_font_size", "14", self.form_layout)
-        self.labels["APP_TITLE_SIZE"] = self.add_field("APP_TITLE_SIZE", "lbl_title_size", "24", self.form_layout)
+        self.sections.append(self.add_section("section_ui", "fa5s.palette"))
+        self.labels["APP_THEME"] = self.add_combo("APP_THEME", "lbl_theme", ["dark", "light"])
+        self.labels["APP_FONT_FAMILY"] = self.add_field("APP_FONT_FAMILY", "lbl_font", "Segoe UI")
+        self.labels["APP_FONT_SIZE"] = self.add_field("APP_FONT_SIZE", "lbl_font_size", "14")
+        self.labels["APP_TITLE_SIZE"] = self.add_field("APP_TITLE_SIZE", "lbl_title_size", "24")
         
         # Localization
-        self.sections.append(self.add_section("section_loc"))
-        self.labels["APP_LANGUAGE"] = self.add_combo("APP_LANGUAGE", "lbl_lang", ["English", "Indonesian", "Japanese"], self.form_layout)
+        self.sections.append(self.add_section("section_loc", "fa5s.language"))
+        self.labels["APP_LANGUAGE"] = self.add_combo("APP_LANGUAGE", "lbl_lang", ["English", "Indonesian", "Japanese"])
+
+        # Deployment
+        self.sections.append(self.add_section("section_deployment", "fa5s.rocket"))
+        modes = ["local"]
+        if self.parent().parent().parent().check_docker() if hasattr(self, "parent") and self.parent() else True:
+            # We'll just check it dynamically in init_ui of Setup actually
+            pass
+        
+        # Simpler check: check once and store
+        is_docker = False
+        try:
+            subprocess.run(["docker", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            is_docker = True
+        except: pass
+        
+        modes = ["local", "docker"] if is_docker else ["local"]
+        self.labels["EXECUTION_MODE"] = self.add_combo("EXECUTION_MODE", "lbl_execution_mode", modes)
 
         # AI Identity
-        self.sections.append(self.add_section("section_ai"))
-        self.labels["AI_NAME"] = self.add_field("AI_NAME", "lbl_ai_name", "Belinda AI", self.form_layout)
-        self.labels["AI_PERSONALITY"] = self.add_field("AI_PERSONALITY", "lbl_ai_personality", "Intelligent assistant", self.form_layout, is_large=True)
-        self.labels["AI_MAX_TOKENS"] = self.add_field("AI_MAX_TOKENS", "lbl_ai_tokens", "1024", self.form_layout)
+        self.sections.append(self.add_section("section_ai", "fa5s.robot"))
+        self.labels["AI_NAME"] = self.add_field("AI_NAME", "lbl_ai_name", "Belinda AI")
+        self.labels["AI_PERSONALITY"] = self.add_field("AI_PERSONALITY", "lbl_ai_personality", "Intelligent assistant", is_large=True)
+        self.labels["AI_MAX_TOKENS"] = self.add_field("AI_MAX_TOKENS", "lbl_ai_tokens", "1024")
 
         scroll.setWidget(content)
         layout.addWidget(scroll)
@@ -481,15 +604,15 @@ class PageSettings(QWidget, ):
         layout.addWidget(self.save_btn)
         self.retranslate()
 
-    def add_section(self, text_key):
+    def add_section(self, text_key, icon=None):
         lbl = QLabel(self.get_text(text_key))
         lbl.setStyleSheet("font-weight: bold; color: #36BCF7; margin-top: 15px; border-bottom: 1px solid rgba(54,188,247,0.3);")
         self.form_layout.addWidget(lbl)
         return (lbl, text_key)
 
-    def add_field(self, key, label_key, placeholder, layout, is_large=False):
+    def add_field(self, key, label_key, placeholder, is_large=False):
         lbl = QLabel(self.get_text(label_key))
-        layout.addWidget(lbl)
+        self.form_layout.addWidget(lbl)
         if is_large:
             edit = QTextEdit()
             edit.setPlaceholderText(placeholder)
@@ -500,19 +623,20 @@ class PageSettings(QWidget, ):
             edit = QLineEdit()
             edit.setPlaceholderText(placeholder)
             edit.setText(self.sm.get(key))
+            edit.setStyleSheet("background-color: rgba(0,0,0,50); border: 1px solid rgba(255,255,255,10); border-radius: 6px; color: white; padding: 8px;")
         
-        layout.addWidget(edit)
+        self.form_layout.addWidget(edit)
         self.inputs[key] = edit
         return (lbl, label_key)
 
-    def add_combo(self, key, label_key, options, layout):
+    def add_combo(self, key, label_key, options):
         lbl = QLabel(self.get_text(label_key))
-        layout.addWidget(lbl)
+        self.form_layout.addWidget(lbl)
         combo = QComboBox()
         combo.addItems(options)
         combo.setCurrentText(self.sm.get(key))
         combo.setStyleSheet("background-color: rgba(0,0,0,50); color: white; border: 1px solid rgba(255,255,255,10); border-radius: 6px; padding: 5px;")
-        layout.addWidget(combo)
+        self.form_layout.addWidget(combo)
         self.inputs[key] = combo
         return (lbl, label_key)
 
@@ -563,11 +687,24 @@ class BelindaSetup(QMainWindow):
         self.apply_theme()
         
         # Check if project exists, if not, show setup
-        if not os.path.exists(os.path.join(self.root_dir, "bridge.js")):
+        if not self.is_project_ready():
             self.content_area.setCurrentWidget(self.page_setup)
             self.sidebar.setEnabled(False)
         else:
             self.sidebar.setEnabled(True)
+            self.content_area.setCurrentIndex(1) # Dashboard
+            self.page_installer.check_dependencies(self.root_dir)
+
+    def is_project_ready(self):
+        # Look for the root folder and bridge.js precisely
+        return os.path.exists(os.path.join(self.root_dir, "bridge.js"))
+
+    def check_docker(self):
+        try:
+            subprocess.run(["docker", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            return True
+        except:
+            return False
 
     def start_setup_clone(self):
         self.page_setup.clone_btn.setEnabled(False)
@@ -586,7 +723,14 @@ class BelindaSetup(QMainWindow):
             # Reload settings from the newly cloned folder
             self.sm = SettingsManager(self.root_dir)
             self.sidebar.setEnabled(True)
-            self.content_area.setCurrentIndex(0)
+            # Switch to Dashboard (index 1 in QStackedWidget)
+            self.content_area.setCurrentIndex(1)
+            # Clear active buttons and set Dashboard as active
+            for btn in self.btns:
+                btn.setProperty("active", "false")
+                btn.setStyle(btn.style())
+            self.btns[0].setProperty("active", "true")
+            self.btns[0].setStyle(self.btns[0].style())
             self.retranslate_all()
         else:
             self.page_setup.status_label.setText(self.get_text(msg_key))
@@ -717,10 +861,27 @@ class BelindaSetup(QMainWindow):
             title_size=title_size
         )
         self.setStyleSheet(style)
+        QApplication.instance().setStyleSheet(style)
         self.page_settings.save_btn.setText("SAVE & APPLY CHANGES")
 
     def start_worker_task(self, task):
-        self.worker = Worker(task, self.root_dir)
+        api_key = None
+        if task == "install":
+            current_key = self.sm.get("GROQ_API_KEY", "")
+            if not current_key:
+                from PyQt5.QtWidgets import QInputDialog, QLineEdit
+                key, ok = QInputDialog.getText(
+                    self, 
+                    self.get_text("prompt_api_title"),
+                    self.get_text("prompt_api_desc"),
+                    QLineEdit.Password,
+                    ""
+                )
+                if not ok or not key.strip():
+                    return
+                api_key = key.strip()
+
+        self.worker = Worker(task, self.root_dir, self.sm, api_key)
         self.worker.progress.connect(self.update_progress)
         self.worker.finished.connect(self.task_finished)
         self.worker.start()
@@ -744,6 +905,7 @@ class BelindaSetup(QMainWindow):
         self.page_installer.status_label.setText(msg)
         self.page_installer.progress_bar.setValue(100) 
         self.set_controls_enabled(True)
+        self.page_installer.check_dependencies(self.root_dir)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -757,6 +919,15 @@ class BelindaSetup(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = BelindaSetup()
-    window.show()
-    sys.exit(app.exec_())
+    try:
+        window = BelindaSetup()
+        window.show()
+        sys.exit(app.exec_())
+    except Exception as e:
+        from PyQt5.QtWidgets import QMessageBox
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Critical)
+        msg.setText("Application Critical Error")
+        msg.setInformativeText(str(e))
+        msg.setWindowTitle("Error")
+        msg.exec_()
