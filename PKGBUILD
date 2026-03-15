@@ -1,7 +1,7 @@
 # Maintainer: Danta <danta@studio234.id>
 pkgname=belinda-ai
 pkgver=1.1.3
-pkgrel=6
+pkgrel=7
 pkgdesc="WhatsApp Bot Belinda AI - Intelligent assistant with GUI setup and cross-platform support"
 arch=('any')
 url="https://github.com/Danta23/Belinda_AI"

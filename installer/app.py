@@ -966,8 +966,9 @@ class BelindaSetup(QMainWindow):
         self.worker.engine_dir = getattr(self, 'engine_dir', self.root_dir)
         self.worker.progress.connect(self.update_progress)
         self.worker.finished.connect(self.task_finished)
-        if hasattr(self.worker, 'log_output'):
-            self.worker.log_output.connect(self.page_logs.append_log)
+        # We don't connect log_output because page_logs already tails task.log
+        # if hasattr(self.worker, 'log_output'):
+        #     self.worker.log_output.connect(self.page_logs.append_log)
         self.worker.start()
         self.set_controls_enabled(False)
 
