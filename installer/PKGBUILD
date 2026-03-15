@@ -1,0 +1,21 @@
+# Maintainer: Danta <danta@studio234.com>
+pkgname=belinda-ai-installer
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Modern installer and setup utility for Belinda_AI WhatsApp Assistant"
+arch=('any')
+url="https://github.com/Danta23/Belinda_AI"
+license=('MIT')
+depends=('python-pyqt5' 'python-qtawesome' 'python-dotenv' 'python-qtpy')
+makedepends=('python-setuptools')
+source=("git+https://github.com/Danta23/Belinda_AI.git")
+sha256sums=('SKIP')
+
+package() {
+  cd "$srcdir/Belinda_AI"
+  install -Dm755 installer/app.py "$pkgdir/usr/bin/belinda-setup"
+  install -Dm644 installer/styles.py "$pkgdir/usr/lib/belinda-ai/styles.py"
+  install -Dm644 installer/settings_manager.py "$pkgdir/usr/lib/belinda-ai/settings_manager.py"
+  
+  # Create a wrapper script if needed or just install as module
+}

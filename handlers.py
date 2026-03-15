@@ -50,9 +50,13 @@ def get_ai_response(message, system_prompt=None, recent_context="", model_index=
     waktu_sekarang = now.strftime("%A, %d %B %Y | %H:%M:%S")
     milidetik = now.strftime("%f")[:3]
 
+    ai_name = os.getenv("AI_NAME", "Belinda AI")
+    ai_personality = os.getenv("AI_PERSONALITY", "an intelligent assistant created by Studio 234 (Danta)")
+    ai_max_tokens = int(os.getenv("AI_MAX_TOKENS", 1024))
+
     if not system_prompt:
         system_prompt = (
-            f"You are Belinda AI, an intelligent assistant created by Studio 234 (Danta).\n"
+            f"You are {ai_name}, {ai_personality}.\n"
             f"Real-time: {waktu_sekarang}.{milidetik}\n"
             f"Recent chat context:\n{recent_context}"
         )
@@ -66,7 +70,7 @@ def get_ai_response(message, system_prompt=None, recent_context="", model_index=
                 {"role": "user", "content": message}
             ],
             temperature=0.7,
-            max_tokens=2048 if "doc" in str(system_prompt).lower() else 1024,
+            max_tokens=2048 if "doc" in str(system_prompt).lower() else ai_max_tokens,
         )
         return completion.choices[0].message.content
     except Exception as e:

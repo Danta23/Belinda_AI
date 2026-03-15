@@ -84,7 +84,7 @@ async function connectWA() {
         version,
         auth: state,
         browser: ["Ubuntu","Chrome","121.0.6167.85"],
-        logger: require('pino')({ level: 'fatal' }), // Silent internal debug logs
+        logger: require('pino')({ level: 'error' }), // Only log errors
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 0,
         keepAliveIntervalMs: 10000,
@@ -107,19 +107,25 @@ async function connectWA() {
         }
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode || 0;
-            const shouldReconnect = reason !== DisconnectReason.loggedOut;
+            const shouldReconnect = (
+                reason !== DisconnectReason.loggedOut &&
+                reason !== DisconnectReason.badSession &&
+                reason !== DisconnectReason.connectionReplaced
+            );
+            
             console.log(`❌ Connection closed. Reason code: ${reason}. Reconnecting: ${shouldReconnect}`);
             
-            if (reason === 408) {
-                console.log("⚠️ Request Timeout (408). This usually means the network is unstable or blocked.");
-            }
-
-            if (shouldReconnect) {
-                const delay = reason === 408 ? 15000 : 10000;
+            if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.badSession) {
+                console.log("⚠️ Session is invalid or logged out. Please delete the session folder and scan again.");
+            } else if (reason === DisconnectReason.connectionReplaced) {
+                console.log("⚠️ Connection replaced by another session. Stopping current bridge.");
+            } else if (reason === 408 || reason === 503) {
+                console.log("⚠️ Server error or timeout. Retrying in 20s...");
+                if (shouldReconnect) setTimeout(connectWA, 20000);
+            } else if (shouldReconnect) {
+                const delay = 10000;
                 console.log(`⏳ Reconnecting in ${delay/1000}s...`);
                 setTimeout(connectWA, delay);
-            } else {
-                console.log("⚠️ Session logged out. Please delete the auth folder and scan again.");
             }
         }
     });

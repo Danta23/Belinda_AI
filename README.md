@@ -152,6 +152,30 @@ BELINDA_AI/
 
 ---
 
+## 📦 Native Desktop & Mobile Applications
+
+For a more user-friendly experience, we provide native installers that include an **auto-cloning system**. Upon first launch, the app will automatically detect or clone the latest `Belinda_AI` repository to ensure you have the full AI ecosystem ready.
+
+### 📥 Downloads (GitHub Releases)
+- **🪟 Windows 11**: `Belinda-AI-Installer.exe` (Portable Executable)
+- **🐧 Arch Linux (AUR)**: Install via `yay -S belinda-ai` or `paru -S belinda-ai`
+- **🍎 macOS**: `Belinda-AI.dmg` (Intel/Apple Silicon)
+- **📱 Android**: `Belinda-AI.apk`
+
+### 🛠️ Developer Build Instructions
+If you want to build the native apps yourself:
+
+**Windows (.exe)**:
+```powershell
+./build_windows.ps1
+```
+**Arch Linux (AUR)**:
+```bash
+makepkg -si
+```
+
+---
+
 ## ⚙️ Configuration (`.env`)
 
 Create a `.env` file in the root directory.
