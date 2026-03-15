@@ -18,8 +18,14 @@ source=("belinda-ai.service"
         "installer_app.py"
         "installer_styles.py"
         "installer_settings_manager.py"
-        "installer_translations.py")
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+        "installer_translations.py"
+        "start.sh"
+        "stop.sh"
+        "reset.sh"
+        "start.fish"
+        "stop.fish"
+        "reset.fish")
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # 1. Create directory
@@ -40,9 +46,17 @@ package() {
   cp "$srcdir/installer_settings_manager.py" "$pkgdir/opt/$pkgname/installer/settings_manager.py"
   cp "$srcdir/installer_translations.py" "$pkgdir/opt/$pkgname/installer/translations.py"
 
-  # 4. Install start script (GUI Launcher)
+  # 5. Copy shell scripts
+  cp "$srcdir/start.sh" "$pkgdir/opt/$pkgname/"
+  cp "$srcdir/stop.sh" "$pkgdir/opt/$pkgname/"
+  cp "$srcdir/reset.sh" "$pkgdir/opt/$pkgname/"
+  cp "$srcdir/start.fish" "$pkgdir/opt/$pkgname/"
+  cp "$srcdir/stop.fish" "$pkgdir/opt/$pkgname/"
+  cp "$srcdir/reset.fish" "$pkgdir/opt/$pkgname/"
+
+  # 6. Install start script (GUI Launcher)
   install -Dm755 "$srcdir/belinda-ai.sh" "$pkgdir/usr/bin/belinda-ai"
 
-  # 5. Install systemd service
+  # 7. Install systemd service
   install -Dm644 "$srcdir/belinda-ai.service" "$pkgdir/usr/lib/systemd/user/belinda-ai.service"
 }
