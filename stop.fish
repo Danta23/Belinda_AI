@@ -3,9 +3,13 @@
 # stop.fish - Stop Belinda_AI processes using Fish Shell
 echo (set_color red)"🛑 Stopping Flask and Bridge processes..."(set_color normal)
 
-# Kill python processes running app.py
-pkill -f "python app.py"
-or echo "Python process not found."
+# Kill python processes running app.py (excluding the installer)
+set pids (pgrep -f "app.py" | grep -v "installer")
+if test -n "$pids"
+    kill $pids
+else
+    echo "Python bot process not found."
+end
 
 # Kill node processes running bridge.js
 pkill -f "node bridge.js"
