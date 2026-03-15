@@ -21,16 +21,21 @@ class SettingsManager:
         }
         
         if not os.path.exists(self.env_path):
+            # Ensure the directory exists first
+            os.makedirs(self.root_dir, exist_ok=True)
+            
             template = os.path.join(root_dir, ".env.example")
             if os.path.exists(template):
-                with open(template, 'r') as f:
+                with open(template, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
-                with open(self.env_path, 'w') as f:
+                with open(self.env_path, 'w', encoding='utf-8') as f:
                     f.write(content)
             else:
-                with open(self.env_path, 'w', encoding='utf-8') as f:
-                    content = "\n".join([f"{k}={v}" for k, v in self.defaults.items()])
-                    f.write(content)
+                try:
+                    with open(self.env_path, 'w', encoding='utf-8') as f:
+                        content = "\n".join([f"{k}={v}" for k, v in self.defaults.items()])
+                        f.write(content)
+                except: pass
         
         load_dotenv(self.env_path)
 
