@@ -159,7 +159,8 @@ class Worker(QThread):
                     for f in essential_files:
                         src = os.path.join(engine_dir, f)
                         dst = os.path.join(self.root_dir, f)
-                        if os.path.exists(src) and not os.path.exists(dst):
+                        if os.path.exists(src):
+                            # Always copy essential files to ensure they are up to date
                             shutil.copy2(src, dst)
                     
                     # Copy start/stop scripts
@@ -277,8 +278,8 @@ class Worker(QThread):
                     self.finished.emit(False, f"Reset failed: {str(e)}")
             
             elif self.task in ["start", "stop", "reset"]:
-                # Use engine_dir for scripts (they live with the installed source code)
-                script_dir = engine_dir
+                # Use root_dir for execution so bot can find its venv and node_modules
+                script_dir = self.root_dir
                 if scripts["shell"] == "docker":
                     cmd = scripts[self.task]
                     self.progress.emit(50, f"Executing Docker: {self.task}...")
@@ -945,21 +946,21 @@ class BelindaSetup(QMainWindow):
     def start_worker_task(self, task):
         api_key = None
         if task == "install":
+            # Always prompt for API key during Full Deployment/Reinstall
             current_key = self.sm.get("GROQ_API_KEY", "")
-            if not current_key:
-                from PyQt5.QtWidgets import QInputDialog, QLineEdit
-                key, ok = QInputDialog.getText(
+            from PyQt5.QtWidgets import QInputDialog, QLineEdit
+            key, ok = QInputDialog.getText(
                     self, 
                     self.get_text("prompt_api_title"),
                     self.get_text("prompt_api_desc"),
                     QLineEdit.Password,
                     ""
                 )
-                if not ok or not key.strip():
-                    return
-                api_key = key.strip()
-                # Save immediately so .env is created
-                self.sm.set("GROQ_API_KEY", api_key)
+            if not ok or not key.strip():
+                return
+            api_key = key.strip()
+            # Save immediately so .env is created
+            self.sm.set("GROQ_API_KEY", api_key)
 
         self.worker = Worker(task, self.root_dir, self.sm, api_key)
         self.worker.engine_dir = getattr(self, 'engine_dir', self.root_dir)
