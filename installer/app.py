@@ -144,7 +144,34 @@ class Worker(QThread):
 
         try:
             if self.task == "install":
-                self.progress.emit(10, "status_env")
+                self.progress.emit(5, "status_env")
+                
+                # --- Step 1: Sync project files from engine_dir to root_dir ---
+                # This is needed when /opt/belinda-ai (read-only) != ~/.local/share/belinda-ai (writable)
+                if engine_dir != self.root_dir:
+                    import shutil
+                    self.progress.emit(10, "Syncing project files to workspace...")
+                    essential_files = [
+                        "app.py", "handlers.py", "bridge.js", 
+                        "package.json", "requirements.txt",
+                        ".env.example"
+                    ]
+                    for f in essential_files:
+                        src = os.path.join(engine_dir, f)
+                        dst = os.path.join(self.root_dir, f)
+                        if os.path.exists(src) and not os.path.exists(dst):
+                            shutil.copy2(src, dst)
+                    
+                    # Copy start/stop scripts
+                    for script in ["start.sh", "stop.sh", "reset.sh", "start.fish", "stop.fish", "reset.fish",
+                                   "start.ps1", "stop.ps1", "reset.ps1", "start_mac.sh", "stop_mac.sh", "reset_mac.sh"]:
+                        src = os.path.join(engine_dir, script)
+                        dst = os.path.join(self.root_dir, script)
+                        if os.path.exists(src):
+                            shutil.copy2(src, dst)
+
+                # --- Step 2: Setup .env ---
+                self.progress.emit(15, "status_env")
                 env_proto = os.path.join(self.root_dir, ".env.example")
                 env_file = os.path.join(self.root_dir, ".env")
                 if os.path.exists(env_proto) and not os.path.exists(env_file):
@@ -156,22 +183,22 @@ class Worker(QThread):
                 
                 if self.sm.get("EXECUTION_MODE") == "docker":
                     self.progress.emit(50, "Pulling/Building Docker Containers...")
-                    subprocess.run(["docker-compose", "build"], cwd=self.root_dir, shell=True, check=True)
+                    subprocess.run("docker-compose build", cwd=self.root_dir, shell=True, check=True)
                     self.progress.emit(100, "Docker Ready!")
                     self.finished.emit(True, "Installation completed!")
                     return
 
+                # --- Step 3: Python venv ---
                 self.progress.emit(30, "status_venv")
                 venv_dir = os.path.join(self.root_dir, ".venv")
-                req_file = os.path.join(engine_dir, "requirements.txt")
+                req_file = os.path.join(self.root_dir, "requirements.txt")
                 if not os.path.exists(req_file):
-                    req_file = os.path.join(self.root_dir, "requirements.txt")
+                    req_file = os.path.join(engine_dir, "requirements.txt")
 
                 if not os.path.exists(venv_dir):
-                    # Use string commands with shell=True (NOT list + shell=True)
                     py_cmd = "python3"
                     try:
-                        result = subprocess.run(f"{py_cmd} --version", capture_output=True, check=True, shell=True)
+                        subprocess.run(f"{py_cmd} --version", capture_output=True, check=True, shell=True)
                     except:
                         py_cmd = "python"
                         try:
@@ -188,6 +215,7 @@ class Worker(QThread):
                         self.finished.emit(False, f"Failed to create venv: {result.stderr}")
                         return
 
+                # --- Step 4: pip install ---
                 self.progress.emit(60, "status_pip")
                 pip_path = os.path.join(self.root_dir, ".venv", "Scripts", "pip") if os.name == 'nt' else os.path.join(self.root_dir, ".venv", "bin", "pip")
                 subprocess.run(f'"{pip_path}" install --upgrade pip', shell=True, check=False)
@@ -200,14 +228,22 @@ class Worker(QThread):
                         f.write("\n--- PIP INSTALL ---\n" + (pip_proc.stdout or "") + (pip_proc.stderr or ""))
                 except: pass
                 
+                # --- Step 5: npm install (ALWAYS in root_dir which is writable) ---
                 self.progress.emit(80, "status_npm")
+                # Make sure package.json exists in root_dir
+                pkg_src = os.path.join(engine_dir, "package.json")
+                pkg_dst = os.path.join(self.root_dir, "package.json")
+                if os.path.exists(pkg_src) and not os.path.exists(pkg_dst):
+                    import shutil
+                    shutil.copy2(pkg_src, pkg_dst)
+                
                 npm_proc = subprocess.run(
                     "npm install --no-audit --no-fund",
-                    cwd=engine_dir, shell=True, capture_output=True, text=True
+                    cwd=self.root_dir, shell=True, capture_output=True, text=True
                 )
                 try:
                     with open(log_file, 'a', encoding='utf-8') as f:
-                        f.write("\n--- NPM INSTALL ---\n" + npm_proc.stdout + npm_proc.stderr)
+                        f.write("\n--- NPM INSTALL ---\n" + (npm_proc.stdout or "") + (npm_proc.stderr or ""))
                 except: pass
                 
                 if pip_proc.returncode != 0 or npm_proc.returncode != 0:
@@ -216,6 +252,7 @@ class Worker(QThread):
                 
                 self.progress.emit(100, "task_finished")
                 self.finished.emit(True, "Installation completed!")
+
             
             elif self.task == "session":
                 self.progress.emit(50, "Clearing session data...")
@@ -232,6 +269,8 @@ class Worker(QThread):
                     self.finished.emit(True, "No session data found to clear.")
             
             elif self.task in ["start", "stop", "reset"]:
+                # Use engine_dir for scripts (they live with the installed source code)
+                script_dir = engine_dir
                 if scripts["shell"] == "docker":
                     cmd = scripts[self.task]
                     self.progress.emit(50, f"Executing Docker: {self.task}...")
@@ -242,7 +281,7 @@ class Worker(QThread):
                     if scripts["shell"] == "powershell":
                         cmd = f"powershell -ExecutionPolicy Bypass -File ./{script_name}"
                     else:
-                        subprocess.run(["chmod", "+x", script_name], cwd=self.root_dir)
+                        subprocess.run(["chmod", "+x", script_name], cwd=script_dir)
                         cmd = f"./{script_name}"
                 
                 self.log_output.emit(f"> Executing: {cmd}\n")
@@ -250,7 +289,7 @@ class Worker(QThread):
                 # Use subprocess.Popen to capture output real-time
                 process = subprocess.Popen(
                     cmd,
-                    cwd=self.root_dir,
+                    cwd=script_dir,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
@@ -301,8 +340,10 @@ class Worker(QThread):
                     self.finished.emit(True, "task_finished")
 
         except Exception as e:
-            with open(log_file, 'a', encoding='utf-8') as f:
-                f.write(f"\n[ERROR] {str(e)}\n")
+            try:
+                with open(log_file, 'a', encoding='utf-8') as f:
+                    f.write(f"\n[ERROR] {str(e)}\n")
+            except: pass
             self.finished.emit(False, f"Error: {str(e)}")
 
 class CloneWorker(QThread):
@@ -915,7 +956,7 @@ class BelindaSetup(QMainWindow):
         self.worker.progress.connect(self.update_progress)
         self.worker.finished.connect(self.task_finished)
         if hasattr(self.worker, 'log_output'):
-            self.worker.log_output.connect(self.page_console.append_log)
+            self.worker.log_output.connect(self.page_logs.append_log)
         self.worker.start()
         self.set_controls_enabled(False)
 
