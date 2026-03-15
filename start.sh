@@ -5,9 +5,9 @@ ENV_FILE=${1:-.env}
 # Load environment variables
 export $(grep -v '^#' "$ENV_FILE" | xargs)
 
-echo "🚀 Starting Flask server on port $FLASK_PORT..."
-if [ -f "venv/bin/python" ]; then
-    venv/bin/python app.py &
+# Starting Flask server
+if [ -f ".venv/bin/python" ]; then
+    .venv/bin/python app.py &
 else
     python app.py &
 fi
