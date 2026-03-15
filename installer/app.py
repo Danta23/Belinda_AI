@@ -950,6 +950,8 @@ class BelindaSetup(QMainWindow):
                 if not ok or not key.strip():
                     return
                 api_key = key.strip()
+                # Save immediately so .env is created
+                self.sm.set("GROQ_API_KEY", api_key)
 
         self.worker = Worker(task, self.root_dir, self.sm, api_key)
         self.worker.engine_dir = getattr(self, 'engine_dir', self.root_dir)
