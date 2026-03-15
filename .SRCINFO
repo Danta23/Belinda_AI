@@ -13,6 +13,16 @@ pkgbase = belinda-ai
 	depends = yt-dlp
 	source = belinda-ai.service
 	source = belinda-ai.sh
+	source = app.py
+	source = handlers.py
+	source = bridge.js
+	source = package.json
+	source = requirements.txt
+	sha256sums = SKIP
+	sha256sums = SKIP
+	sha256sums = SKIP
+	sha256sums = SKIP
+	sha256sums = SKIP
 	sha256sums = SKIP
 	sha256sums = SKIP
 
