@@ -232,6 +232,8 @@ class Worker(QThread):
                     self.finished.emit(True, "No session data found to clear.")
             
             elif self.task in ["start", "stop", "reset"]:
+                # Use engine_dir for scripts (they live with the installed source code)
+                script_dir = engine_dir
                 if scripts["shell"] == "docker":
                     cmd = scripts[self.task]
                     self.progress.emit(50, f"Executing Docker: {self.task}...")
@@ -242,7 +244,7 @@ class Worker(QThread):
                     if scripts["shell"] == "powershell":
                         cmd = f"powershell -ExecutionPolicy Bypass -File ./{script_name}"
                     else:
-                        subprocess.run(["chmod", "+x", script_name], cwd=self.root_dir)
+                        subprocess.run(["chmod", "+x", script_name], cwd=script_dir)
                         cmd = f"./{script_name}"
                 
                 self.log_output.emit(f"> Executing: {cmd}\n")
@@ -250,7 +252,7 @@ class Worker(QThread):
                 # Use subprocess.Popen to capture output real-time
                 process = subprocess.Popen(
                     cmd,
-                    cwd=self.root_dir,
+                    cwd=script_dir,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
@@ -301,8 +303,10 @@ class Worker(QThread):
                     self.finished.emit(True, "task_finished")
 
         except Exception as e:
-            with open(log_file, 'a', encoding='utf-8') as f:
-                f.write(f"\n[ERROR] {str(e)}\n")
+            try:
+                with open(log_file, 'a', encoding='utf-8') as f:
+                    f.write(f"\n[ERROR] {str(e)}\n")
+            except: pass
             self.finished.emit(False, f"Error: {str(e)}")
 
 class CloneWorker(QThread):
@@ -915,7 +919,7 @@ class BelindaSetup(QMainWindow):
         self.worker.progress.connect(self.update_progress)
         self.worker.finished.connect(self.task_finished)
         if hasattr(self.worker, 'log_output'):
-            self.worker.log_output.connect(self.page_console.append_log)
+            self.worker.log_output.connect(self.page_logs.append_log)
         self.worker.start()
         self.set_controls_enabled(False)
 
