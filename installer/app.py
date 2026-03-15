@@ -127,6 +127,8 @@ class Worker(QThread):
         scripts = self.get_scripts()
         log_file = os.path.join(self.root_dir, "task.log")
         session_folder = os.path.join(self.root_dir, os.getenv("SESSION_NAME", "auth_info"))
+        # engine_dir is where the read-only source files live (e.g. /opt/belinda-ai)
+        engine_dir = getattr(self, 'engine_dir', self.root_dir)
         
         # Try to clear log file, otherwise just append (avoid PermissionError)
         try:
@@ -160,34 +162,53 @@ class Worker(QThread):
                     return
 
                 self.progress.emit(30, "status_venv")
-                if not os.path.exists(os.path.join(self.root_dir, ".venv")):
-                    # Find system python (sys.executable is the EXE when frozen)
-                    py_cmd = "python"
+                venv_dir = os.path.join(self.root_dir, ".venv")
+                req_file = os.path.join(engine_dir, "requirements.txt")
+                if not os.path.exists(req_file):
+                    req_file = os.path.join(self.root_dir, "requirements.txt")
+
+                if not os.path.exists(venv_dir):
+                    # Use string commands with shell=True (NOT list + shell=True)
+                    py_cmd = "python3"
                     try:
-                        subprocess.run([py_cmd, "--version"], capture_output=True, check=True, shell=True)
+                        result = subprocess.run(f"{py_cmd} --version", capture_output=True, check=True, shell=True)
                     except:
-                        py_cmd = "python3"
+                        py_cmd = "python"
                         try:
-                            subprocess.run([py_cmd, "--version"], capture_output=True, check=True, shell=True)
+                            subprocess.run(f"{py_cmd} --version", capture_output=True, check=True, shell=True)
                         except:
-                            self.finished.emit(False, "System Python not found! Please install Python 3.10+ and add it to PATH.")
+                            self.finished.emit(False, "System Python not found! Please install Python 3.10+.")
                             return
                     
-                    subprocess.run([py_cmd, "-m", "venv", ".venv"], cwd=self.root_dir, check=True, shell=True)
-                
+                    result = subprocess.run(
+                        f'{py_cmd} -m venv "{venv_dir}"',
+                        capture_output=True, text=True, shell=True
+                    )
+                    if result.returncode != 0:
+                        self.finished.emit(False, f"Failed to create venv: {result.stderr}")
+                        return
+
                 self.progress.emit(60, "status_pip")
                 pip_path = os.path.join(self.root_dir, ".venv", "Scripts", "pip") if os.name == 'nt' else os.path.join(self.root_dir, ".venv", "bin", "pip")
-                # Upgrade pip first
-                subprocess.run([pip_path, "install", "--upgrade", "pip"], cwd=self.root_dir, check=False, shell=True)
-                # Install requirements
-                pip_proc = subprocess.run([pip_path, "install", "-r", "requirements.txt"], cwd=self.root_dir, capture_output=True, text=True, shell=True)
-                with open(log_file, 'a', encoding='utf-8') as f:
-                    f.write("\n--- PIP INSTALL ---\n" + (pip_proc.stdout or "") + (pip_proc.stderr or ""))
+                subprocess.run(f'"{pip_path}" install --upgrade pip', shell=True, check=False)
+                pip_proc = subprocess.run(
+                    f'"{pip_path}" install -r "{req_file}"',
+                    capture_output=True, text=True, shell=True
+                )
+                try:
+                    with open(log_file, 'a', encoding='utf-8') as f:
+                        f.write("\n--- PIP INSTALL ---\n" + (pip_proc.stdout or "") + (pip_proc.stderr or ""))
+                except: pass
                 
                 self.progress.emit(80, "status_npm")
-                npm_proc = subprocess.run(["npm", "install", "--no-audit", "--no-fund"], cwd=self.root_dir, shell=True, capture_output=True, text=True)
-                with open(log_file, 'a', encoding='utf-8') as f:
-                    f.write("\n--- NPM INSTALL ---\n" + npm_proc.stdout + npm_proc.stderr)
+                npm_proc = subprocess.run(
+                    "npm install --no-audit --no-fund",
+                    cwd=engine_dir, shell=True, capture_output=True, text=True
+                )
+                try:
+                    with open(log_file, 'a', encoding='utf-8') as f:
+                        f.write("\n--- NPM INSTALL ---\n" + npm_proc.stdout + npm_proc.stderr)
+                except: pass
                 
                 if pip_proc.returncode != 0 or npm_proc.returncode != 0:
                     self.finished.emit(False, "Dependency installation failed. Check Console for details.")
@@ -663,18 +684,26 @@ class BelindaSetup(QMainWindow):
         super().__init__()
         # Dynamic path detection for both DEV and COMPILED (EXE) modes
         if getattr(sys, 'frozen', False):
-            # Run as bundled EXE
             base_dir = os.path.dirname(sys.executable)
         else:
-            # Run as script
             base_dir = os.path.dirname(os.path.abspath(__file__))
             
-        if os.path.basename(base_dir) == "installer":
-            self.root_dir = os.path.dirname(base_dir)
+        # Detect if we are in a system-wide read-only directory
+        is_system = any(p in base_dir for p in ["/usr/lib", "/opt", "C:\\Program Files"])
+        
+        if is_system:
+            # Use home directory for writable files
+            self.root_dir = os.path.expanduser("~/.local/share/belinda-ai")
+            self.engine_dir = os.path.dirname(base_dir) if os.path.basename(base_dir) == "installer" else base_dir
         else:
-            # If EXE is in a separate folder, look for Belinda_AI next to it
-            self.root_dir = os.path.join(base_dir, "Belinda_AI")
+            # Local/Portable mode
+            if os.path.basename(base_dir) == "installer":
+                self.root_dir = os.path.dirname(base_dir)
+            else:
+                self.root_dir = base_dir
+            self.engine_dir = self.root_dir
             
+        os.makedirs(self.root_dir, exist_ok=True)
         self.sm = SettingsManager(self.root_dir)
         
         self.setWindowFlags(Qt.FramelessWindowHint)
@@ -696,7 +725,7 @@ class BelindaSetup(QMainWindow):
             self.page_installer.check_dependencies(self.root_dir)
 
     def is_project_ready(self):
-        # Look for the root folder and bridge.js precisely
+        # Ready if bridge.js exists in our writable root
         return os.path.exists(os.path.join(self.root_dir, "bridge.js"))
 
     def check_docker(self):
@@ -882,8 +911,11 @@ class BelindaSetup(QMainWindow):
                 api_key = key.strip()
 
         self.worker = Worker(task, self.root_dir, self.sm, api_key)
+        self.worker.engine_dir = getattr(self, 'engine_dir', self.root_dir)
         self.worker.progress.connect(self.update_progress)
         self.worker.finished.connect(self.task_finished)
+        if hasattr(self.worker, 'log_output'):
+            self.worker.log_output.connect(self.page_console.append_log)
         self.worker.start()
         self.set_controls_enabled(False)
 
