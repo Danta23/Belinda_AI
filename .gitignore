@@ -46,6 +46,11 @@ test_debug*
 *.webm
 *.opus
 *.ogg
+generated_*
+script_*
+model_*
+ai_gen_*
+temp_voice_*
 
 # ==========================
 # Chat History / Logs
@@ -75,4 +80,13 @@ __pycache__/
 *.exe
 *.dmg
 *.apk
-*.pkg
+# ==========================
+# Arch Linux / AUR
+# ==========================
+pkg/
+src/
+*.tar.zst
+*.tar.gz
+*.fakeroot
+belinda-ai-*.tar.gz
+/belinda-ai
