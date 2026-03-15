@@ -1,0 +1,11 @@
+[Unit]
+Description=Belinda AI WhatsApp Bot
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/belinda-ai
+Restart=always
+WorkingDirectory=/opt/belinda-ai
+
+[Install]
+WantedBy=default.target
