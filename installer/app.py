@@ -255,18 +255,26 @@ class Worker(QThread):
 
             
             elif self.task == "session":
-                self.progress.emit(50, "Clearing session data...")
-                session_dir = os.path.join(self.root_dir, os.getenv("SESSION_NAME", "auth_info"))
-                if os.path.exists(session_dir):
-                    import shutil
-                    try:
-                        shutil.rmtree(session_dir)
-                        self.progress.emit(100, "Session cleared!")
-                        self.finished.emit(True, "Session reset successfully! You can now scan a new QR code.")
-                    except Exception as e:
-                        self.finished.emit(False, f"Failed to reset session: {str(e)}")
-                else:
-                    self.finished.emit(True, "No session data found to clear.")
+                self.progress.emit(20, "Initiating Factory Reset...")
+                import shutil
+                try:
+                    self.progress.emit(50, "Wiping project workspace...")
+                    # Delete everything in root_dir except 'installer' folder
+                    for item in os.listdir(self.root_dir):
+                        item_path = os.path.join(self.root_dir, item)
+                        if item == "installer":
+                            continue
+                        try:
+                            if os.path.isdir(item_path):
+                                shutil.rmtree(item_path)
+                            else:
+                                os.remove(item_path)
+                        except: pass
+                    
+                    self.progress.emit(100, "Full Reset Complete!")
+                    self.finished.emit(True, "Project has been reset to factory settings.")
+                except Exception as e:
+                    self.finished.emit(False, f"Reset failed: {str(e)}")
             
             elif self.task in ["start", "stop", "reset"]:
                 # Use engine_dir for scripts (they live with the installed source code)
@@ -980,7 +988,13 @@ class BelindaSetup(QMainWindow):
         self.page_installer.status_label.setText(msg)
         self.page_installer.progress_bar.setValue(100) 
         self.set_controls_enabled(True)
-        self.page_installer.check_dependencies(self.root_dir)
+        
+        if not self.is_project_ready():
+            # If project was wiped, go back to setup
+            self.content_area.setCurrentWidget(self.page_setup)
+            self.sidebar.setEnabled(False)
+        else:
+            self.page_installer.check_dependencies(self.root_dir)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
