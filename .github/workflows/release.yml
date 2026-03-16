@@ -75,12 +75,12 @@ jobs:
           chmod +x build/usr/bin/belinda-ai
       - name: Build DEB and RPM
         run: |
-          VERSION=\${GITHUB_REF#refs/tags/v}
-          fpm -s dir -t deb -n belinda-ai -v \$VERSION -C build \
+          VERSION=${GITHUB_REF#refs/tags/v}
+          fpm -s dir -t deb -n belinda-ai -v $VERSION -C build \
             --description "WhatsApp Bot Belinda AI" \
             --maintainer "Danta <danta@studio234.id>" \
             --depends "python3" --depends "nodejs" --depends "npm" --depends "ffmpeg"
-          fpm -s dir -t rpm -n belinda-ai -v \$VERSION -C build \
+          fpm -s dir -t rpm -n belinda-ai -v $VERSION -C build \
             --description "WhatsApp Bot Belinda AI" \
             --maintainer "Danta <danta@studio234.id>" \
             --depends "python3" --depends "nodejs" --depends "npm" --depends "ffmpeg"
@@ -140,4 +140,4 @@ jobs:
             all-assets/linux-pkgs/*.rpm
             all-assets/android-apk/*.apk
         env:
-          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
