@@ -106,7 +106,7 @@ class Worker(QThread):
         
         if mode == "docker":
             return {
-                "start": "docker-compose up -d --build",
+                "start": "docker-compose up -d --build && docker-compose logs -f",
                 "stop": "docker-compose down",
                 "reset": "docker-compose down -v",
                 "shell": "docker"
