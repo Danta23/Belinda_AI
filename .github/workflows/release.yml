@@ -20,7 +20,7 @@ jobs:
           pip install pyinstaller PyQt5 qtawesome python-dotenv
       - name: Build EXE
         run: |
-          pyinstaller --noconfirm --onefile --windowed --name "Belinda-AI-Installer-Win" --add-data "installer_styles.py;." --add-data "installer_settings_manager.py;." --add-data "installer_translations.py;." --clean installer_app.py
+          pyinstaller --noconfirm --onefile --windowed --name "Belinda-AI-Installer-Win" --add-data "src/belinda_ai/installer_styles.py;." --add-data "src/belinda_ai/installer_settings_manager.py;." --add-data "src/belinda_ai/installer_translations.py;." --clean src/belinda_ai/installer_app.py
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -41,7 +41,7 @@ jobs:
           pip install pyinstaller PyQt5 qtawesome python-dotenv
       - name: Build App Bundle
         run: |
-          pyinstaller --noconfirm --onefile --windowed --name "Belinda-AI-Installer-Mac" --add-data "installer_styles.py:." --add-data "installer_settings_manager.py:." --add-data "installer_translations.py:." --clean installer_app.py
+          pyinstaller --noconfirm --onefile --windowed --name "Belinda-AI-Installer-Mac" --add-data "src/belinda_ai/installer_styles.py:." --add-data "src/belinda_ai/installer_settings_manager.py:." --add-data "src/belinda_ai/installer_translations.py:." --clean src/belinda_ai/installer_app.py
       - name: Create DMG
         run: |
           hdiutil create -volname "Belinda AI Installer" -srcfolder dist/ -ov -format UDZO Belinda-AI-Installer-Mac.dmg

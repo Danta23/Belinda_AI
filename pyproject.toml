@@ -1,7 +1,7 @@
 [tool.briefcase]
 project_name = "Belinda AI"
 bundle = "id.studio234"
-version = "1.3.2"
+version = "1.3.3"
 display_name = "Belinda AI"
 formal_name = "Belinda AI"
 description = "WhatsApp Bot Belinda AI"
@@ -9,9 +9,22 @@ long_description = "WhatsApp Bot Belinda AI - Intelligent assistant with GUI set
 author = "Danta"
 author_email = "danta@studio234.id"
 url = "https://github.com/Danta23/Belinda_AI"
-license = "MIT"
+license.text = "MIT"
 
 [tool.briefcase.app.belinda-ai]
 executable = "belinda-ai"
-sources = ["installer_app.py", "installer_styles.py", "installer_settings_manager.py", "installer_translations.py", "app.py", "handlers.py", "bridge.js", "package.json", "requirements.txt"]
+sources = ["src/belinda_ai"]
+requires = ["PyQt5", "qtawesome", "python-dotenv"]
+
+[tool.briefcase.app.belinda-ai.macOS]
+universal_build = true
+requires = ["PyQt5", "qtawesome", "python-dotenv"]
+
+[tool.briefcase.app.belinda-ai.windows]
+requires = ["PyQt5", "qtawesome", "python-dotenv"]
+
+[tool.briefcase.app.belinda-ai.linux]
+requires = ["PyQt5", "qtawesome", "python-dotenv"]
+
+[tool.briefcase.app.belinda-ai.android]
 requires = ["PyQt5", "qtawesome", "python-dotenv"]
