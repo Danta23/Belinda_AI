@@ -1,4 +1,6 @@
 name: Multi-Platform Native Build
+permissions:
+  contents: write
 
 on:
   push:
