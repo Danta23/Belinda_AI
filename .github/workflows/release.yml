@@ -70,7 +70,6 @@ jobs:
           pip install briefcase
       - name: Initialize and Build APK
         run: |
-          # Use non-interactive briefcase to package
           briefcase create android --no-input
           briefcase build android --no-input
           briefcase package android --no-input
