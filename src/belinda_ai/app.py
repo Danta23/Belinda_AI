@@ -1,0 +1,46 @@
+import os
+from flask import Flask, request
+from handlers import handle_status, handle_chat, handle_shell, handle_gen, handle_weather, handle_voice
+from dotenv import load_dotenv  # support .env
+
+# Load variabel dari file .env
+load_dotenv()
+
+app = Flask(__name__)
+
+# Ambil port dari .env (default 8000 kalau tidak ada)
+FLASK_PORT = int(os.getenv("FLASK_PORT", 8000))
+
+@app.route("/status", methods=["POST"])
+def status():
+    data = request.get_json(force=True)
+    return handle_status(data)
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json(force=True)
+    return handle_chat(data)
+
+@app.route("/voice", methods=["POST"])
+def voice():
+    return handle_voice(request)
+
+@app.route("/shell", methods=["POST"])
+def shell():
+    data = request.get_json(force=True)
+    return handle_shell(data)
+
+@app.route("/gen", methods=["POST"])
+def gen():
+    data = request.get_json(force=True)
+    return handle_gen(data)
+
+@app.route("/weather", methods=["POST"])
+def weather():
+    data = request.get_json(force=True)
+    return handle_weather(data)
+
+if __name__ == "__main__":
+    # Ensure subprocesses in Docker can find python if needed
+    os.environ["PATH"] = os.getcwd() + "/venv/bin:" + os.environ["PATH"]
+    app.run(host="0.0.0.0", port=FLASK_PORT, debug=True)
