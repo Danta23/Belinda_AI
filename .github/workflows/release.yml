@@ -68,7 +68,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install briefcase
-      - name: Initialize and Build APK
+      - name: Build APK
         run: |
           briefcase create android --no-input
           briefcase build android --no-input
@@ -77,11 +77,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: android/platform/android/app/build/outputs/apk/debug/*.apk
+          path: "build/belinda-ai/android/gradle/app/build/outputs/apk/debug/*.apk"
 
   release:
     needs: [build-windows, build-macos, build-android]
     runs-on: ubuntu-latest
+    if: always()
     steps:
       - uses: actions/checkout@v4
       - name: Download all artifacts
