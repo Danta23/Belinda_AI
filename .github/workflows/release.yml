@@ -1,4 +1,5 @@
 name: Multi-Platform Native Build
+
 permissions:
   contents: write
 
@@ -53,6 +54,44 @@ jobs:
           name: macos-dmg
           path: Belinda-AI-Installer-Mac.dmg
 
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FPM and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby-dev build-essential rpm
+          sudo gem install --no-document fpm
+      - name: Prepare package structure
+        run: |
+          mkdir -p build/opt/belinda-ai/installer
+          mkdir -p build/usr/bin
+          cp src/belinda_ai/*.py build/opt/belinda-ai/
+          cp src/belinda_ai/*.js build/opt/belinda-ai/
+          cp src/belinda_ai/*.json build/opt/belinda-ai/
+          cp src/belinda_ai/requirements.txt build/opt/belinda-ai/
+          cp belinda-ai.sh build/usr/bin/belinda-ai
+          chmod +x build/usr/bin/belinda-ai
+      - name: Build DEB and RPM
+        run: |
+          VERSION=\${GITHUB_REF#refs/tags/v}
+          fpm -s dir -t deb -n belinda-ai -v \$VERSION -C build \
+            --description "WhatsApp Bot Belinda AI" \
+            --maintainer "Danta <danta@studio234.id>" \
+            --depends "python3" --depends "nodejs" --depends "npm" --depends "ffmpeg"
+          fpm -s dir -t rpm -n belinda-ai -v \$VERSION -C build \
+            --description "WhatsApp Bot Belinda AI" \
+            --maintainer "Danta <danta@studio234.id>" \
+            --depends "python3" --depends "nodejs" --depends "npm" --depends "ffmpeg"
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-pkgs
+          path: |
+            *.deb
+            *.rpm
+
   build-android:
     runs-on: ubuntu-latest
     steps:
@@ -82,7 +121,7 @@ jobs:
           path: "build/belinda-ai/android/gradle/app/build/outputs/apk/debug/*.apk"
 
   release:
-    needs: [build-windows, build-macos, build-android]
+    needs: [build-windows, build-macos, build-linux, build-android]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -95,8 +134,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            all-assets/windows-exe/Belinda-AI-Installer-Win.exe
-            all-assets/macos-dmg/Belinda-AI-Installer-Mac.dmg
+            all-assets/windows-exe/*.exe
+            all-assets/macos-dmg/*.dmg
+            all-assets/linux-pkgs/*.deb
+            all-assets/linux-pkgs/*.rpm
             all-assets/android-apk/*.apk
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
