@@ -92,6 +92,33 @@ jobs:
             *.deb
             *.rpm
 
+  build-android-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install briefcase
+      - name: Build Debug APK
+        run: |
+          briefcase create android --no-input
+          briefcase build android --no-input
+      - name: Upload Android Debug Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-debug
+          path: "build/belinda-ai/android/gradle/app/build/outputs/apk/debug/*.apk"
+
   build-android:
     runs-on: ubuntu-latest
     steps:
@@ -109,19 +136,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install briefcase
-      - name: Build APK
+      - name: Build Native Release APK
         run: |
           briefcase create android --no-input
           briefcase build android --no-input
           briefcase package android --no-input
-      - name: Upload Android Artifact
+      - name: Upload Android Release Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: "build/belinda-ai/android/gradle/app/build/outputs/apk/debug/*.apk"
+          name: android-apk-release
+          path: "build/belinda-ai/android/gradle/app/build/outputs/apk/release/*.apk"
 
   release:
-    needs: [build-windows, build-macos, build-linux, build-android]
+    needs: [build-windows, build-macos, build-linux, build-android-debug, build-android]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -139,6 +166,7 @@ jobs:
             all-assets/macos-dmg/*.dmg
             all-assets/linux-pkgs/*.deb
             all-assets/linux-pkgs/*.rpm
-            all-assets/android-apk/*.apk
+            all-assets/android-apk-debug/*.apk
+            all-assets/android-apk-release/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

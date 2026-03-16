@@ -815,6 +815,24 @@ class BelindaSetup(QMainWindow):
             self.page_setup.status_label.setText(self.get_text(msg_key))
             self.page_setup.clone_btn.setEnabled(True)
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # Responsive Layout Adjustment
+        if self.width() < 600:
+            self.container_layout.setDirection(QHBoxLayout.TopToBottom)
+            self.sidebar.setFixedWidth(self.width())
+            self.sidebar.setMaximumHeight(150)
+            self.sidebar_layout.setDirection(QHBoxLayout.LeftToRight)
+            self.sidebar_layout.setContentsMargins(10, 10, 10, 10)
+            self.sub_logo.hide()
+        else:
+            self.container_layout.setDirection(QHBoxLayout.LeftToRight)
+            self.sidebar.setFixedWidth(240)
+            self.sidebar.setMaximumHeight(16777215)
+            self.sidebar_layout.setDirection(QVBoxLayout.TopToBottom)
+            self.sidebar_layout.setContentsMargins(20, 40, 20, 40)
+            self.sub_logo.show()
+
     def init_ui(self):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
