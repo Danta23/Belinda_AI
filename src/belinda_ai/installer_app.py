@@ -756,10 +756,17 @@ class BelindaSetup(QMainWindow):
         os.makedirs(self.root_dir, exist_ok=True)
         self.sm = SettingsManager(self.root_dir)
         
-        self.setWindowFlags(Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        # Android Compatibility Fix
+        self.is_android = os.environ.get('PYTHON_SERVICE_NAME') is not None or platform.machine().startswith('arm')
         
-        self.setMinimumSize(1000, 720)
+        if self.is_android:
+            # Native Android apps should not use FramelessWindowHint or TranslucentBackground (causes crashes)
+            self.showMaximized() 
+        else:
+            self.setWindowFlags(Qt.FramelessWindowHint)
+            self.setAttribute(Qt.WA_TranslucentBackground)
+            self.setMinimumSize(1000, 720)
+        
         self._drag_pos = QPoint()
 
         self.init_ui()

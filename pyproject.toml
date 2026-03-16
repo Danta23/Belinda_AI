@@ -1,7 +1,7 @@
 [tool.briefcase]
 project_name = "Belinda AI"
 bundle = "id.studio234"
-version = "1.4.3"
+version = "1.4.5"
 display_name = "Belinda AI"
 formal_name = "Belinda AI"
 description = "WhatsApp Bot Belinda AI"
@@ -14,17 +14,19 @@ license.text = "MIT"
 [tool.briefcase.app.belinda-ai]
 executable = "belinda-ai"
 sources = ["src/belinda_ai"]
-requires = ["python-dotenv"]
+requires = ["PyQt5", "qtawesome", "python-dotenv", "QtPy"]
 
 [tool.briefcase.app.belinda-ai.macOS]
 universal_build = true
-requires = ["toga-cocoa", "python-dotenv"]
+requires = ["PyQt5", "qtawesome", "python-dotenv", "QtPy"]
 
 [tool.briefcase.app.belinda-ai.windows]
-requires = ["toga-winforms", "python-dotenv"]
+requires = ["PyQt5", "qtawesome", "python-dotenv", "QtPy"]
 
 [tool.briefcase.app.belinda-ai.linux]
-requires = ["toga-gtk", "python-dotenv"]
+requires = ["PyQt5", "qtawesome", "python-dotenv", "QtPy"]
 
 [tool.briefcase.app.belinda-ai.android]
-requires = ["toga-android", "python-dotenv"]
+# Revert to native PyQt5 entry point
+app_module = "belinda_ai.installer_app"
+requires = ["PyQt5", "qtawesome", "python-dotenv", "QtPy"]

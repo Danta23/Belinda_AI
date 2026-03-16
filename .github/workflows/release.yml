@@ -115,7 +115,7 @@ jobs:
           briefcase build android --no-input
       - name: Rename APK
         run: |
-          mv build/belinda-ai/android/gradle/app/build/outputs/apk/debug/app-debug.apk Belinda-AI-Debug-Android.apk
+          find build -name "app-debug.apk" -exec cp {} Belinda-AI-Debug-Android.apk \;
       - name: Upload Android Debug Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -143,14 +143,11 @@ jobs:
         run: |
           briefcase create android --no-input
           briefcase build android --no-input
-          # Briefcase package android --release requires code signing. 
-          # For now, we package it but it might still be in the debug folder 
-          # if not fully configured. We'll find it and rename it.
           briefcase package android --no-input
       - name: Find and Rename Release APK
         run: |
-          # Try to find the packaged APK (might be in release or debug depending on signing)
-          find build -name "*.apk" -exec cp {} Belinda-AI-Installer-Android.apk \;
+          find build -name "*.apk" -not -name "app-debug.apk" -exec cp {} Belinda-AI-Installer-Android.apk \;
+          if [ ! -f Belinda-AI-Installer-Android.apk ]; then find build -name "*.apk" -exec cp {} Belinda-AI-Installer-Android.apk \;; fi
       - name: Upload Android Release Artifact
         uses: actions/upload-artifact@v4
         with:
