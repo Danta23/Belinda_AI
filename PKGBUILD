@@ -1,7 +1,7 @@
 # Maintainer: Danta <danta@studio234.id>
 pkgname=belinda-ai
-pkgver=1.1.3
-pkgrel=7
+pkgver=1.3.0
+pkgrel=1
 pkgdesc="WhatsApp Bot Belinda AI - Intelligent assistant with GUI setup and cross-platform support"
 arch=('any')
 url="https://github.com/Danta23/Belinda_AI"
@@ -15,10 +15,10 @@ source=("belinda-ai.service"
         "bridge.js"
         "package.json"
         "requirements.txt"
-        "installer_app.py"
-        "installer_styles.py"
-        "installer_settings_manager.py"
-        "installer_translations.py"
+        "installer_app.py::installer/app.py"
+        "installer_styles.py::installer/styles.py"
+        "installer_settings_manager.py::installer/settings_manager.py"
+        "installer_translations.py::installer/translations.py"
         "start.sh"
         "stop.sh"
         "reset.sh"
@@ -40,7 +40,7 @@ package() {
   cp "$srcdir/package.json" "$pkgdir/opt/$pkgname/"
   cp "$srcdir/requirements.txt" "$pkgdir/opt/$pkgname/"
   
-  # 3. Copy installer files (restoring original names)
+  # 3. Copy installer files
   cp "$srcdir/installer_app.py" "$pkgdir/opt/$pkgname/installer/app.py"
   cp "$srcdir/installer_styles.py" "$pkgdir/opt/$pkgname/installer/styles.py"
   cp "$srcdir/installer_settings_manager.py" "$pkgdir/opt/$pkgname/installer/settings_manager.py"
