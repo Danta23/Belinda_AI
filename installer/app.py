@@ -362,31 +362,52 @@ class CloneWorker(QThread):
     def __init__(self, target_dir):
         super().__init__()
         self.target_dir = target_dir
+        self.running = True
+
+    def stop(self):
+        self.running = False
 
     def run(self):
+        log_file = os.path.join(self.target_dir, "task.log")
         try:
             import shutil
             repo_url = "https://github.com/Danta23/Belinda_AI.git"
             self.progress.emit(10, "status_detecting")
             
+            if not self.running: return
+
+            # Check if git is installed
+            try:
+                subprocess.run(["git", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            except:
+                self.finished.emit(False, "Git not found! Please install Git for Windows.")
+                return
+
+            if not self.running: return
+
             parent_dir = os.path.dirname(self.target_dir)
             if not os.path.exists(parent_dir):
                 os.makedirs(parent_dir, exist_ok=True)
 
             self.progress.emit(30, "status_cloning")
             
-            # Robust check: If folder exists but is not a git repo, or is empty, remove and re-clone
+            # Robust check: If folder exists but is not a git repo, remove it
             is_valid_repo = os.path.exists(os.path.join(self.target_dir, ".git"))
             if os.path.exists(self.target_dir) and not is_valid_repo:
                 try:
-                    shutil.rmtree(self.target_dir)
-                except:
-                    # If rmtree fails (e.g. file in use), try to at least clear what we can
-                    pass
+                    # Clear contents first to help with 'in use' errors
+                    for item in os.listdir(self.target_dir):
+                        path = os.path.join(self.target_dir, item)
+                        if os.path.isdir(path): shutil.rmtree(path, ignore_errors=True)
+                        else: os.remove(path)
+                    os.rmdir(self.target_dir)
+                except Exception as e:
+                    print(f"Cleanup warning: {e}")
+
+            if not self.running: return
 
             if not os.path.exists(self.target_dir):
                 self.progress.emit(40, "status_cloning")
-                # Use --progress to force progress output even if not a terminal
                 process = subprocess.Popen(
                     f"git clone --progress {repo_url} \"{self.target_dir}\"",
                     stdout=subprocess.PIPE,
@@ -397,33 +418,36 @@ class CloneWorker(QThread):
                     universal_newlines=True
                 )
                 
-                while True:
+                while self.running:
                     line = process.stdout.readline()
                     if not line and process.poll() is not None:
                         break
                     if line:
-                        # Parse git progress e.g. "Receiving objects:  95% (123/129)"
                         match = re.search(r"(\d+)%", line)
                         if match:
                             percent = int(match.group(1))
-                            # Map 0-100 git progress to 40-95 app progress
                             app_percent = 40 + int(percent * 0.55)
                             self.progress.emit(app_percent, "status_cloning")
                 
+                if not self.running:
+                    process.terminate()
+                    self.finished.emit(False, "Setup terminated by user.")
+                    return
+
                 process.wait()
                 if process.returncode != 0:
-                    self.finished.emit(False, "clone_fail")
+                    self.finished.emit(False, f"Clone failed (Exit {process.returncode}). Check internet or firewall.")
                     return
             
             # Verify cloning succeeded
             if not os.path.exists(os.path.join(self.target_dir, "bridge.js")):
-                self.finished.emit(False, "clone_incomplete")
+                self.finished.emit(False, "clone_incomplete: bridge.js missing")
                 return
 
             self.progress.emit(100, "task_finished")
             self.finished.emit(True, "Project ready.")
         except Exception as e:
-            self.finished.emit(False, str(e))
+            self.finished.emit(False, f"Error: {str(e)}")
 
 class PageSetup(QWidget):
     def __init__(self, start_clone_callback, get_text_func):
