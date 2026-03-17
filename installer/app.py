@@ -16,9 +16,9 @@ from PyQt5.QtGui import QColor, QPainter, QLinearGradient, QBrush, QIcon, QPen
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Import styles and settings
-from .styles import DARK_STYLE_TEMPLATE, LIGHT_STYLE_TEMPLATE
-from .settings_manager import SettingsManager
-from .translations import TRANSLATIONS
+from styles import DARK_STYLE_TEMPLATE, LIGHT_STYLE_TEMPLATE
+from settings_manager import SettingsManager
+from translations import TRANSLATIONS
 
 class LogTailer(QThread):
     new_log = pyqtSignal(str)

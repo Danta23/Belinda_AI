@@ -71,15 +71,18 @@ chat_history.json
 Thumbs.db
 
 # ==========================
-# Build & PyInstaller
+# Build & PyInstaller / Android
 # ==========================
 build/
 dist/
+.buildozer/
+bin/
 *.spec
 __pycache__/
 *.exe
 *.dmg
 *.apk
+*.aab
 # ==========================
 # Arch Linux / AUR
 # ==========================
