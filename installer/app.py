@@ -420,6 +420,13 @@ class CloneWorker(QThread):
                 self.finished.emit(False, "clone_incomplete")
                 return
 
+            # --- Fix: Create .env file immediately after clone finished as requested ---
+            env_proto = os.path.join(self.target_dir, ".env.example")
+            env_file = os.path.join(self.target_dir, ".env")
+            if os.path.exists(env_proto) and not os.path.exists(env_file):
+                import shutil
+                shutil.copy(env_proto, env_file)
+
             self.progress.emit(100, "task_finished")
             self.finished.emit(True, "Project ready.")
         except Exception as e:
@@ -746,7 +753,7 @@ class BelindaSetup(QMainWindow):
             self.root_dir = os.path.expanduser("~/.local/share/belinda-ai")
             self.engine_dir = os.path.dirname(base_dir) if os.path.basename(base_dir) == "installer" else base_dir
         else:
-            # Portable mode: Target Belinda_AI subfolder for project files as requested
+            # Portable mode: Target Belinda_AI subfolder for project files
             self.root_dir = os.path.join(base_dir, "Belinda_AI")
             self.engine_dir = base_dir
             
