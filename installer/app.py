@@ -8,7 +8,7 @@ import re
 import warnings
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QPushButton, QStackedWidget, QFrame, QGraphicsDropShadowEffect,
-                             QLineEdit, QProgressBar, QFileDialog, QSpacerItem, QSizePolicy, QTextEdit, QComboBox)
+                             QLineEdit, QProgressBar, QFileDialog, QSpacerItem, QSizePolicy, QTextEdit, QComboBox, QMessageBox)
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, QSize, pyqtSignal, QThread, QPoint, QTimer
 from PyQt5.QtGui import QColor, QPainter, QLinearGradient, QBrush, QIcon, QPen
 
@@ -759,7 +759,8 @@ class BelindaSetup(QMainWindow):
             
         os.makedirs(base_dir, exist_ok=True)
         # Use base_dir for installer settings so they persist
-        self.sm = SettingsManager(base_dir)
+        # Fix: Use root_dir (Belinda_AI) for settings so .env stays inside project folder
+        self.sm = SettingsManager(self.root_dir)
         
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -791,6 +792,22 @@ class BelindaSetup(QMainWindow):
         except:
             return False
 
+    def closeEvent(self, event):
+        from PyQt5.QtWidgets import QMessageBox
+        reply = QMessageBox.question(self, 'Terminate', 'Are you sure you want to terminate?', 
+                                   QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            event.accept()
+        else:
+            event.ignore()
+
+    def confirm_terminate(self):
+        from PyQt5.QtWidgets import QMessageBox
+        reply = QMessageBox.question(self, 'Terminate', 'Are you sure you want to terminate?', 
+                                   QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.close()
+
     def start_setup_clone(self):
         self.page_setup.clone_btn.setEnabled(False)
         self.page_setup.progress_bar.setVisible(True)
@@ -809,8 +826,8 @@ class BelindaSetup(QMainWindow):
         # Re-enable exit button after processing
         self.exit_btn.setEnabled(True)
         if success:
-            # Reload settings
-            self.sm = SettingsManager(os.path.dirname(self.root_dir))
+            # Reload settings from newly created folder
+            self.sm = SettingsManager(self.root_dir)
             self.sidebar.setEnabled(True)
             # Switch to Dashboard
             self.content_area.setCurrentIndex(1)
@@ -865,7 +882,7 @@ class BelindaSetup(QMainWindow):
         
         self.exit_btn = QPushButton("TERMINATE")
         self.exit_btn.setStyleSheet("QPushButton { color: #FF4B4B; border-color: rgba(255,75,75,0.2); font-weight: bold; }")
-        self.exit_btn.clicked.connect(self.close)
+        self.exit_btn.clicked.connect(self.confirm_terminate)
         self.sidebar_layout.addWidget(self.exit_btn)
 
         self.container_layout.addWidget(self.sidebar)
@@ -951,6 +968,13 @@ class BelindaSetup(QMainWindow):
         self.page_settings.save_btn.setText("SAVE & APPLY CHANGES")
 
     def start_worker_task(self, task):
+        if task == "session":
+            from PyQt5.QtWidgets import QMessageBox
+            reply = QMessageBox.question(self, 'Reset Session', 'Are you sure you want to reset factory settings? All data will be wiped.', 
+                                       QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply != QMessageBox.Yes:
+                return
+
         api_key = None
         if task == "install":
             # Pop up dialog for API key as requested
