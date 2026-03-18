@@ -453,7 +453,6 @@ async function connectWA() {
                     }
                 });
                 ls.on('close', async (code) => {
-                    clearInterval(animationInterval);
                     if (code === 0) {
                         const fullBar = '█'.repeat(20);
                         await sock.sendMessage(sender, { text: `⏳ Processing ${isSpotify ? 'Spotify' : 'YouTube'} music... ✅\n\n🎵 *Downloading Audio*\n\`[${fullBar}] 100.0%\` \n\n_Finishing up, sending to WhatsApp..._`, edit: key }).catch(() => {});
