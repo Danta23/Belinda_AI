@@ -431,8 +431,14 @@ async function connectWA() {
                     }
                 }
                 
+                // Detect if running on Windows (win32 covers both 32-bit and 64-bit Windows in Node.js)
+                const isWin = process.platform === 'win32';
+                const audioFormat = isWin ? 'mp3' : 'opus';
+                const audioMime = isWin ? 'audio/mpeg' : 'audio/ogg; codecs=opus';
+                const isPtt = !isWin; // Send as voice note only on non-Windows (Linux/Android)
+
                 const finalQuery = `ytsearch1:${searchQuery}`;
-                const args_dl = ['--print', 'after_move:filepath', '-x', '--audio-format', 'opus', '--no-playlist', '--no-check-certificate', '--default-search', 'ytsearch', '-o', `${fileNameBase}.%(ext)s`, finalQuery];
+                const args_dl = ['--print', 'after_move:filepath', '-x', '--audio-format', audioFormat, '--no-playlist', '--no-check-certificate', '--default-search', 'ytsearch', '-o', `${fileNameBase}.%(ext)s`, finalQuery];
                 
                 const ls = spawn('yt-dlp', args_dl);
                 let lastUpdate = Date.now();
@@ -448,7 +454,7 @@ async function connectWA() {
                         const percent = parseFloat(match[1]);
                         const progress = Math.floor(percent / 10);
                         const bar = '▓'.repeat(progress) + '░'.repeat(10 - progress);
-                        sock.sendMessage(sender, { text: `🎵 *Downloading Music*\n\n[${bar}] ${percent}%\n\n_Sedang memproses pesan suara..._`, edit: key }).catch(() => {});
+                        sock.sendMessage(sender, { text: `🎵 *Downloading Music (${audioFormat.toUpperCase()})*\n\n[${bar}] ${percent}%\n\n_Sedang memproses pesan suara..._`, edit: key }).catch(() => {});
                         lastUpdate = Date.now();
                     }
                 });
@@ -479,8 +485,8 @@ async function connectWA() {
                     }
 
                     try {
-                        try { await sock.sendMessage(sender, { text: "📤 *Sending voice note...*", edit: key }); } catch (e) {}
-                        await sock.sendMessage(sender, { audio: { url: filePath }, mimetype: 'audio/ogg; codecs=opus', ptt: true });
+                        try { await sock.sendMessage(sender, { text: `📤 *Sending ${isPtt ? 'voice note' : 'audio'}...*`, edit: key }); } catch (e) {}
+                        await sock.sendMessage(sender, { audio: { url: filePath }, mimetype: audioMime, ptt: isPtt });
                         try { await sock.sendMessage(sender, { text: "✅ Music sent!", edit: key }); } catch (e) {}
                         fs.unlinkSync(filePath);
                     } catch (e) {
