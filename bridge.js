@@ -474,13 +474,16 @@ async function connectWA() {
                     let filePath = lastLine && fs.existsSync(lastLine) ? lastLine : null;
 
                     if (!filePath) {
-                        const files = fs.readdirSync(process.cwd());
-                        const found = files.find(f => f.startsWith(fileNameBase));
-                        filePath = found ? path.join(process.cwd(), found) : null;
+                        // Aggressive search: look for any file starting with our base name
+                        try {
+                            const files = fs.readdirSync(process.cwd());
+                            const found = files.find(f => f.startsWith(fileNameBase));
+                            if (found) filePath = path.join(process.cwd(), found);
+                        } catch (e) { console.error("File search error:", e); }
                     }
 
                     if (!filePath) {
-                        try { await sock.sendMessage(sender, { text: "❌ Lagu tidak ditemukan atau link tidak didukung.", edit: key }); } catch (e) {}
+                        try { await sock.sendMessage(sender, { text: "❌ Error: Could not find downloaded file. Check console.", edit: key }); } catch (e) {}
                         return;
                     }
 
@@ -488,9 +491,10 @@ async function connectWA() {
                         try { await sock.sendMessage(sender, { text: `📤 *Sending ${isPtt ? 'voice note' : 'audio'}...*`, edit: key }); } catch (e) {}
                         await sock.sendMessage(sender, { audio: { url: filePath }, mimetype: audioMime, ptt: isPtt });
                         try { await sock.sendMessage(sender, { text: "✅ Music sent!", edit: key }); } catch (e) {}
-                        fs.unlinkSync(filePath);
+                        // Use a small timeout before unlinking to ensure WhatsApp has finished processing
+                        setTimeout(() => { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); }, 5000);
                     } catch (e) {
-                        try { await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key }); } catch (err) {}
+                        try { await sock.sendMessage(sender, { text: `❌ Error sending: ${e.message}`, edit: key }); } catch (err) {}
                         if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
                     }
                 });
