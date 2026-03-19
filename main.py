@@ -375,8 +375,24 @@ class SetupScreen(Screen):
 
     def do_clone(self):
         try:
-            subprocess.run(["pkg", "install", "git", "-y"], check=False)
-            subprocess.run(["git", "clone", "https://github.com/Danta23/Belinda_AI.git", "Belinda_AI"], check=True)
+            # 1. Check if git is already installed
+            git_installed = False
+            try:
+                subprocess.run(["git", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                git_installed = True
+            except (FileNotFoundError, Exception):
+                pass
+
+            # 2. If not installed, try to install via pkg (Termux only)
+            if not git_installed:
+                try:
+                    subprocess.run(["pkg", "install", "git", "-y"], check=False)
+                except Exception:
+                    pass
+
+            # 3. Perform Clone
+            repo = "https://github.com/Danta23/Belinda_AI.git"
+            subprocess.run(["git", "clone", repo, "Belinda_AI"], check=True)
             Clock.schedule_once(lambda dt: self.finish_clone(True))
         except Exception as e:
             Clock.schedule_once(lambda dt: self.finish_clone(False, str(e)))
