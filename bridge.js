@@ -56,17 +56,17 @@ let nextRequests = {};
 
 function normalizeText(str) {
     return str.toLowerCase()
-        .replace(/0/g,'o').replace(/1/g,'i').replace(/3/g,'e')
-        .replace(/4/g,'a').replace(/5/g,'s').replace(/7/g,'j')
-        .replace(/8/g,'b').replace(/[^a-z0-9\s]/g,'');
+        .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e')
+        .replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 'j')
+        .replace(/8/g, 'b').replace(/[^a-z0-9\s]/g, '');
 }
 
 async function connectWA() {
     console.log("⏳ Starting connection in 5 seconds to wait for network...");
     await new Promise(resolve => setTimeout(resolve, 5000));
-    
+
     const { state, saveCreds } = await useMultiFileAuthState(process.env.SESSION_NAME || 'auth_info');
-    
+
     let version, isLatest;
     try {
         const v = await fetchLatestBaileysVersion();
@@ -77,13 +77,13 @@ async function connectWA() {
         version = [2, 3000, 1015901307]; // Fallback version
         isLatest = false;
     }
-    
+
     console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
     const sock = makeWASocket({
         version,
         auth: state,
-        browser: ["Ubuntu","Chrome","121.0.6167.85"],
+        browser: ["Ubuntu", "Chrome", "121.0.6167.85"],
         logger: require('pino')({ level: 'error' }), // Only log errors
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 0,
@@ -112,9 +112,9 @@ async function connectWA() {
                 reason !== DisconnectReason.badSession &&
                 reason !== DisconnectReason.connectionReplaced
             );
-            
+
             console.log(`❌ Connection closed. Reason code: ${reason}. Reconnecting: ${shouldReconnect}`);
-            
+
             if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.badSession) {
                 console.log("⚠️ Session is invalid or logged out. Please delete the session folder and scan again.");
             } else if (reason === DisconnectReason.connectionReplaced) {
@@ -124,7 +124,7 @@ async function connectWA() {
                 if (shouldReconnect) setTimeout(connectWA, 20000);
             } else if (shouldReconnect) {
                 const delay = 10000;
-                console.log(`⏳ Reconnecting in ${delay/1000}s...`);
+                console.log(`⏳ Reconnecting in ${delay / 1000}s...`);
                 setTimeout(connectWA, delay);
             }
         }
@@ -157,7 +157,7 @@ async function connectWA() {
                     { id: '!quiz', text: '🔄 Ulangi Quiz' }
                 ]
             };
-            
+
             try {
                 await sendButtons(sock, group, content);
             } catch (e) {
@@ -173,9 +173,9 @@ async function connectWA() {
 
         try {
             const prompt = `Buatkan 1 soal PG (Pilihan Ganda) ${data.mapel} untuk tingkat ${data.diff} (A-E). ` +
-                           `Pastikan soalnya variatif, menantang, and berbeda dari topik umum. ` +
-                           `Berikan pilihan jawaban A sampai E. Tulis 'KUNCI: X' di akhir soal. [Seed: ${Math.random().toString(36).substring(7)}]`;
-            
+                `Pastikan soalnya variatif, menantang, and berbeda dari topik umum. ` +
+                `Berikan pilihan jawaban A sampai E. Tulis 'KUNCI: X' di akhir soal. [Seed: ${Math.random().toString(36).substring(7)}]`;
+
             const res = await axios.post(`${pythonUrl}/chat`, { sender: group, msg: prompt });
 
             const parts = res.data.split('KUNCI:');
@@ -185,14 +185,14 @@ async function connectWA() {
             const poll = await sock.sendMessage(group, {
                 poll: {
                     name: `*SOAL ${data.currentNum}/${data.maxSoal}* (${data.mapel.toUpperCase()} - ${data.diff.toUpperCase()})\n\n${cleanText}`,
-                    values: ['A','B','C','D','E'],
+                    values: ['A', 'B', 'C', 'D', 'E'],
                     selectableCount: 1
                 }
             });
 
             data.msgId = poll.key.id;
-            data.question = cleanText; 
-            data.index = ['A','B','C','D','E'].indexOf(keyChar);
+            data.question = cleanText;
+            data.index = ['A', 'B', 'C', 'D', 'E'].indexOf(keyChar);
             nextRequests[group] = [];
         } catch (e) {
             data.currentNum--;
@@ -200,13 +200,13 @@ async function connectWA() {
         }
     }
 
-// --- MESSAGE HANDLER ---
+    // --- MESSAGE HANDLER ---
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const m = messages[0];
         if (!m.message || m.key.fromMe) return;
 
         const sender = m.key.remoteJid;
-        
+
         const buttonText = m.message.buttonsResponseMessage?.selectedDisplayText || m.message.templateButtonReplyMessage?.selectedDisplayText || "";
         const buttonId = m.message.buttonsResponseMessage?.selectedButtonId || m.message.templateButtonReplyMessage?.selectedId || "";
         const interactiveResponse = m.message.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
@@ -215,12 +215,12 @@ async function connectWA() {
             try {
                 const parsed = JSON.parse(interactiveResponse);
                 interactiveId = parsed.id;
-            } catch (e) {}
+            } catch (e) { }
         }
 
         const text_orig = (m.message.conversation || m.message.extendedTextMessage?.text || "").trim();
         const text = (interactiveId || buttonId || buttonText || text_orig).trim();
-        
+
         const isGroup = sender.endsWith('@g.us');
         const participant = m.key.participant || sender;
 
@@ -235,7 +235,7 @@ async function connectWA() {
             const cleanText = normalizeText(text);
             const words = cleanText.split(/\s+/);
             if (words.some(w => toxicWords.includes(w))) {
-                try { await sock.sendMessage(sender, { delete: m.key }); return; } catch (e) {}
+                try { await sock.sendMessage(sender, { delete: m.key }); return; } catch (e) { }
             }
         }
 
@@ -252,7 +252,7 @@ async function connectWA() {
 
             if (cmd === '!kick') {
                 if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
-                const target = args[1]?.replace('@','').replace(/[^0-9]/g,'') + '@s.whatsapp.net';
+                const target = args[1]?.replace('@', '').replace(/[^0-9]/g, '') + '@s.whatsapp.net';
                 try {
                     await sock.groupParticipantsUpdate(sender, [target], 'remove');
                     await sock.sendMessage(sender, { text: `👢 Removed ${args[1]} from the group.` });
@@ -289,23 +289,23 @@ async function connectWA() {
             if (cmd === '!add') {
                 if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
                 if (!args[1]) return sock.sendMessage(sender, { text: "⚠️ Format: !add {nomor} (Contoh: !add 628xxx atau !add 1234xxx)" });
-                
-                let num = args[1].replace(/[^0-9]/g,'');
+
+                let num = args[1].replace(/[^0-9]/g, '');
                 if (num.startsWith('0')) {
                     num = '62' + num.substring(1);
                 }
                 const target = num + '@s.whatsapp.net';
-                
+
                 try {
                     const response = await sock.groupParticipantsUpdate(sender, [target], 'add');
                     const result = response[0];
-                    
+
                     if (result.status === "200") {
                         await sock.sendMessage(sender, { text: `✅ Berhasil menambahkan @${num} ke grup.`, mentions: [target] });
                     } else if (result.status === "403") {
                         const code = await sock.groupInviteCode(sender);
                         const inviteLink = `https://chat.whatsapp.com/${code}`;
-                        await sock.sendMessage(sender, { 
+                        await sock.sendMessage(sender, {
                             text: `⚠️ Tidak bisa menambahkan @${num} secara langsung karena pengaturan privasi mereka.\n\n*Solusi:* Silakan kirimkan link undangan ini ke mereka:\n${inviteLink}`,
                             mentions: [target]
                         });
@@ -316,9 +316,9 @@ async function connectWA() {
                     } else {
                         await sock.sendMessage(sender, { text: `❌ Gagal menambahkan. Status: ${result.status}` });
                     }
-                } catch (e) { 
+                } catch (e) {
                     console.error("Add error:", e);
-                    sock.sendMessage(sender, { text: "⚠️ Pastikan bot adalah Admin dan nomor valid dengan kode negara." }); 
+                    sock.sendMessage(sender, { text: "⚠️ Pastikan bot adalah Admin dan nomor valid dengan kode negara." });
                 }
                 return;
             }
@@ -391,7 +391,7 @@ async function connectWA() {
                 } catch (e) {
                     try {
                         await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key });
-                    } catch (err) {}
+                    } catch (err) { }
                 }
                 return;
             }
@@ -399,7 +399,7 @@ async function connectWA() {
             if (cmd === '!music') {
                 const url = args[1];
                 if (!url) return sock.sendMessage(sender, { text: "⚠️ Please provide a Spotify or YouTube link." });
-                
+
                 const isSpotify = url.includes('spotify.com');
                 const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
 
@@ -408,11 +408,11 @@ async function connectWA() {
                 }
 
                 const { key } = await sock.sendMessage(sender, { text: `⏳ Processing ${isSpotify ? 'Spotify' : 'YouTube'} music...` });
-                
+
                 const fileNameBase = `music_${Date.now()}`;
                 const { spawn } = require('child_process');
                 const path = require('path');
-                
+
                 let searchQuery = url;
                 if (isSpotify) {
                     try {
@@ -430,16 +430,23 @@ async function connectWA() {
                         console.error("Spotify fetch error:", e.message);
                     }
                 }
-                
-                // Detect if running on Windows (win32 covers both 32-bit and 64-bit Windows in Node.js)
+
                 const isWin = process.platform === 'win32';
                 const audioFormat = isWin ? 'mp3' : 'opus';
                 const audioMime = isWin ? 'audio/mpeg' : 'audio/ogg; codecs=opus';
-                const isPtt = !isWin; // Send as voice note only on non-Windows (Linux/Android)
+                const isPtt = !isWin;
 
-                const finalQuery = `ytsearch1:${searchQuery}`;
-                const args_dl = ['--print', 'after_move:filepath', '-x', '--audio-format', audioFormat, '--no-playlist', '--no-check-certificate', '--default-search', 'ytsearch', '-o', `${fileNameBase}.%(ext)s`, finalQuery];
-                
+                // If it's already a YouTube link, don't use ytsearch1:
+                const finalQuery = (isYouTube && !isSpotify) ? url : `ytsearch1:${searchQuery}`;
+
+                const args_dl = [
+                    '--print', 'after_move:filepath',
+                    '-x', '--audio-format', audioFormat,
+                    '--no-playlist', '--no-check-certificate',
+                    '-o', `${fileNameBase}.%(ext)s`,
+                    finalQuery
+                ];
+
                 const ls = spawn('yt-dlp', args_dl);
                 let lastUpdate = Date.now();
                 let stderrData = "";
@@ -454,14 +461,14 @@ async function connectWA() {
                         const percent = parseFloat(match[1]);
                         const progress = Math.floor(percent / 10);
                         const bar = '▓'.repeat(progress) + '░'.repeat(10 - progress);
-                        sock.sendMessage(sender, { text: `🎵 *Downloading Music (${audioFormat.toUpperCase()})*\n\n[${bar}] ${percent}%\n\n_Sedang memproses pesan suara..._`, edit: key }).catch(() => {});
+                        sock.sendMessage(sender, { text: `🎵 *Downloading Music (${audioFormat.toUpperCase()})*\n\n[${bar}] ${percent}%\n\n_Sedang memproses pesan suara..._`, edit: key }).catch(() => { });
                         lastUpdate = Date.now();
                     }
                 });
                 ls.on('close', async (code) => {
                     if (code === 0) {
                         const fullBar = '█'.repeat(20);
-                        await sock.sendMessage(sender, { text: `⏳ Processing ${isSpotify ? 'Spotify' : 'YouTube'} music... ✅\n\n🎵 *Downloading Audio*\n\`[${fullBar}] 100.0%\` \n\n_Finishing up, sending to WhatsApp..._`, edit: key }).catch(() => {});
+                        await sock.sendMessage(sender, { text: `⏳ Processing ${isSpotify ? 'Spotify' : 'YouTube'} music... ✅\n\n🎵 *Downloading Audio*\n\`[${fullBar}] 100.0%\` \n\n_Finishing up, sending to WhatsApp..._`, edit: key }).catch(() => { });
                         await new Promise(resolve => setTimeout(resolve, 2000));
                     } else {
                         return sock.sendMessage(sender, { text: `❌ Failed to download music. (Code ${code})`, edit: key });
@@ -483,18 +490,18 @@ async function connectWA() {
                     }
 
                     if (!filePath) {
-                        try { await sock.sendMessage(sender, { text: "❌ Error: Could not find downloaded file. Check console.", edit: key }); } catch (e) {}
+                        try { await sock.sendMessage(sender, { text: "❌ Error: Could not find downloaded file. Check console.", edit: key }); } catch (e) { }
                         return;
                     }
 
                     try {
-                        try { await sock.sendMessage(sender, { text: `📤 *Sending ${isPtt ? 'voice note' : 'audio'}...*`, edit: key }); } catch (e) {}
+                        try { await sock.sendMessage(sender, { text: `📤 *Sending ${isPtt ? 'voice note' : 'audio'}...*`, edit: key }); } catch (e) { }
                         await sock.sendMessage(sender, { audio: { url: filePath }, mimetype: audioMime, ptt: isPtt });
-                        try { await sock.sendMessage(sender, { text: "✅ Music sent!", edit: key }); } catch (e) {}
+                        try { await sock.sendMessage(sender, { text: "✅ Music sent!", edit: key }); } catch (e) { }
                         // Use a small timeout before unlinking to ensure WhatsApp has finished processing
                         setTimeout(() => { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); }, 5000);
                     } catch (e) {
-                        try { await sock.sendMessage(sender, { text: `❌ Error sending: ${e.message}`, edit: key }); } catch (err) {}
+                        try { await sock.sendMessage(sender, { text: `❌ Error sending: ${e.message}`, edit: key }); } catch (err) { }
                         if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
                     }
                 });
@@ -504,20 +511,20 @@ async function connectWA() {
             if (cmd === '!video') {
                 const url = args[1];
                 if (!url) return sock.sendMessage(sender, { text: "⚠️ Please provide a YouTube link." });
-                
+
                 const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
                 if (!isYouTube) {
                     return sock.sendMessage(sender, { text: "❌ Only YouTube links are supported untuk !video. (TikTok, IG, FB tidak didukung)" });
                 }
 
                 const { key } = await sock.sendMessage(sender, { text: "⏳ Downloading YouTube video..." });
-                
+
                 const fileNameBase = `video_${Date.now()}`;
                 const { spawn } = require('child_process');
                 const path = require('path');
-                
+
                 const args_dl = ['--print', 'after_move:filepath', '-f', 'best[height<=480][ext=mp4]/best[ext=mp4]/best', '--no-playlist', '--no-check-certificate', '-o', `${fileNameBase}.%(ext)s`, url];
-                
+
                 const ls = spawn('yt-dlp', args_dl);
                 let lastUpdate = Date.now();
                 let stderrData = "";
@@ -532,7 +539,7 @@ async function connectWA() {
                         const percent = parseFloat(match[1]);
                         const progress = Math.floor(percent / 10);
                         const bar = '█'.repeat(progress) + '▒'.repeat(10 - progress);
-                        sock.sendMessage(sender, { text: `🎬 *Downloading Video*\n\n[${bar}] ${percent}%\n\n_Video sedang diproses..._`, edit: key }).catch(() => {});
+                        sock.sendMessage(sender, { text: `🎬 *Downloading Video*\n\n[${bar}] ${percent}%\n\n_Video sedang diproses..._`, edit: key }).catch(() => { });
                         lastUpdate = Date.now();
                     }
                 });
@@ -540,7 +547,7 @@ async function connectWA() {
                 ls.on('close', async (code) => {
                     if (code !== 0) {
                         console.error("yt-dlp error:", stderrData);
-                        try { await sock.sendMessage(sender, { text: `❌ Failed to download video. Error: ${stderrData.slice(-100)}`, edit: key }); } catch (e) {}
+                        try { await sock.sendMessage(sender, { text: `❌ Failed to download video. Error: ${stderrData.slice(-100)}`, edit: key }); } catch (e) { }
                         return;
                     }
 
@@ -555,17 +562,17 @@ async function connectWA() {
                     }
 
                     if (!filePath) {
-                        try { await sock.sendMessage(sender, { text: "❌ Error: Video file not found on disk.", edit: key }); } catch (e) {}
+                        try { await sock.sendMessage(sender, { text: "❌ Error: Video file not found on disk.", edit: key }); } catch (e) { }
                         return;
                     }
 
                     try {
-                        try { await sock.sendMessage(sender, { text: "📤 *Sending video...*", edit: key }); } catch (e) {}
+                        try { await sock.sendMessage(sender, { text: "📤 *Sending video...*", edit: key }); } catch (e) { }
                         await sock.sendMessage(sender, { video: { url: filePath }, caption: "✅ Video sent!" });
-                        try { await sock.sendMessage(sender, { text: "✅ Video sent!", edit: key }); } catch (e) {}
+                        try { await sock.sendMessage(sender, { text: "✅ Video sent!", edit: key }); } catch (e) { }
                         fs.unlinkSync(filePath);
                     } catch (e) {
-                        try { await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key }); } catch (err) {}
+                        try { await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key }); } catch (err) { }
                         if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
                     }
                 });
@@ -587,7 +594,7 @@ async function connectWA() {
                     } else if (res.data.type === 'document') {
                         const fileName = res.data.path;
                         let mimetype = 'application/octet-stream';
-                        
+
                         if (format.startsWith('doc:')) {
                             const docFmt = format.split(':')[1];
                             mimetype = 'application/vnd.openxmlformats-officedocument.' + (docFmt === 'ppt' ? 'presentationml.presentation' : docFmt === 'word' ? 'wordprocessingml.document' : 'spreadsheetml.sheet');
@@ -611,16 +618,16 @@ async function connectWA() {
                             };
                             mimetype = mimeMap[ext] || 'application/octet-stream';
                         } else if (format.startsWith('3dm:')) {
-                            mimetype = 'application/octet-stream'; 
+                            mimetype = 'application/octet-stream';
                         }
 
-                        await sock.sendMessage(sender, { 
-                            document: { url: `./${fileName}` }, 
+                        await sock.sendMessage(sender, {
+                            document: { url: `./${fileName}` },
                             mimetype: mimetype,
                             fileName: fileName,
                             caption: `✅ Successfully generated/fetched ${format.toUpperCase()}`
                         });
-                        await sock.sendMessage(sender, { text: `✅ File delivered!`, edit: key }).catch(() => {});
+                        await sock.sendMessage(sender, { text: `✅ File delivered!`, edit: key }).catch(() => { });
                         fs.unlinkSync(fileName);
                     }
                 } catch (e) {
@@ -644,7 +651,7 @@ async function connectWA() {
                     } else if (res.data.type === 'document') {
                         const fileName = res.data.path;
                         let mimetype = 'application/octet-stream';
-                        
+
                         if (format.startsWith('doc:')) {
                             const docFmt = format.split(':')[1];
                             mimetype = 'application/vnd.openxmlformats-officedocument.' + (docFmt === 'ppt' ? 'presentationml.presentation' : docFmt === 'word' ? 'wordprocessingml.document' : 'spreadsheetml.sheet');
@@ -668,16 +675,16 @@ async function connectWA() {
                             };
                             mimetype = mimeMap[ext] || 'application/octet-stream';
                         } else if (format.startsWith('3dm:')) {
-                            mimetype = 'application/octet-stream'; 
+                            mimetype = 'application/octet-stream';
                         }
 
-                        await sock.sendMessage(sender, { 
-                            document: { url: `./${fileName}` }, 
+                        await sock.sendMessage(sender, {
+                            document: { url: `./${fileName}` },
                             mimetype: mimetype,
                             fileName: fileName,
                             caption: `✅ Successfully generated/fetched ${format.toUpperCase()}`
                         });
-                        await sock.sendMessage(sender, { text: `✅ File delivered!`, edit: key }).catch(() => {});
+                        await sock.sendMessage(sender, { text: `✅ File delivered!`, edit: key }).catch(() => { });
                         fs.unlinkSync(fileName);
                     }
                 } catch (e) {
@@ -689,7 +696,7 @@ async function connectWA() {
             if (cmd === '!quran') {
                 const query = args[1];
                 if (!query || !query.includes(':')) return sock.sendMessage(sender, { text: "⚠️ Format: !quran {surah}:{ayah} (Contoh: !quran 1:1)" });
-                
+
                 const [surah, ayah] = query.split(':');
                 try {
                     const url = `https://api.alquran.cloud/v1/ayah/${surah}:${ayah}/editions/quran-uthmani,id.indonesian,en.transliteration`;
@@ -708,7 +715,7 @@ async function connectWA() {
             }
 
             if (cmd === '!help') {
-                const asciiHelp = 
+                const asciiHelp =
                     "```\n" +
                     "╔══╗╔══╗╔╗──╔══╗╔═╗─╔══╗──╔══╗╔══╗\n" +
                     "║╔╗║║╔═╝║║──╚╗╔╝║║╚╗║╔╗║──║╔╗║╚╗╔╝\n" +
@@ -716,31 +723,33 @@ async function connectWA() {
                     "║╚═╝╚══╝╚══╝─╚╝─╚╝╚╝╚══╝──╚╝╚╝─╚╝─\n" +
                     "```\n\n";
 
-                return sock.sendMessage(sender, { text: asciiHelp + `🤖 *BELINDA AI HELP MENU*\n\n` +
-                    `*Quiz & Education:*\n` +
-                    `📝 !quiz [amount] [subject] [level]\n` +
-                    `⏭️ !next (min. 2 users)\n` +
-                    `🧹 !reset (Reset quiz data)\n\n` +
-                    `*Main Features:*\n` +
-                    `🎵 !music {url_spotify/youtube}\n` +
-                    `🎬 !video {url_youtube}\n` +
-                    `📖 !quran {surah}:{ayah}\n` +
-                    `🌦️ !cuaca {nama_kota}\n\n` +
-                    `*Generation Tools:*\n` +
-                    `🎨 !gen doc:word {prompt}\n` +
-                    `🎨 !gen doc:ppt {prompt}\n` +
-                    `🎨 !gen doc:excel {prompt}\n` +
-                    `💻 !gen scr:{ext} {prompt}\n` +
-                    `📦 !gen 3dm:{ext} {prompt}\n\n` +
-                    `*Admin & Utility:*\n` +
-                    `🤖 !bot (on/off) (Admin Only)\n` +
-                    `ℹ️ !info (Cek Status AI)\n` +
-                    `💻 !shell {command} (Admin Only)\n` +
-                    `➕ !add {nomor} (Admin Only)\n` +
-                    `👢 !kick {nomor} (Admin Only)\n` +
-                    `🔓 !open / 🔒 !close (Admin Only)\n` +
-                    `🧹 !zero (Clear chat history) (Admin Only)\n` +
-                    `📝 !log (All)\n` });
+                return sock.sendMessage(sender, {
+                    text: asciiHelp + `🤖 *BELINDA AI HELP MENU*\n\n` +
+                        `*Quiz & Education:*\n` +
+                        `📝 !quiz [amount] [subject] [level]\n` +
+                        `⏭️ !next (min. 2 users)\n` +
+                        `🧹 !reset (Reset quiz data)\n\n` +
+                        `*Main Features:*\n` +
+                        `🎵 !music {url_spotify/youtube}\n` +
+                        `🎬 !video {url_youtube}\n` +
+                        `📖 !quran {surah}:{ayah}\n` +
+                        `🌦️ !cuaca {nama_kota}\n\n` +
+                        `*Generation Tools:*\n` +
+                        `🎨 !gen doc:word {prompt}\n` +
+                        `🎨 !gen doc:ppt {prompt}\n` +
+                        `🎨 !gen doc:excel {prompt}\n` +
+                        `💻 !gen scr:{ext} {prompt}\n` +
+                        `📦 !gen 3dm:{ext} {prompt}\n\n` +
+                        `*Admin & Utility:*\n` +
+                        `🤖 !bot (on/off) (Admin Only)\n` +
+                        `ℹ️ !info (Cek Status AI)\n` +
+                        `💻 !shell {command} (Admin Only)\n` +
+                        `➕ !add {nomor} (Admin Only)\n` +
+                        `👢 !kick {nomor} (Admin Only)\n` +
+                        `🔓 !open / 🔒 !close (Admin Only)\n` +
+                        `🧹 !zero (Clear chat history) (Admin Only)\n` +
+                        `📝 !log (All)\n`
+                });
             }
 
             if (cmd === '!quiz') {
@@ -777,8 +786,8 @@ async function connectWA() {
                 const keyLetter = ['A', 'B', 'C', 'D', 'E'][data.index];
                 try {
                     const explanationPrompt = `Ini adalah soal kuis ${data.mapel}: "${data.question}". ` +
-                                             `Jawabannya adalah ${keyLetter}. ` +
-                                             `Tolong berikan penjelasan/pembahasan singkat kenapa itu jawabannya.`;
+                        `Jawabannya adalah ${keyLetter}. ` +
+                        `Tolong berikan penjelasan/pembahasan singkat kenapa itu jawabannya.`;
                     const exp = await axios.post(`${pythonUrl}/chat`, { sender, msg: explanationPrompt });
                     await sock.sendMessage(sender, { text: `📢 *PEMBAHASAN*\n\n✅ Kunci: *${keyLetter}*\n📖 ${exp.data}` });
                 } catch (e) {
@@ -820,7 +829,7 @@ async function connectWA() {
                     const res = await axios.post(`${pythonUrl}/chat`, { sender, msg: text });
                     await sock.sendMessage(sender, { text: res.data });
                 }
-            } catch (e) {}
+            } catch (e) { }
         } else if (m.message && (m.message.audioMessage || (m.message.documentMessage && m.message.documentMessage.mimetype.startsWith('audio/')))) {
             try {
                 const st = await axios.post(`${pythonUrl}/status`, { sender, action: "get" });
