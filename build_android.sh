@@ -1,67 +1,67 @@
 #!/bin/bash
-# Build script for Belinda AI Android APK using Kivy/Buildozer
-# This version handles paths with spaces and recognizes both APK and AAB outputs.
+# ULTRA-FAST Build Script for Belinda AI Manager (v2 - Fixed Path Length Error)
+# Uses persistent caching, multi-core acceleration, and smart sync.
 
-# Set the final output directory on the Windows side
 BASE_OUTPUT_DIR="/mnt/c/Users/herda/Documents/My Projects/Belinda_AI_App"
 ANDROID_DIST_DIR="$BASE_OUTPUT_DIR/android"
-
-# Temporary build directory in WSL (NO SPACES ALLOWED)
 BUILD_WORK_DIR="/root/belinda_android_build"
 
-echo "--- Installing/Updating System Dependencies ---"
-sudo pacman -S --noconfirm git jdk17-openjdk zip unzip autoconf libtool pkg-config
+# 1. Multi-Core Acceleration (Use all available CPU cores)
+export P4A_NUM_WORKERS=$(nproc)
 
-# Detect if we are in a virtualenv
-if [ -n "$VIRTUAL_ENV" ]; then
-    PIP_CMD="pip"
-else
-    PIP_CMD="pip install --user"
+echo "--- Checking System Dependencies ---"
+if ! command -v git &> /dev/null || ! command -v zip &> /dev/null; then
+    sudo pacman -S --noconfirm git jdk17-openjdk zip unzip autoconf libtool pkg-config
 fi
 
-echo "--- Installing Buildozer (Latest Git) ---"
-$PIP_CMD install git+https://github.com/kivy/buildozer.git@master cython
-
-# --- Aggressive Patch for Python 3.14 compatibility ---
-VENV_LIB=$(python -c "import site; print(site.getsitepackages()[0])")
-INIT_FILE="$VENV_LIB/buildozer/__init__.py"
-if [ -f "$INIT_FILE" ]; then
-    echo "--- Patching buildozer for Python 3.14 compatibility ---"
-    sed -i "s/from urllib.request import FancyURLopener/# from urllib.request import FancyURLopener/g" "$INIT_FILE"
-    python -c "
-import os
-path = '$INIT_FILE'
-with open(path, 'r') as f: lines = f.readlines()
-with open(path, 'w') as f:
-    skip = False
-    for line in lines:
-        if 'class ChromeDownloader' in line: skip = True
-        if skip and line.strip() == '': skip = False; continue
-        if not skip: f.write(line)
-"
+if ! pip show buildozer &> /dev/null; then
+    echo "--- Installing Buildozer ---"
+    pip install --user --upgrade git+https://github.com/kivy/buildozer.git@master cython
 fi
 
-echo "--- Preparing Temporary Build Workspace ---"
-rm -rf "$BUILD_WORK_DIR"
-mkdir -p "$BUILD_WORK_DIR"
-cp -r . "$BUILD_WORK_DIR/"
+# 2. FAST CACHE WORKSPACE (Crucial for Speed)
+if [ ! -d "$BUILD_WORK_DIR" ]; then
+    echo "--- Creating Initial Build Workspace ---"
+    mkdir -p "$BUILD_WORK_DIR"
+fi
+
+echo "--- Syncing Source Files (Removing Old node_modules) ---"
+# EXPLICIT CLEANUP: Ensure no old node_modules or venv exist in the build path
+# This fixes the "ValueError: name is too long" error.
+rm -rf "$BUILD_WORK_DIR/node_modules"
+rm -rf "$BUILD_WORK_DIR/.venv"
+rm -rf "$BUILD_WORK_DIR/Belinda_AI"
+
+# Use rsync with --delete to perfectly mirror source, but EXCLUDE the heavy cache folder
+rsync -av --delete --progress . "$BUILD_WORK_DIR/" \
+    --exclude 'node_modules' \
+    --exclude '.venv' \
+    --exclude '.git' \
+    --exclude 'Belinda_AI' \
+    --exclude 'auth_info' \
+    --exclude 'build' \
+    --exclude 'bin' \
+    --exclude 'installer' \
+    --exclude 'android_*.log' \
+    --exclude 'crash.log' \
+    --exclude '.buildozer' # KEEP the cache
+
 cd "$BUILD_WORK_DIR"
 
-echo "--- Starting Android Build in $BUILD_WORK_DIR ---"
-# Use 'debug' instead of 'release' to ensure we get an installable .apk file
+echo "--- Starting Ultra-Fast Build (Using $P4A_NUM_WORKERS cores) ---"
+# Use 'debug' for fastest packaging
 buildozer --allow-root android debug
 
-# Find the generated package (could be .apk or .aab)
-PKG_FILE=$(find bin/ -name "*.apk" -o -name "*.aab" | head -n 1)
+# 3. Automatic Delivery
+PKG_FILE=$(find bin/ -name "*.apk" -mmin -10 | head -n 1)
 
 if [ -f "$PKG_FILE" ]; then
     echo "--- Build successful! ---"
     mkdir -p "$ANDROID_DIST_DIR"
-    cp "$PKG_FILE" "$ANDROID_DIST_DIR/"
-    echo "Package available at: $ANDROID_DIST_DIR/$(basename $PKG_FILE)"
+    cp "$PKG_FILE" "$ANDROID_DIST_DIR/Belinda_AI_Manager.apk"
+    echo "SUCCESS: APK ready at: $ANDROID_DIST_DIR/Belinda_AI_Manager.apk"
 else
-    echo "--- Build failed! ---"
-    echo "Check the buildozer logs above."
+    echo "ERROR: Build failed. Check the logs above for specific compile errors."
     exit 1
 fi
 
