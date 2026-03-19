@@ -83,6 +83,16 @@ __pycache__/
 *.dmg
 *.apk
 *.aab
+
+# ==========================
+# Mobile App Specific
+# ==========================
+mobile_settings.json
+Belinda_AI/
+android_*.log
+crash.log
+final_crash.log
+
 # ==========================
 # Arch Linux / AUR
 # ==========================

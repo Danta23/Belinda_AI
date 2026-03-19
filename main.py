@@ -7,7 +7,7 @@ import json
 import traceback
 from datetime import datetime
 
-# Redirect stderr/stdout to a log file for debugging on Android
+# --- FORCED LOG REDIRECTION (Android Only) ---
 if 'ANDROID_ARGUMENT' in os.environ:
     sys.stdout = open('android_stdout.log', 'w')
     sys.stderr = open('android_stderr.log', 'w')
@@ -18,7 +18,6 @@ try:
     from kivy.core.window import Window
     from kivy.uix.boxlayout import BoxLayout
     from kivy.uix.floatlayout import FloatLayout
-    from kivy.uix.anchorlayout import AnchorLayout
     from kivy.uix.gridlayout import GridLayout
     from kivy.uix.button import Button
     from kivy.uix.label import Label
@@ -33,468 +32,621 @@ try:
     from kivy.utils import get_color_from_hex
     from kivy.properties import StringProperty, ListProperty, NumericProperty, BooleanProperty, ObjectProperty
 except ImportError:
-    # Fallback for PC development without Kivy installed
     print("CRITICAL: Kivy is not installed. Please run 'pip install kivy'.")
     sys.exit(1)
 
+import random
+
 # --- CONFIG & CONSTANTS ---
-GLASS_BG = get_color_from_hex('#1A1A2E')  # Deep dark blue
-GLASS_CARD = (0.1, 0.1, 0.2, 0.6)         # Translucent glass
-GLASS_BORDER = (0.4, 0.6, 1.0, 0.3)       # Subtle shine
-ACCENT_COLOR = get_color_from_hex('#36BCF7') # Cyan
-ACCENT_DANGER = get_color_from_hex('#FF4B4B') # Red
-ACCENT_SUCCESS = get_color_from_hex('#00E676') # Green
-TEXT_PRIMARY = (1, 1, 1, 1)
-TEXT_SECONDARY = (1, 1, 1, 0.6)
+TAGLINES = [
+    "Liquid Mobile Edition",
+    "Your AI Assistant on the Go",
+    "Modern. Sleek. Powerful.",
+    "Next-Gen Chatbot Interface",
+    "The Future of Mobile AI",
+    "Optimized for Android & Tablet",
+    "Intelligent. Fluent. Smooth.",
+    "Crafted with Liquid Glass UI",
+    "Redefining Mobile Intelligence",
+    "Stay Connected. Stay Smart."
+]
 
-# --- CUSTOM UI WIDGETS (LIQUID GLASS STYLE) ---
+# --- TRANSLATIONS ---
+TRANSLATIONS = {
+    "English": {
+        "title_setup": "INITIAL SETUP",
+        "desc_setup": "Please ensure Termux is running in the background. Clone the repository to continue.",
+        "btn_clone": "CLONE PROJECT",
+        "btn_deploy": "FULL DEPLOYMENT",
+        "btn_start": "START BOT",
+        "btn_stop": "STOP BOT",
+        "btn_reset": "RESET BOT",
+        "btn_factory": "FACTORY RESET",
+        "status_cloning": "Cloning repository...",
+        "status_deploying": "System Setup & Installing...",
+        "status_ready": "READY",
+        "nav_dash": "DASHBOARD",
+        "nav_sett": "SETTINGS",
+        "lbl_lang": "Language",
+        "lbl_theme": "Theme",
+        "btn_save": "SAVE CHANGES",
+        "toast_saved": "Settings Saved! START enabled.",
+        "toast_cloned": "Clone Successful! Run Full Deployment.",
+        "toast_deploy_done": "Deployment Complete! Configure API Keys.",
+        "sys_status": "SYSTEM STATUS",
+        "pop_title": "Confirm Reset",
+        "pop_desc": "Are you sure? This will delete all project files and settings.",
+        "btn_yes": "YES, RESET",
+        "btn_no": "CANCEL"
+    },
+    "Indonesian": {
+        "title_setup": "PENGATURAN AWAL",
+        "desc_setup": "Pastikan Termux berjalan di background. Clone repository untuk lanjut.",
+        "btn_clone": "CLONE PROJEK",
+        "btn_deploy": "DEPLOY TOTAL",
+        "btn_start": "MULAI BOT",
+        "btn_stop": "HENTIKAN BOT",
+        "btn_reset": "RESET BOT",
+        "btn_factory": "RESET PABRIK",
+        "status_cloning": "Sedang meng-clone...",
+        "status_deploying": "Setup Sistem & Instalasi...",
+        "status_ready": "SIAP",
+        "nav_dash": "PANEL",
+        "nav_sett": "PENGATURAN",
+        "lbl_lang": "Bahasa",
+        "lbl_theme": "Tema",
+        "btn_save": "SIMPAN PERUBAHAN",
+        "toast_saved": "Disimpan! Tombol START aktif.",
+        "toast_cloned": "Clone Berhasil! Jalankan Deploy Total.",
+        "toast_deploy_done": "Instalasi Selesai! Atur API Key.",
+        "sys_status": "STATUS SISTEM",
+        "pop_title": "Konfirmasi Reset",
+        "pop_desc": "Apakah Anda yakin? Ini akan menghapus semua file projek dan data.",
+        "btn_yes": "YA, RESET",
+        "btn_no": "BATAL"
+    },
+    "Japanese": {
+        "title_setup": "初期設定",
+        "desc_setup": "Termuxがバックグラウンドで動作していることを確認し、クローンを作成してください。",
+        "btn_clone": "クローン作成",
+        "btn_deploy": "完全展開",
+        "btn_start": "ボットを開始",
+        "btn_stop": "ボットを停止",
+        "btn_reset": "リセット",
+        "btn_factory": "初期化",
+        "status_cloning": "クローン中...",
+        "status_deploying": "システム設定中...",
+        "status_ready": "準備完了",
+        "nav_dash": "ダッシュボード",
+        "nav_sett": "設定",
+        "lbl_lang": "言語",
+        "lbl_theme": "テーマ",
+        "btn_save": "変更を保存",
+        "toast_saved": "保存完了！開始可能です。",
+        "toast_cloned": "クローン完了！",
+        "toast_deploy_done": "展開完了！APIキーを設定してください。",
+        "sys_status": "システム状態",
+        "pop_title": "初期化の確認",
+        "pop_desc": "本当によろしいですか？すべてのファイルと設定が削除されます。",
+        "btn_yes": "はい、リセット",
+        "btn_no": "キャンセル"
+    }
+}
 
+# --- THEMES ---
+DARK_THEME = {
+    "bg": get_color_from_hex('#0F0F14'),
+    "card": (0.1, 0.1, 0.2, 0.6),
+    "border": (0.4, 0.6, 1.0, 0.3),
+    "text": (1, 1, 1, 1),
+    "text_sec": (1, 1, 1, 0.6),
+    "input_bg": (0, 0, 0, 0.4),
+    "console_text": (0, 1, 0, 1)
+}
+LIGHT_THEME = {
+    "bg": get_color_from_hex('#F8F9FA'),
+    "card": (1, 1, 1, 0.95),
+    "border": (0, 0, 0, 0.1),
+    "text": (0, 0, 0, 0.95),
+    "text_sec": (0.1, 0.1, 0.1, 0.7),
+    "input_bg": (0, 0, 0, 0.08),
+    "console_text": (0, 0, 0, 0.9)
+}
+
+# --- UTILS ---
+from kivy.uix.popup import Popup
+
+class LiquidPopup(Popup):
+    def __init__(self, title_text, desc_text, on_yes, **kwargs):
+        super().__init__(**kwargs)
+        self.title = title_text
+        self.size_hint = (0.85, 0.4)
+        self.separator_color = [0.2, 0.8, 1, 1]
+        self.background = ""
+        
+        content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+        with content.canvas.before:
+            Color(0.1, 0.1, 0.15, 0.95)
+            RoundedRectangle(pos=content.pos, size=content.size, radius=[dp(20)])
+        
+        lbl = Label(text=desc_text, halign='center', font_size='14sp')
+        lbl.bind(size=lbl.setter('text_size'))
+        
+        btns = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+        btn_no = LiquidButton(text=App.get_running_app().get_text("btn_no"), bg_color=[0.4, 0.4, 0.4, 1])
+        btn_no.bind(on_release=self.dismiss)
+        
+        btn_yes = LiquidButton(text=App.get_running_app().get_text("btn_yes"), bg_color=[1, 0.2, 0.2, 1])
+        btn_yes.bind(on_release=lambda x: [on_yes(), self.dismiss()])
+        
+        btns.add_widget(btn_no)
+        btns.add_widget(btn_yes)
+        content.add_widget(lbl)
+        content.add_widget(btns)
+        self.content = content
+
+class SettingsManager:
+    def __init__(self):
+        self.file = "mobile_settings.json"
+        self.data = self.load()
+
+    def load(self):
+        if os.path.exists(self.file):
+            try:
+                with open(self.file, 'r') as f: return json.load(f)
+            except: pass
+        return {"language": "English", "theme": "Dark", "deployed": False}
+
+    def save(self):
+        with open(self.file, 'w') as f: json.dump(self.data, f)
+
+# --- CUSTOM UI WIDGETS ---
 class LiquidBackground(Widget):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         with self.canvas:
-            Color(rgba=get_color_from_hex('#0F0F14'))
+            self.bg_color = Color(rgba=DARK_THEME["bg"])
             self.rect = Rectangle(pos=self.pos, size=self.size)
-            
-            # Decorative Orbs
-            Color(0.2, 0.1, 0.4, 0.2)
-            self.orb1 = RoundedRectangle(pos=(0, 0), size=(300, 300), radius=[150])
-            
-            Color(0.1, 0.3, 0.4, 0.15)
-            self.orb2 = RoundedRectangle(pos=(200, 400), size=(400, 400), radius=[200])
-
+            self.orb1_color = Color(0.2, 0.1, 0.4, 0.2)
+            self.orb1 = RoundedRectangle(pos=(0, 0), size=(dp(300), dp(300)), radius=[dp(150)])
+            self.orb2_color = Color(0.1, 0.3, 0.4, 0.15)
+            self.orb2 = RoundedRectangle(pos=(dp(200), dp(400)), size=(dp(400), dp(400)), radius=[dp(200)])
         self.bind(pos=self.update_rect, size=self.update_rect)
+        self.animate_orbs()
 
     def update_rect(self, *args):
         self.rect.pos = self.pos
         self.rect.size = self.size
-        # Simple movement for orbs based on screen size
-        self.orb1.pos = (self.width * 0.1, self.height * 0.2)
-        self.orb2.pos = (self.width * 0.5, self.height * 0.6)
+
+    def animate_orbs(self):
+        anim1 = Animation(pos=(dp(50), dp(100)), duration=10, t='in_out_sine') + \
+                Animation(pos=(dp(-50), dp(-50)), duration=10, t='in_out_sine')
+        anim1.repeat = True
+        anim1.start(self.orb1)
+        anim2 = Animation(pos=(dp(100), dp(200)), duration=15, t='in_out_sine') + \
+                Animation(pos=(dp(300), dp(500)), duration=15, t='in_out_sine')
+        anim2.repeat = True
+        anim2.start(self.orb2)
 
 class LiquidCard(BoxLayout):
     radius = ListProperty([dp(20)])
-    bg_color = ListProperty(GLASS_CARD)
-    stroke_color = ListProperty(GLASS_BORDER)
-    
     def __init__(self, **kwargs):
+        if 'radius' in kwargs:
+            self.radius = kwargs.pop('radius')
         super().__init__(**kwargs)
         self.padding = dp(15)
-        self.background_normal = ''
         self.background_color = (0,0,0,0)
         with self.canvas.before:
-            Color(*self.bg_color)
+            self.color_node = Color(0,0,0,0)
             self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=self.radius)
-            Color(*self.stroke_color)
-            self.border = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, self.radius[0]), width=1.2)
-        
+            self.line_color = Color(0,0,0,0)
+            self.border = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, self.radius[0]), width=1.1)
         self.bind(pos=self.update_rect, size=self.update_rect)
 
     def update_rect(self, *args):
         self.rect.pos = self.pos
         self.rect.size = self.size
+        self.rect.radius = self.radius
         self.border.rounded_rectangle = (self.x, self.y, self.width, self.height, self.radius[0])
 
 class LiquidButton(Button):
-    bg_color = ListProperty(ACCENT_COLOR)
-    
+    bg_color = ListProperty([0.2, 0.7, 1, 1])
+    radius = ListProperty([dp(12)])
     def __init__(self, **kwargs):
+        if 'radius' in kwargs:
+            self.radius = kwargs.pop('radius')
         super().__init__(**kwargs)
         self.background_normal = ''
         self.background_down = ''
         self.background_color = (0,0,0,0)
-        self.font_size = '16sp'
         self.bold = True
-        self.color = TEXT_PRIMARY
-        
-    def on_press(self):
-        anim = Animation(opacity=0.7, duration=0.1)
-        anim.start(self)
-
-    def on_release(self):
-        anim = Animation(opacity=1.0, duration=0.1)
-        anim.start(self)
-
-    def on_size(self, *args):
-        self.redraw()
-            
-    def on_pos(self, *args):
-        self.redraw()
-        
-    def redraw(self):
-        if not hasattr(self, 'canvas') or self.canvas is None:
-            return
-        self.canvas.before.clear()
         with self.canvas.before:
-            Color(*self.bg_color)
-            RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(12)])
-            # Glossy shine
-            Color(1, 1, 1, 0.15)
-            RoundedRectangle(pos=(self.x, self.y + self.height/2), size=(self.width, self.height/2), radius=[dp(12), dp(12), 0, 0])
+            self.btn_color = Color(*self.bg_color)
+            self.btn_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=self.radius)
+        self.bind(pos=self.update_btn, size=self.update_btn)
 
-class LiquidNavButton(Button):
-    active = BooleanProperty(False)
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.background_normal = ''
-        self.background_down = ''
-        self.background_color = (0,0,0,0)
-        self.font_size = '14sp'
-        self.color = TEXT_SECONDARY
-        
-    def on_size(self, *args):
-        self.redraw()
-        
-    def on_pos(self, *args):
-        self.redraw()
-        
-    def on_active(self, *args):
-        self.redraw()
-        
-    def redraw(self):
-        if not hasattr(self, 'canvas') or self.canvas is None:
-            return
-        self.canvas.before.clear()
-        with self.canvas.before:
-            if self.active:
-                Color(0.2, 0.8, 1.0, 0.15)
-                RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(10)])
-                self.color = ACCENT_COLOR
-            else:
-                self.color = TEXT_SECONDARY
-
-# --- SCREENS ---
-
-class DashboardScreen(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        
-        main = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(20))
-        
-        # Header
-        header = Label(text="BELINDA AI", font_size='28sp', bold=True, color=ACCENT_COLOR, size_hint_y=None, height=dp(50))
-        main.add_widget(header)
-
-        # Status Card
-        status_card = LiquidCard(orientation='vertical', size_hint_y=None, height=dp(100))
-        
-        lbl_title = Label(text="SYSTEM STATUS", font_size='12sp', color=TEXT_SECONDARY, size_hint_y=None, height=dp(20))
-        self.lbl_status = Label(text="READY", font_size='24sp', bold=True, color=ACCENT_SUCCESS)
-        
-        status_card.add_widget(lbl_title)
-        status_card.add_widget(self.lbl_status)
-        main.add_widget(status_card)
-        
-        # Controls Grid
-        grid = GridLayout(cols=2, spacing=dp(15), size_hint_y=None, height=dp(140))
-        
-        self.btn_start = LiquidButton(text="START", bg_color=ACCENT_COLOR)
-        self.btn_start.bind(on_release=lambda x: App.get_running_app().run_task('start'))
-        
-        self.btn_stop = LiquidButton(text="STOP", bg_color=ACCENT_DANGER)
-        self.btn_stop.bind(on_release=lambda x: App.get_running_app().run_task('stop'))
-        
-        self.btn_reset = LiquidButton(text="RESET", bg_color=get_color_from_hex('#7B1FA2'))
-        self.btn_reset.bind(on_release=lambda x: App.get_running_app().run_task('reset'))
-
-        self.btn_session = LiquidButton(text="WIPE DATA", bg_color=get_color_from_hex('#FF9800'))
-        self.btn_session.bind(on_release=lambda x: App.get_running_app().run_task('session'))
-        
-        grid.add_widget(self.btn_start)
-        grid.add_widget(self.btn_stop)
-        grid.add_widget(self.btn_reset)
-        grid.add_widget(self.btn_session)
-        
-        main.add_widget(grid)
-        
-        # Recent Logs Preview
-        log_card = LiquidCard(orientation='vertical')
-        log_label = Label(text="LIVE CONSOLE", font_size='12sp', color=TEXT_SECONDARY, size_hint_y=None, height=dp(20))
-        self.log_preview = TextInput(
-            text="Initializing...", 
-            readonly=True, 
-            background_color=(0,0,0,0), 
-            foreground_color=get_color_from_hex('#00FF00'), 
-            font_size='10sp'
-        )
-        
-        log_card.add_widget(log_label)
-        log_card.add_widget(self.log_preview)
-        
-        main.add_widget(log_card)
-        
-        self.add_widget(main)
-
-    def update_log(self, text):
-        self.log_preview.text += text
-        if len(self.log_preview.text) > 5000:
-             self.log_preview.text = self.log_preview.text[-5000:]
-        # Auto-scroll
-        self.log_preview.cursor = (0, len(self.log_preview.text))
-
-class LiquidSettingRow(BoxLayout):
-    def __init__(self, key_name, value, **kwargs):
-        super().__init__(**kwargs)
-        self.orientation = 'vertical'
-        self.size_hint_y = None
-        self.height = dp(80)
-        self.spacing = dp(5)
-        
-        # Determine if this should be masked (API Keys, etc)
-        is_sensitive = any(word in key_name.upper() for word in ["KEY", "TOKEN", "SECRET", "PASS"])
-        
-        lbl = Label(
-            text=key_name.replace("_", " "), 
-            font_size='12sp', 
-            color=TEXT_SECONDARY, 
-            halign='left', 
-            size_hint_x=1
-        )
-        lbl.bind(size=lbl.setter('text_size'))
-        
-        self.input = TextInput(
-            text=value,
-            multiline=False,
-            password=is_sensitive,
-            background_color=(0,0,0,0.2),
-            foreground_color=(1,1,1,1),
-            padding=[dp(10), dp(10)],
-            font_size='14sp'
-        )
-        # Style the input a bit more
-        with self.input.canvas.after:
-            Color(*GLASS_BORDER)
-            self.line = Line(points=[self.input.x, self.input.y, self.input.x + self.input.width, self.input.y], width=1)
-        self.input.bind(pos=self.update_line, size=self.update_line)
-
-        self.add_widget(lbl)
-        self.add_widget(self.input)
-
-    def update_line(self, *args):
-        self.line.points = [self.input.x, self.input.y, self.input.x + self.input.width, self.input.y]
-
-class SettingsScreen(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.rows = {}
-        
-        main = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
-        
-        title = Label(text="CONFIGURATION", font_size='24sp', bold=True, size_hint_y=None, height=dp(50), color=ACCENT_COLOR)
-        main.add_widget(title)
-        
-        self.scroll = ScrollView(do_scroll_x=False)
-        self.content = BoxLayout(orientation='vertical', spacing=dp(20), size_hint_y=None)
-        self.content.bind(minimum_height=self.content.setter('height'))
-        
-        self.scroll.add_widget(self.content)
-        main.add_widget(self.scroll)
-        
-        # Action Buttons
-        btn_layout = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(15))
-        
-        btn_save = LiquidButton(text="SAVE CHANGES", bg_color=ACCENT_SUCCESS)
-        btn_save.bind(on_release=self.save_settings)
-        
-        btn_layout.add_widget(btn_save)
-        main.add_widget(btn_layout)
-        
-        self.add_widget(main)
-        self.on_pre_enter = self.refresh_gui
-
-    def refresh_gui(self, *args):
-        self.content.clear_widgets()
-        self.rows = {}
-        
-        env_data = self.load_env_dict()
-        for k, v in env_data.items():
-            row = LiquidSettingRow(key_name=k, value=v)
-            self.content.add_widget(row)
-            self.rows[k] = row
-
-    def load_env_dict(self):
-        data = {}
-        if os.path.exists(".env"):
-            try:
-                with open(".env", "r") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and "=" in line and not line.startswith("#"):
-                            k, v = line.split("=", 1)
-                            data[k.strip()] = v.strip().strip('"').strip("'")
-            except: pass
-        return data
-        
-    def save_settings(self, instance):
-        try:
-            lines = []
-            for k, row in self.rows.items():
-                val = row.input.text
-                lines.append(f"{k}={val}\n")
-            
-            with open(".env", "w") as f:
-                f.writelines(lines)
-            
-            App.get_running_app().show_toast("Configuration Updated!")
-        except Exception as e:
-            App.get_running_app().show_toast(f"Error: {str(e)}")
+    def update_btn(self, *args):
+        self.btn_rect.pos = self.pos
+        self.btn_rect.size = self.size
+        self.btn_rect.radius = self.radius
 
 # --- WORKER THREAD ---
-
 class TaskWorker(threading.Thread):
     def __init__(self, task, callback_log, callback_done):
         super().__init__()
         self.task = task
-        self.callback_log = callback_log
+        self._log = callback_log
         self.callback_done = callback_done
         self.daemon = True
+
+    def callback_log(self, text):
+        Clock.schedule_once(lambda dt: self._log(text))
 
     def run(self):
         try:
             if self.task == 'session':
                 self.callback_log(">>> Wiping session folder...\n")
                 import shutil
-                if os.path.exists("auth_info"):
-                    shutil.rmtree("auth_info")
-                self.callback_log(">>> Session wiped. Please restart bot to scan QR again.\n")
+                if os.path.exists("auth_info"): shutil.rmtree("auth_info")
+                self.callback_log(">>> Session wiped. Restart bot.\n")
                 self.callback_done(True)
                 return
+            
+            if self.task == 'deploy':
+                self.run_deployment()
+                return
 
-            # Determine script based on OS
             script_map = {
                 'start': 'start_termux.sh' if os.path.exists('start_termux.sh') else 'start.sh',
                 'stop': 'stop_termux.sh' if os.path.exists('stop_termux.sh') else 'stop.sh',
                 'reset': 'reset_termux.sh' if os.path.exists('reset_termux.sh') else 'reset.sh'
             }
-            
             cmd = script_map.get(self.task)
             if not cmd:
                 self.callback_log(f"Unknown task: {self.task}\n")
                 self.callback_done(False)
                 return
-
-            # Ensure executable
-            try:
-                subprocess.run(['chmod', '+x', cmd])
+            try: subprocess.run(['chmod', '+x', cmd])
             except: pass
-
             self.callback_log(f">>> Executing {cmd}...\n")
-            
-            # Run process
-            process = subprocess.Popen(
-                ['bash', cmd],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-                universal_newlines=True
-            )
-            
+            process = subprocess.Popen(['bash', cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, universal_newlines=True)
             for line in process.stdout:
-                if line:
-                    self.callback_log(line)
-                
+                if line: self.callback_log(line)
             process.wait()
             self.callback_log(f">>> Task {self.task} finished with code {process.returncode}\n")
             self.callback_done(process.returncode == 0)
-
         except Exception as e:
             self.callback_log(f"CRITICAL ERROR: {str(e)}\n")
             self.callback_done(False)
 
-# --- MAIN APP ---
+    def run_deployment(self):
+        self.callback_log(">>> Starting Full Deployment...\n")
+        try:
+            subprocess.run(["pkg", "install", "python", "nodejs-lts", "git", "-y"], check=False)
+            subprocess.run([sys.executable, "-m", "venv", ".venv"], check=True)
+            pip_cmd = ".venv/bin/pip" if os.name != 'nt' else ".venv\\Scripts\\pip"
+            subprocess.run([pip_cmd, "install", "-r", "requirements.txt"], check=True)
+            subprocess.run(["npm", "install"], check=True)
+            self.callback_log(">>> Deployment Successful!\n")
+            self.callback_done(True)
+        except Exception as e:
+            self.callback_log(f"Error during deployment: {e}\n")
+            self.callback_done(False)
 
+# --- SCREENS ---
+class SplashScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.layout = FloatLayout()
+        self.logo_label = Label(text="BELINDA AI", font_size='42sp', bold=True, color=(1,1,1,0), pos_hint={'center_x': 0.5, 'center_y': 0.55})
+        tagline = random.choice(TAGLINES)
+        self.sub_label = Label(text=tagline, font_size='14sp', color=(1,1,1,0), pos_hint={'center_x': 0.5, 'center_y': 0.45})
+        self.layout.add_widget(self.logo_label)
+        self.layout.add_widget(self.sub_label)
+        self.add_widget(self.layout)
+
+    def on_enter(self):
+        anim = Animation(color=(1,1,1,1), pos_hint={'center_y': 0.5}, duration=1.5, t='out_back')
+        anim.start(self.logo_label)
+        anim_sub = Animation(color=(1,1,1,0.6), duration=2)
+        anim_sub.start(self.sub_label)
+        Clock.schedule_once(lambda dt: App.get_running_app().check_files_and_switch(), 3.5)
+
+class SetupScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.layout = BoxLayout(orientation='vertical', padding=dp(30), spacing=dp(20))
+        self.lbl_title = Label(text="INITIAL SETUP", font_size='24sp', bold=True, size_hint_y=None, height=dp(50))
+        self.lbl_desc = Label(text="Files not found.", halign='center', size_hint_y=None, height=dp(100))
+        self.lbl_desc.bind(size=self.lbl_desc.setter('text_size'))
+        self.btn_clone = LiquidButton(text="CLONE PROJECT", size_hint_y=None, height=dp(55))
+        self.btn_clone.bind(on_release=self.start_clone)
+        self.layout.add_widget(Widget())
+        self.layout.add_widget(self.lbl_title)
+        self.layout.add_widget(self.lbl_desc)
+        self.layout.add_widget(self.btn_clone)
+        self.layout.add_widget(Widget())
+        self.add_widget(self.layout)
+
+    def start_clone(self, instance):
+        self.btn_clone.disabled = True
+        self.btn_clone.text = App.get_running_app().get_text("status_cloning")
+        threading.Thread(target=self.do_clone, daemon=True).start()
+
+    def do_clone(self):
+        try:
+            subprocess.run(["pkg", "install", "git", "-y"], check=False)
+            subprocess.run(["git", "clone", "https://github.com/Danta23/Belinda_AI.git", "Belinda_AI"], check=True)
+            Clock.schedule_once(lambda dt: self.finish_clone(True))
+        except Exception as e:
+            Clock.schedule_once(lambda dt: self.finish_clone(False, str(e)))
+
+    def finish_clone(self, success, err=""):
+        self.btn_clone.disabled = False
+        self.btn_clone.text = App.get_running_app().get_text("btn_clone")
+        if success:
+            App.get_running_app().show_toast(App.get_running_app().get_text("toast_cloned"))
+            App.get_running_app().check_files_and_switch()
+        else: self.lbl_desc.text = f"Error: {err}"
+
+class DashboardScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.main = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+        
+        self.card = LiquidCard(orientation='vertical', size_hint_y=None, height=dp(90))
+        self.lbl_sys = Label(text="SYSTEM STATUS", font_size='11sp')
+        self.lbl_status = Label(text="READY", font_size='22sp', bold=True)
+        self.card.add_widget(self.lbl_sys)
+        self.card.add_widget(self.lbl_status)
+        
+        self.console_card = LiquidCard(radius=[dp(15)])
+        self.console = TextInput(readonly=True, background_color=(0,0,0,0), foreground_color=(0,1,0,1), font_size='10sp')
+        self.console_card.add_widget(self.console)
+        
+        # New Structured Buttons Layout
+        controls = BoxLayout(orientation='vertical', spacing=dp(10), size_hint_y=None, height=dp(170))
+        self.btn_grid = GridLayout(cols=2, spacing=dp(10))
+        
+        self.btn_start = LiquidButton(text="START BOT")
+        self.btn_start.bind(on_release=lambda x: App.get_running_app().run_task('start'))
+        
+        self.btn_stop = LiquidButton(text="STOP BOT", bg_color=[1,0.3,0.3,1])
+        self.btn_stop.bind(on_release=lambda x: App.get_running_app().run_task('stop'))
+        
+        self.btn_reset = LiquidButton(text="RESET BOT", bg_color=[0.5,0.2,0.8,1])
+        self.btn_reset.bind(on_release=lambda x: App.get_running_app().run_task('reset'))
+        
+        self.btn_factory = LiquidButton(text="FACTORY RESET", bg_color=[1,0.2,0.2,1])
+        self.btn_factory.bind(on_release=lambda x: App.get_running_app().confirm_factory_reset())
+        
+        self.btn_grid.add_widget(self.btn_start)
+        self.btn_grid.add_widget(self.btn_stop)
+        self.btn_grid.add_widget(self.btn_reset)
+        self.btn_grid.add_widget(self.btn_factory)
+        
+        self.btn_deploy = LiquidButton(text="FULL DEPLOYMENT", bg_color=[0.2,0.8,0.4,1], size_hint_y=None, height=dp(55))
+        self.btn_deploy.bind(on_release=lambda x: App.get_running_app().run_task('deploy'))
+        
+        controls.add_widget(self.btn_grid)
+        controls.add_widget(self.btn_deploy)
+        
+        self.main.add_widget(self.card)
+        self.main.add_widget(self.console_card)
+        self.main.add_widget(controls)
+        self.add_widget(self.main)
+
+    def update_log(self, text):
+        self.console.text += text
+        if len(self.console.text) > 5000: self.console.text = self.console.text[-5000:]
+        self.console.cursor = (0, len(self.console.text))
+
+class SettingsScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.main = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+        self.lbl_title = Label(text="CONFIGURATION", font_size='24sp', bold=True, size_hint_y=None, height=dp(50))
+        self.main.add_widget(self.lbl_title)
+        self.scroll = ScrollView()
+        self.content = BoxLayout(orientation='vertical', spacing=dp(15), size_hint_y=None)
+        self.content.bind(minimum_height=self.content.setter('height'))
+        
+        theme_box = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+        self.lbl_theme = Label(text="Theme", halign='left', size_hint_x=0.6)
+        self.btn_theme_toggle = LiquidButton(text="Dark", size_hint_x=0.4, bg_color=[0.4, 0.4, 0.4, 0.5])
+        self.btn_theme_toggle.bind(on_release=self.toggle_theme)
+        theme_box.add_widget(self.lbl_theme)
+        theme_box.add_widget(self.btn_theme_toggle)
+        
+        lang_box = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+        self.lbl_lang = Label(text="Language", halign='left', size_hint_x=0.6)
+        self.btn_lang_cycle = LiquidButton(text="English", size_hint_x=0.4, bg_color=[0.4, 0.4, 0.4, 0.5])
+        self.btn_lang_cycle.bind(on_release=self.cycle_lang)
+        lang_box.add_widget(self.lbl_lang)
+        lang_box.add_widget(self.btn_lang_cycle)
+        self.content.add_widget(theme_box)
+        self.content.add_widget(lang_box)
+        self.env_container = BoxLayout(orientation='vertical', spacing=dp(10), size_hint_y=None)
+        self.env_container.bind(minimum_height=self.env_container.setter('height'))
+        self.content.add_widget(self.env_container)
+        self.scroll.add_widget(self.content)
+        self.main.add_widget(self.scroll)
+        self.btn_save = LiquidButton(text="SAVE CHANGES", size_hint_y=None, height=dp(55), bg_color=[0.2,0.8,0.4,1])
+        self.btn_save.bind(on_release=self.save_all)
+        self.main.add_widget(self.btn_save)
+        self.add_widget(self.main)
+        self.on_pre_enter = self.load_ui_data
+
+    def load_ui_data(self, *args):
+        app = App.get_running_app()
+        self.btn_theme_toggle.text = app.settings.data["theme"]
+        self.btn_lang_cycle.text = app.settings.data["language"]
+        self.refresh_env_list()
+
+    def toggle_theme(self, instance):
+        app = App.get_running_app()
+        new_t = "Light" if instance.text == "Dark" else "Dark"
+        instance.text = new_t
+        app.settings.data["theme"] = new_t
+        app.apply_theme()
+
+    def cycle_lang(self, instance):
+        app = App.get_running_app()
+        langs = list(TRANSLATIONS.keys())
+        idx = (langs.index(instance.text) + 1) % len(langs)
+        new_l = langs[idx]
+        instance.text = new_l
+        app.settings.data["language"] = new_l
+        app.refresh_language()
+
+    def refresh_env_list(self):
+        self.env_container.clear_widgets()
+        self.env_inputs = {}
+        app = App.get_running_app()
+        t = DARK_THEME if app.settings.data["theme"] == "Dark" else LIGHT_THEME
+        if os.path.exists(".env"):
+            with open(".env", "r") as f:
+                for line in f:
+                    if "=" in line and not line.startswith("#"):
+                        k, v = line.strip().split("=", 1)
+                        is_sensitive = any(word in k.upper() for word in ["KEY", "TOKEN", "SECRET", "PASS"])
+                        box = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(70))
+                        l = Label(text=k, font_size='11sp', halign='left', size_hint_x=1, color=t["text_sec"])
+                        l.bind(size=l.setter('text_size'))
+                        i = TextInput(text="" if is_sensitive else v, hint_text="Enter value...", multiline=False, password=is_sensitive, background_color=t["input_bg"], foreground_color=t["text"], cursor_color=t["text"])
+                        box.add_widget(l); box.add_widget(i)
+                        self.env_container.add_widget(box)
+                        self.env_inputs[k] = i
+
+    def save_all(self, instance):
+        app = App.get_running_app()
+        if app.settings.data.get("deployed", False):
+            app.dash.btn_start.disabled = False
+            app.dash.btn_start.opacity = 1
+            app.show_toast(app.get_text("toast_saved"))
+            app.switch_tab('dash')
+        else: app.show_toast("Saved. Run Deployment first.")
+        app.settings.save()
+        if self.env_inputs:
+            lines = [f"{k}={v.text}\n" for k,v in self.env_inputs.items()]
+            with open(".env", "w") as f: f.writelines(lines)
+
+# --- MAIN APP ---
 class BelindaApp(App):
     def build(self):
-        Window.clearcolor = get_color_from_hex('#0F0F14')
-        
-        # Root Layout
-        self.root_layout = FloatLayout()
-        
-        # Background
+        self.settings = SettingsManager()
+        self.root = FloatLayout()
         self.bg = LiquidBackground()
-        self.root_layout.add_widget(self.bg)
-        
-        # Main Container
+        self.root.add_widget(self.bg)
+        self.sm = ScreenManager(transition=FadeTransition(duration=0.5))
+        self.splash = SplashScreen(name='splash')
+        self.setup = SetupScreen(name='setup'); self.dash = DashboardScreen(name='dash'); self.sett = SettingsScreen(name='sett')
+        self.sm.add_widget(self.splash); self.sm.add_widget(self.setup); self.sm.add_widget(self.dash); self.sm.add_widget(self.sett)
         self.main_container = BoxLayout(orientation='vertical')
-        
-        # Content Area
-        self.sm = ScreenManager(transition=FadeTransition())
-        self.dashboard = DashboardScreen(name='dashboard')
-        self.settings = SettingsScreen(name='settings')
-        self.sm.add_widget(self.dashboard)
-        self.sm.add_widget(self.settings)
-        
         self.main_container.add_widget(self.sm)
-        
-        # Bottom Navigation
-        nav_bar = LiquidCard(size_hint_y=None, height=dp(60), radius=[dp(20), dp(20), 0, 0])
-        nav_bar.padding = dp(10)
-        nav_bar.spacing = dp(10)
-        
-        self.nav_dash = LiquidNavButton(text="DASHBOARD", active=True)
-        self.nav_dash.bind(on_release=lambda x: self.switch_tab('dashboard'))
-        
-        self.nav_settings = LiquidNavButton(text="SETTINGS")
-        self.nav_settings.bind(on_release=lambda x: self.switch_tab('settings'))
-        
-        nav_bar.add_widget(self.nav_dash)
-        nav_bar.add_widget(self.nav_settings)
-        
-        self.main_container.add_widget(nav_bar)
-        
-        self.root_layout.add_widget(self.main_container)
-        
-        # Toast Label (Hidden by default)
-        self.toast = Label(
-            text="", 
-            font_size='14sp', 
-            color=(1,1,1,1),
-            size_hint=(None, None),
-            size=(dp(200), dp(40)),
-            pos_hint={'center_x': 0.5, 'y': 0.1},
-            opacity=0
-        )
-        self.root_layout.add_widget(self.toast)
-        
-        return self.root_layout
+        self.nav = LiquidCard(size_hint_y=None, height=dp(65), radius=[dp(20), dp(20), 0, 0])
+        self.btn_nav_dash = Button(text="DASHBOARD", background_color=(0,0,0,0))
+        self.btn_nav_sett = Button(text="SETTINGS", background_color=(0,0,0,0))
+        self.btn_nav_dash.bind(on_release=lambda x: self.switch_tab('dash'))
+        self.btn_nav_sett.bind(on_release=lambda x: self.switch_tab('sett'))
+        self.nav.add_widget(self.btn_nav_dash); self.nav.add_widget(self.btn_nav_sett)
+        self.main_container.add_widget(self.nav)
+        self.root.add_widget(self.main_container)
+        self.nav.opacity = 0 
+        self.toast = Label(text="", opacity=0, size_hint=(None,None), size=(dp(200), dp(40)), pos_hint={'center_x': 0.5, 'y': 0.1})
+        self.root.add_widget(self.toast)
+        self.apply_theme(); self.refresh_language()
+        return self.root
 
-    def switch_tab(self, name):
-        self.sm.current = name
-        self.nav_dash.active = (name == 'dashboard')
-        self.nav_settings.active = (name == 'settings')
+    def check_files_and_switch(self):
+        if os.path.exists("bridge.js"):
+            self.sm.current = 'dash'; self.nav.opacity = 1; self.nav.disabled = False
+            if not self.settings.data.get("deployed", False): self.dash.btn_start.disabled = True; self.dash.btn_start.opacity = 0.5
+        elif os.path.isdir("Belinda_AI"):
+            try:
+                os.chdir("Belinda_AI")
+                self.sm.current = 'dash'; self.nav.opacity = 1; self.nav.disabled = False
+                if not self.settings.data.get("deployed", False): self.dash.btn_start.disabled = True; self.dash.btn_start.opacity = 0.5
+            except: self.sm.current = 'setup'
+        else: self.sm.current = 'setup'; self.nav.opacity = 0; self.nav.disabled = True
 
-    def run_task(self, task):
-        self.dashboard.lbl_status.text = "WORKING..."
-        self.dashboard.lbl_status.color = ACCENT_COLOR
-        
-        def log_cb(text):
-            Clock.schedule_once(lambda dt: self.dashboard.update_log(text))
-            
-        def done_cb(success):
-            Clock.schedule_once(lambda dt: self.on_task_done(success))
-        
-        worker = TaskWorker(task, log_cb, done_cb)
-        worker.start()
+    def perform_factory_reset(self):
+        import shutil
+        try:
+            if os.path.isdir("Belinda_AI"): shutil.rmtree("Belinda_AI")
+            elif os.path.exists("bridge.js"):
+                for item in [".venv", "node_modules", "auth_info", "bridge.js", ".env", "package.json"]:
+                    if os.path.isdir(item): shutil.rmtree(item)
+                    elif os.path.exists(item): os.remove(item)
+            self.settings.data["deployed"] = False; self.settings.save()
+            self.check_files_and_switch()
+            self.show_toast("Factory Reset Complete.")
+        except Exception as e: self.show_toast(f"Reset Error: {e}")
 
-    def on_task_done(self, success):
-        if success:
-            self.dashboard.lbl_status.text = "ONLINE"
-            self.dashboard.lbl_status.color = ACCENT_SUCCESS
-        else:
-            self.dashboard.lbl_status.text = "STOPPED"
-            self.dashboard.lbl_status.color = ACCENT_DANGER
+    def confirm_factory_reset(self):
+        LiquidPopup(title_text=self.get_text("pop_title"), desc_text=self.get_text("pop_desc"), on_yes=self.perform_factory_reset).open()
 
+    def get_text(self, key):
+        lang = self.settings.data["language"]
+        return TRANSLATIONS.get(lang, TRANSLATIONS["English"]).get(key, key)
+
+    def refresh_language(self):
+        self.setup.lbl_title.text = self.get_text("title_setup")
+        self.setup.lbl_desc.text = self.get_text("desc_setup")
+        self.setup.btn_clone.text = self.get_text("btn_clone")
+        self.dash.lbl_sys.text = self.get_text("sys_status")
+        self.dash.lbl_status.text = self.get_text("status_ready")
+        self.dash.btn_start.text = self.get_text("btn_start")
+        self.dash.btn_stop.text = self.get_text("btn_stop")
+        self.dash.btn_reset.text = self.get_text("btn_reset")
+        self.dash.btn_factory.text = self.get_text("btn_factory")
+        self.dash.btn_deploy.text = self.get_text("btn_deploy")
+        self.btn_nav_dash.text = self.get_text("nav_dash")
+        self.btn_nav_sett.text = self.get_text("nav_sett")
+        self.sett.lbl_theme.text = self.get_text("lbl_theme")
+        self.sett.lbl_lang.text = self.get_text("lbl_lang")
+        self.sett.btn_save.text = self.get_text("btn_save")
+
+    def apply_theme(self):
+        t = DARK_THEME if self.settings.data["theme"] == "Dark" else LIGHT_THEME
+        self.bg.bg_color.rgb = t["bg"]
+        self.dash.card.color_node.rgba = t["card"]; self.dash.card.line_color.rgba = t["border"]
+        self.dash.console_card.color_node.rgba = t["card"]; self.dash.console_card.line_color.rgba = t["border"]
+        self.dash.lbl_sys.color = t["text_sec"]; self.dash.lbl_status.color = [0.2, 0.8, 1, 1] if self.settings.data["theme"] == "Dark" else [0, 0.4, 0.7, 1]
+        self.setup.lbl_title.color = t["text"]; self.setup.lbl_desc.color = t["text_sec"]
+        self.sett.lbl_title.color = [0.2, 0.8, 1, 1] if self.settings.data["theme"] == "Dark" else [0, 0.4, 0.7, 1]
+        self.sett.lbl_theme.color = t["text"]; self.sett.lbl_lang.color = t["text"]
+        self.sett.btn_theme_toggle.color = t["text"]; self.sett.btn_lang_cycle.color = t["text"]
+        for box in self.sett.env_container.children:
+            if isinstance(box, BoxLayout):
+                for child in box.children:
+                    if isinstance(child, Label): child.color = t["text_sec"]
+                    elif isinstance(child, TextInput): child.background_color = t["input_bg"]; child.foreground_color = t["text"]; child.cursor_color = t["text"]
+        self.dash.console.background_color = t["input_bg"]; self.dash.console.foreground_color = t["console_text"]
+        self.nav.color_node.rgba = t["card"]; self.nav.line_color.rgba = t["border"]
+        self.btn_nav_dash.color = t["text"]; self.btn_nav_sett.color = t["text"]
+
+    def switch_tab(self, name): self.sm.current = name
     def show_toast(self, text):
         self.toast.text = text
-        anim = Animation(opacity=1, duration=0.2) + Animation(duration=2) + Animation(opacity=0, duration=0.2)
-        anim.start(self.toast)
+        anim = Animation(opacity=1, duration=0.2) + Animation(duration=2) + Animation(opacity=0, duration=0.2); anim.start(self.toast)
+
+    def run_task(self, task):
+        if task == 'start' and not self.settings.data.get("deployed", False): self.show_toast("Run Deployment first!"); return
+        self.dash.lbl_status.text = "WORKING..."
+        worker = TaskWorker(task, self.dash.update_log, self.on_task_done); worker.start()
+
+    def on_task_done(self, success):
+        app = App.get_running_app()
+        if self.dash.console.text.strip().endswith("Deployment Successful!"):
+            app.settings.data["deployed"] = True; app.settings.save()
+            Clock.schedule_once(lambda dt: app.switch_tab('sett'), 1); app.show_toast(app.get_text("toast_deploy_done"))
+        def update(dt):
+            self.dash.lbl_status.text = "ONLINE" if success else "STOPPED"
+            self.dash.lbl_status.color = [0, 1, 0, 1] if success else [1, 0, 0, 1]
+        Clock.schedule_once(update)
 
 if __name__ == '__main__':
-    try:
-        BelindaApp().run()
+    try: BelindaApp().run()
     except Exception as e:
-        # Fallback crash logger
-        with open("crash.log", "w") as f:
-            f.write(traceback.format_exc())
+        with open("crash.log", "w") as f: f.write(traceback.format_exc())
