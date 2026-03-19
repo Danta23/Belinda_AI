@@ -375,27 +375,39 @@ class SetupScreen(Screen):
 
     def do_clone(self):
         try:
-            # 1. Check if git is already installed
-            git_installed = False
-            try:
-                subprocess.run(["git", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                git_installed = True
-            except (FileNotFoundError, Exception):
-                pass
+            app = App.get_running_app()
+            # Callback log directly to app's console (if available)
+            log_callback = app.dash.update_log if hasattr(app, 'dash') else (lambda x: print(x))
 
-            # 2. If not installed, try to install via pkg (Termux only)
-            if not git_installed:
-                try:
-                    subprocess.run(["pkg", "install", "git", "-y"], check=False)
-                except Exception:
-                    pass
+            # Step 1: Install git in Termux (safely)
+            log_callback("> Checking/Installing git in Termux...\n")
+            install_git_cmd = "pkg install git -y"
+            subprocess.run(f"am startservice --user 0 -n com.termux.service_execute -e command '{install_git_cmd}'", shell=True, capture_output=True, text=True)
+            time.sleep(3) # Give Termux a moment to process pkg command
 
-            # 3. Perform Clone
-            repo = "https://github.com/Danta23/Belinda_AI.git"
-            subprocess.run(["git", "clone", repo, "Belinda_AI"], check=True)
-            Clock.schedule_once(lambda dt: self.finish_clone(True))
+            # Step 2: Perform git clone via Termux Intent
+            repo_url = "https://github.com/Danta23/Belinda_AI.git"
+            clone_cmd = f"git clone {repo_url} Belinda_AI"
+            
+            log_callback(f"> Sending clone command to Termux: {clone_cmd}\n")
+            termux_intent_cmd = f"am startservice --user 0 -n com.termux.service_execute -e command '{clone_cmd}'"
+            subprocess.run(termux_intent_cmd, shell=True, capture_output=True, text=True)
+            
+            # Step 3: Poll for Belinda_AI folder creation
+            log_callback("> Waiting for Belinda_AI folder to appear...\n")
+            count = 0
+            while not os.path.isdir("Belinda_AI") and count < 120: # Max 120 seconds for clone
+                log_callback(f"> Folder not found yet. Retrying... ({count}s)\n")
+                time.sleep(1)
+                count += 1
+            
+            if os.path.isdir("Belinda_AI"):
+                log_callback(">>> Belinda_AI folder found. Clone successful!\n")
+                Clock.schedule_once(lambda dt: self.finish_clone(True))
+            else:
+                Clock.schedule_once(lambda dt: self.finish_clone(False, "Clone timed out or failed. Check Termux:API and Termux running in background."))
         except Exception as e:
-            Clock.schedule_once(lambda dt: self.finish_clone(False, str(e)))
+            Clock.schedule_once(lambda dt: self.finish_clone(False, f"Critical Clone Error: {e}"))
 
     def finish_clone(self, success, err=""):
         self.btn_clone.disabled = False
