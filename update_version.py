@@ -15,55 +15,60 @@ def update_version(major=False):
         print(f"Error: {main_py} not found.")
         return
 
-    with open(main_py, "r") as f:
+    # Use encoding='utf-8' to avoid UnicodeDecodeError on characters like Japanese text
+    with open(main_py, "r", encoding="utf-8") as f:
         main_content = f.read()
 
-    ver_match = re.search(r'APP_VERSION\s*=\s*"([\d.]+)"', main_content)
+    # Match format like 1.0.0 or 1.0.0-1
+    ver_match = re.search(r'APP_VERSION\s*=\s*"([\d.-]+)"', main_content)
     if not ver_match:
-        # If not found, try to initialize it or get from PKGBUILD as fallback
-        print("Warning: APP_VERSION not found in main.py. Trying to initialize...")
-        current_ver = "1.0.0" # Default
-    else:
-        current_ver = ver_match.group(1)
+        print("Error: Could not find APP_VERSION in main.py")
+        return
 
-    print(f"Current version found: {current_ver}")
+    current_ver_full = ver_match.group(1)
+    
+    # Split into base version and build counter
+    if "-" in current_ver_full:
+        base_ver, build_count = current_ver_full.split("-")
+        try:
+            build_count = int(build_count)
+        except ValueError:
+            build_count = 1
+    else:
+        base_ver = current_ver_full
+        build_count = 0
+
+    print(f"Current version found: {base_ver} (Build: {build_count})")
 
     # Calculate new version
     if major:
-        parts = current_ver.split(".")
+        parts = base_ver.split(".")
         parts[-1] = str(int(parts[-1]) + 1)
-        new_ver = ".".join(parts)
-        print(f"Bumping version to {new_ver}...")
+        new_base = ".".join(parts)
+        new_build = 1
+        print(f"Bumping version to {new_base}-1...")
     else:
-        new_ver = current_ver
-        print(f"Maintaining version {new_ver} (Syncing files only)...")
+        new_base = base_ver
+        new_build = build_count + 1
+        print(f"Syncing with new build counter: {new_build} (v{new_base}-{new_build})...")
+
+    new_ver_str = f"{new_base}-{new_build}"
 
     # 2. Update main.py
-    if 'APP_VERSION =' in main_content:
-        main_content = re.sub(r'APP_VERSION\s*=\s*"[\d.]+"', f'APP_VERSION = "{new_ver}"', main_content)
-    else:
-        # Prepend to file
-        main_content = f'APP_VERSION = "{new_ver}"\n' + main_content
-    
-    with open(main_py, "w") as f:
+    main_content = re.sub(r'APP_VERSION\s*=\s*"[\d.-]+"', f'APP_VERSION = "{new_ver_str}"', main_content)
+    with open(main_py, "w", encoding="utf-8") as f:
         f.write(main_content)
-    print(f"Updated {main_py}")
+    print(f"Updated {main_py} to v{new_ver_str}")
 
-    # 3. Update PKGBUILD
+    # 3. Update PKGBUILD (pkgver=base, pkgrel=build)
     if os.path.exists(pkgbuild):
-        with open(pkgbuild, "r") as f:
+        with open(pkgbuild, "r", encoding="utf-8") as f:
             pkg_content = f.read()
         
-        # Get current pkgrel
-        rel_match = re.search(r'pkgrel=(\d+)', pkg_content)
-        current_rel = int(rel_match.group(1)) if rel_match else 1
+        pkg_content = re.sub(r'pkgver=[\d.]+', f'pkgver={new_base}', pkg_content)
+        pkg_content = re.sub(r'pkgrel=\d+', f'pkgrel={new_build}', pkg_content)
         
-        new_rel = 1 if major else (current_rel + 1)
-        
-        pkg_content = re.sub(r'pkgver=[\d.]+', f'pkgver={new_ver}', pkg_content)
-        pkg_content = re.sub(r'pkgrel=\d+', f'pkgrel={new_rel}', pkg_content)
-        
-        with open(pkgbuild, "w") as f:
+        with open(pkgbuild, "w", encoding="utf-8") as f:
             f.write(pkg_content)
         
         # Regenerate .SRCINFO
@@ -71,21 +76,23 @@ def update_version(major=False):
         try:
             subprocess.run("makepkg --printsrcinfo > .SRCINFO", shell=True, check=True)
         except:
-            print("Note: Could not run makepkg (maybe not on Arch/AUR machine?).")
+            print("Note: Could not run makepkg (maybe not on Arch?).")
         print(f"Updated {pkgbuild}")
 
     # 4. Update buildozer.spec
     if os.path.exists(buildozer_spec):
-        with open(buildozer_spec, "r") as f:
+        with open(buildozer_spec, "r", encoding="utf-8") as f:
             spec_content = f.read()
         
-        spec_content = re.sub(r'version = [\d.]+', f'version = {new_ver}', spec_content)
+        # Android compatibility format
+        android_ver = f"{new_base}.{new_build}"
+        spec_content = re.sub(r'version = [\d.]+', f'version = {android_ver}', spec_content)
         
-        with open(buildozer_spec, "w") as f:
+        with open(buildozer_spec, "w", encoding="utf-8") as f:
             f.write(spec_content)
-        print(f"Updated {buildozer_spec}")
+        print(f"Updated {buildozer_spec} to {android_ver}")
 
-    print(f"--- SUCCESS: All version files synchronized to {new_ver} ---")
+    print(f"--- SUCCESS: All platforms updated to {new_ver_str} ---")
 
 if __name__ == "__main__":
     is_major = "--major" in sys.argv
