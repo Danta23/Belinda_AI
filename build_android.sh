@@ -6,10 +6,9 @@ BASE_OUTPUT_DIR="/mnt/c/Users/herda/Documents/My Projects/Belinda_AI_App"
 ANDROID_DIST_DIR="$BASE_OUTPUT_DIR/android"
 BUILD_WORK_DIR="/root/belinda_android_build"
 
-# 1. Update Tools and APP VERSION
-echo "--- Updating APP Version ---"
-# This will update version in main.py, PKGBUILD, and buildozer.spec
-python3 update_version.py
+# 1. Update Version to 1.0.0-6
+echo "--- Syncing Version to 1.0.0-6 ---"
+python3 update_version.py # This will bump it if not already done
 
 # 2. Multi-Core Acceleration (Use all available CPU cores)
 export P4A_NUM_WORKERS=$(nproc)
@@ -51,10 +50,15 @@ rsync -av --delete --progress . "$BUILD_WORK_DIR/" \
 
 cd "$BUILD_WORK_DIR"
 
-echo "--- Starting Ultra-Fast Build (Using $P4A_NUM_WORKERS cores) ---"
-# CLEAN CACHE FOR FRESH VERSIONING: 
-# Only deletes the app build specifically, keeping heavy NDK/SDK/Conda caches for speed.
+echo "--- Starting TOTAL CLEAN Build (Using $P4A_NUM_WORKERS cores) ---"
+# KILL STALE VERSIONING: Wipe the distribution and app cache completely.
+# This prevents Buildozer from reusing old 1.4.7 manifests.
 rm -rf .buildozer/android/app
+rm -rf .buildozer/android/platform/python-for-android/dists
+# Clean binary remnants
+rm -rf bin/
+
+# Build fresh APK
 buildozer --allow-root android debug
 
 # 3. Automatic Delivery
