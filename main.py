@@ -10,7 +10,7 @@ import webbrowser
 from datetime import datetime
 
 # --- APP VERSION ---
-APP_VERSION = "1.0.0-18"
+APP_VERSION = "1.0.0-20"
 
 # --- GLOBAL EXCEPTION HANDLER ---
 def global_exception_handler(exc_type, exc_value, exc_traceback):
@@ -19,31 +19,46 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
         return
     
     error_details = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-    log_file = "termux_error.log"
     
-    # Save to file
+    # Save to file safely (internal storage if possible)
+    log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
+    log_file = os.path.join(log_dir, "termux_error.log")
+    
     try:
         with open(log_file, "a") as f:
             f.write(f"\n[{datetime.now()}] CRITICAL ERROR:\n{error_details}\n")
     except: pass
     
-    # Notify via Termux if possible
-    try:
-        subprocess.run(["termux-notification", "-t", "Belinda AI Error", "-c", str(exc_value), "--priority", "high"], capture_output=True)
+    # Notification via Termux (Only if possible)
+    try: subprocess.run(["termux-notification", "-t", "Belinda AI Error", "-c", str(exc_value)], capture_output=True)
     except: pass
     
-    # Show internal toast if app is running
-    app = App.get_running_app()
-    if app:
-        try: Clock.schedule_once(lambda dt: app.show_toast("Error logged to termux_error.log"), 0)
-        except: pass
+    # Show internal toast ONLY if Kivy is fully loaded and running
+    try:
+        from kivy.app import App
+        from kivy.clock import Clock
+        app = App.get_running_app()
+        if app:
+            Clock.schedule_once(lambda dt: app.show_toast("Critical error logged."), 0)
+    except: pass
 
 sys.excepthook = global_exception_handler
 
 # --- FORCED LOG REDIRECTION (Android Only) ---
+# Wrapping this in try-except to prevent crash if root directory is read-only
 if 'ANDROID_ARGUMENT' in os.environ:
-    sys.stdout = open('android_stdout.log', 'w')
-    sys.stderr = open('android_stderr.log', 'w')
+    try:
+        # Use a safe path if available, otherwise just try the current dir
+        log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
+        sys.stdout = open(os.path.join(log_dir, 'android_stdout.log'), 'w')
+        sys.stderr = open(os.path.join(log_dir, 'android_stderr.log'), 'w')
+    except:
+        # Fallback to standard logging if file write fails
+        pass
+
+# Requirements verification
+try: import requests
+except ImportError: pass
 
 # Kivy Imports
 try:
@@ -220,18 +235,25 @@ class LiquidPopup(Popup):
 
 class SettingsManager:
     def __init__(self):
-        self.file = "mobile_settings.json"
+        # Use a safe path for data storage on Android
+        log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
+        self.file = os.path.join(log_dir, "mobile_settings.json")
         self.data = self.load()
 
     def load(self):
         if os.path.exists(self.file):
             try:
-                with open(self.file, 'r') as f: return json.load(f)
+                with open(self.file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
             except: pass
         return {"language": "English", "theme": "Dark", "deployed": False}
 
     def save(self):
-        with open(self.file, 'w') as f: json.dump(self.data, f)
+        try:
+            with open(self.file, 'w', encoding='utf-8') as f:
+                json.dump(self.data, f)
+        except Exception as e:
+            print(f"Failed to save settings: {e}")
 
 # --- CUSTOM UI WIDGETS ---
 class LiquidBackground(Widget):
