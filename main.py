@@ -10,7 +10,7 @@ import webbrowser
 from datetime import datetime
 
 # --- APP VERSION ---
-APP_VERSION = "1.0.0-23"
+APP_VERSION = "1.0.0-24"
 
 # Import Kivy as early as possible after version check
 try:
@@ -852,25 +852,20 @@ class BelindaApp(App):
             self.dash.lbl_status.color = [0, 1, 0, 1] if success else [1, 0, 0, 1]
         Clock.schedule_once(update)
 
-# --- ANDROID LOGGING HELPER ---
-def log_to_android(tag, msg):
-    try:
-        from jnius import autoclass
-        Log = autoclass('android.util.Log')
-        Log.d(tag, str(msg))
-    except:
-        print(f"[{tag}] {msg}")
-
+# --- PROTECTED APP START ---
 if __name__ == '__main__':
-    log_to_android("BelindaAI", f"Application starting (v{APP_VERSION})...")
     try:
-        BelindaApp().run()
-    except Exception as e:
-        log_to_android("BelindaAI_CRASH", traceback.format_exc())
-        # Final emergency log attempt
+        # Final safety: Ensure jnius is ready before logger calls
+        log_safe("System: Bootstrap starting...")
+        app = BelindaApp()
+        log_safe("System: App instance created. Running...")
+        app.run()
+    except Exception as launch_err:
+        log_safe(f"FATAL LAUNCH ERROR: {launch_err}")
         try:
+            # Emergency log to file
             log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
-            with open(os.path.join(log_dir, "termux_error.log"), "a") as f:
-                f.write(f"\n[{datetime.now()}] APP RECOVERY CRASH: {traceback.format_exc()}\n")
+            with open(os.path.join(log_dir, "emergency_crash.log"), "a") as f:
+                f.write(f"\n[{datetime.now()}] LAUNCH FAILURE:\n{traceback.format_exc()}\n")
         except: pass
         sys.exit(1)
