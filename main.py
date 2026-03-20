@@ -10,59 +10,39 @@ import webbrowser
 from datetime import datetime
 
 # --- APP VERSION ---
-APP_VERSION = "1.0.0-22"
+APP_VERSION = "1.0.0-23"
 
-# --- GLOBAL EXCEPTION HANDLER ---
+# Import Kivy as early as possible after version check
+try:
+    from kivy.app import App
+    from kivy.logger import Logger
+    from kivy.clock import Clock
+except ImportError:
+    print("CRITICAL: Kivy missing.")
+    sys.exit(1)
+
+# --- SAFE LOGGING (Native Android) ---
+def log_safe(msg):
+    try:
+        from jnius import autoclass
+        Log = autoclass('android.util.Log')
+        Log.d("BelindaAI", str(msg))
+    except:
+        Logger.info(f"BelindaAI: {msg}")
+
 def global_exception_handler(exc_type, exc_value, exc_traceback):
-    if issubclass(exc_type, KeyboardInterrupt):
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
-    
-    error_details = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-    
-    # Save to file safely (internal storage if possible)
-    log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
-    log_file = os.path.join(log_dir, "termux_error.log")
-    
+    err = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    log_safe(f"CRITICAL ERROR:\n{err}")
+    # Try writing to a fixed internal path if possible
     try:
-        with open(log_file, "a") as f:
-            f.write(f"\n[{datetime.now()}] CRITICAL ERROR:\n{error_details}\n")
-    except: pass
-    
-    # Notification via Termux (Only if possible)
-    try: subprocess.run(["termux-notification", "-t", "Belinda AI Error", "-c", str(exc_value)], capture_output=True)
-    except: pass
-    
-    # Show internal toast ONLY if Kivy is fully loaded and running
-    try:
-        from kivy.app import App
-        from kivy.clock import Clock
-        app = App.get_running_app()
-        if app:
-            Clock.schedule_once(lambda dt: app.show_toast("Critical error logged."), 0)
+        with open("critical_crash.log", "a") as f:
+            f.write(f"\n[{datetime.now()}] {err}\n")
     except: pass
 
 sys.excepthook = global_exception_handler
 
-# --- FORCED LOG REDIRECTION (Android Only) ---
-# Wrapping this in try-except to prevent crash if root directory is read-only
-if 'ANDROID_ARGUMENT' in os.environ:
-    try:
-        # Use a safe path if available, otherwise just try the current dir
-        log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
-        sys.stdout = open(os.path.join(log_dir, 'android_stdout.log'), 'w')
-        sys.stderr = open(os.path.join(log_dir, 'android_stderr.log'), 'w')
-    except:
-        # Fallback to standard logging if file write fails
-        pass
-
-# Requirements verification
-try: import requests
-except ImportError: pass
-
-# Kivy Imports
+# Delayed imports to prevent early crash
 try:
-    from kivy.app import App
     from kivy.core.window import Window
     from kivy.uix.boxlayout import BoxLayout
     from kivy.uix.floatlayout import FloatLayout
@@ -74,11 +54,13 @@ try:
     from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
     from kivy.uix.widget import Widget
     from kivy.graphics import Color, RoundedRectangle, Line, Rectangle
-    from kivy.clock import Clock
     from kivy.animation import Animation
     from kivy.metrics import dp
     from kivy.utils import get_color_from_hex
     from kivy.properties import StringProperty, ListProperty, NumericProperty, BooleanProperty, ObjectProperty
+    import random
+except Exception as e:
+    log_safe(f"Import failure: {e}")
 except ImportError:
     print("CRITICAL: Kivy is not installed. Please run 'pip install kivy'.")
     sys.exit(1)
