@@ -6,7 +6,36 @@ import time
 import json
 import traceback
 import shutil
+import webbrowser
 from datetime import datetime
+
+# --- GLOBAL EXCEPTION HANDLER ---
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    
+    error_details = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    log_file = "termux_error.log"
+    
+    # Save to file
+    try:
+        with open(log_file, "a") as f:
+            f.write(f"\n[{datetime.now()}] CRITICAL ERROR:\n{error_details}\n")
+    except: pass
+    
+    # Notify via Termux if possible
+    try:
+        subprocess.run(["termux-notification", "-t", "Belinda AI Error", "-c", str(exc_value), "--priority", "high"], capture_output=True)
+    except: pass
+    
+    # Show internal toast if app is running
+    app = App.get_running_app()
+    if app:
+        try: Clock.schedule_once(lambda dt: app.show_toast("Error logged to termux_error.log"), 0)
+        except: pass
+
+sys.excepthook = global_exception_handler
 
 # --- FORCED LOG REDIRECTION (Android Only) ---
 if 'ANDROID_ARGUMENT' in os.environ:
@@ -375,6 +404,10 @@ class SetupScreen(Screen):
 
     def do_clone(self):
         app = App.get_running_app()
+        # Verify Termux & API first
+        if not app.check_termux_and_api():
+            return
+            
         # Ensure log_callback points to the correct console, with a fallback
         log_callback = app.dash.update_log if hasattr(app, 'dash') else (lambda x: print(f"[CLONE LOG] {x}"))
         
@@ -495,11 +528,15 @@ class SetupScreen(Screen):
         self.btn_clone.text = f"{app.get_text('status_cloning')} ({percentage}%)"
 
     def finish_clone(self, success, err=""):
+        app = App.get_running_app()
         self.btn_clone.disabled = False
-        self.btn_clone.text = App.get_running_app().get_text("btn_clone")
+        self.btn_clone.text = app.get_text("btn_clone")
         if success:
-            App.get_running_app().show_toast(App.get_running_app().get_text("toast_cloned"))
-            App.get_running_app().check_files_and_switch()
+            app.show_toast(app.get_text("toast_cloned"))
+            app.show_notification("Clone Successful", "Cloning complete. Please click FULL DEPLOYMENT to install dependencies.")
+            app.check_files_and_switch()
+            # Automatically switch to Dashboard menu
+            Clock.schedule_once(lambda dt: app.switch_tab('dash'), 0.5)
         else: self.lbl_desc.text = f"Error: {err}"
 
 class DashboardScreen(Screen):
@@ -669,7 +706,52 @@ class BelindaApp(App):
         self.toast = Label(text="", opacity=0, size_hint=(None,None), size=(dp(200), dp(40)), pos_hint={'center_x': 0.5, 'y': 0.1})
         self.root.add_widget(self.toast)
         self.apply_theme(); self.refresh_language()
+        self.check_root_status()
         return self.root
+
+    def check_root_status(self):
+        self.is_rooted = False
+        self.root_cmd = None
+        for cmd in ['tsu', 'su']:
+            if shutil.which(cmd):
+                self.is_rooted = True
+                self.root_cmd = cmd
+                break
+        if self.is_rooted:
+            print(f"DEBUG: Root access detected via {self.root_cmd}")
+
+    def show_notification(self, title, message):
+        try:
+            subprocess.run(["termux-notification", "-t", title, "-c", message, "--id", "belinda_ai_msg"], capture_output=True)
+        except Exception as e:
+            print(f"Notification failed: {e}")
+            self.show_toast(message)
+
+    def check_termux_and_api(self):
+        # 1. Check for Termux
+        is_termux = os.path.isdir("/data/data/com.termux")
+        if not is_termux:
+            self.show_toast("Termux not found! Opening Play Store...")
+            try:
+                subprocess.run(["am", "start", "-a", "android.intent.action.VIEW", "-d", "market://details?id=com.termux"], capture_output=True)
+            except:
+                webbrowser.open("https://play.google.com/store/apps/details?id=com.termux")
+            return False
+            
+        # 2. Check for Termux-API
+        is_api = False
+        try:
+            res = subprocess.run(["pm", "list", "packages", "com.termux.api"], capture_output=True, text=True)
+            if "com.termux.api" in res.stdout: is_api = True
+        except: pass
+        
+        if not is_api:
+            self.show_toast("Termux:API missing! Opening GitHub...")
+            webbrowser.open("https://github.com/termux/termux-api/releases")
+            return False
+            
+        self.show_notification("System Ready", "Termux and Termux:API are already installed and verified.")
+        return True
 
     def check_files_and_switch(self):
         if os.path.exists("bridge.js"):
@@ -760,6 +842,18 @@ class BelindaApp(App):
         Clock.schedule_once(update)
 
 if __name__ == '__main__':
-    try: BelindaApp().run()
-    except Exception as e:
-        with open("crash.log", "w") as f: f.write(traceback.format_exc())
+    while True:
+        try:
+            BelindaApp().run()
+            break # Exit normally if requested by user
+        except Exception as e:
+            # Prevent force close: Log and restart if needed, or just sleep
+            with open("termux_error.log", "a") as f:
+                f.write(f"\n[{datetime.now()}] FATAL LOOP RECOVERY: {traceback.format_exc()}\n")
+            
+            # Simple cool-down to prevent infinite fast-crash loop
+            print("FATAL ERROR RECOVERED. Check termux_error.log")
+            time.sleep(3)
+            # Depending on the error, we might want to exit, but user requested to stay open.
+            # We will attempt to restart the app instance.
+            continue
