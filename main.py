@@ -10,7 +10,7 @@ import webbrowser
 from datetime import datetime
 
 # --- APP VERSION ---
-APP_VERSION = "1.0.0-3"
+APP_VERSION = "1.0.0-4"
 
 # --- GLOBAL EXCEPTION HANDLER ---
 def global_exception_handler(exc_type, exc_value, exc_traceback):
@@ -373,7 +373,7 @@ class SplashScreen(Screen):
         self.logo_label = Label(text="BELINDA AI", font_size='42sp', bold=True, color=(1,1,1,0), pos_hint={'center_x': 0.5, 'center_y': 0.55})
         tagline = random.choice(TAGLINES)
         self.sub_label = Label(text=tagline, font_size='14sp', color=(1,1,1,0), pos_hint={'center_x': 0.5, 'center_y': 0.45})
-        self.ver_label = Label(text=f"v{APP_VERSION}", font_size='10sp', color=(1,1,1,0), pos_hint={'center_x': 0.5, 'y': 0.05})
+        self.ver_label = Label(text=f"v{APP_VERSION}", font_size='12sp', color=(1,1,1,0), pos_hint={'center_x': 0.5, 'y': 0.08})
         self.layout.add_widget(self.logo_label)
         self.layout.add_widget(self.sub_label)
         self.layout.add_widget(self.ver_label)
@@ -384,7 +384,7 @@ class SplashScreen(Screen):
         anim.start(self.logo_label)
         anim_sub = Animation(color=(1,1,1,0.6), duration=2)
         anim_sub.start(self.sub_label)
-        anim_ver = Animation(color=(1,1,1,0.4), duration=3)
+        anim_ver = Animation(color=(1,1,1,0.85), duration=2)
         anim_ver.start(self.ver_label)
         Clock.schedule_once(lambda dt: App.get_running_app().check_files_and_switch(), 3.5)
 

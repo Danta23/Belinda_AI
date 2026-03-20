@@ -52,7 +52,9 @@ rsync -av --delete --progress . "$BUILD_WORK_DIR/" \
 cd "$BUILD_WORK_DIR"
 
 echo "--- Starting Ultra-Fast Build (Using $P4A_NUM_WORKERS cores) ---"
-# Use 'debug' for fastest packaging
+# CLEAN CACHE FOR FRESH VERSIONING: 
+# Only deletes the app build specifically, keeping heavy NDK/SDK/Conda caches for speed.
+rm -rf .buildozer/android/app
 buildozer --allow-root android debug
 
 # 3. Automatic Delivery
