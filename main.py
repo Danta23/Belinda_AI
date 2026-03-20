@@ -10,7 +10,7 @@ import webbrowser
 from datetime import datetime
 
 # --- APP VERSION ---
-APP_VERSION = "1.0.0-21"
+APP_VERSION = "1.0.0-22"
 
 # --- GLOBAL EXCEPTION HANDLER ---
 def global_exception_handler(exc_type, exc_value, exc_traceback):
@@ -870,19 +870,25 @@ class BelindaApp(App):
             self.dash.lbl_status.color = [0, 1, 0, 1] if success else [1, 0, 0, 1]
         Clock.schedule_once(update)
 
+# --- ANDROID LOGGING HELPER ---
+def log_to_android(tag, msg):
+    try:
+        from jnius import autoclass
+        Log = autoclass('android.util.Log')
+        Log.d(tag, str(msg))
+    except:
+        print(f"[{tag}] {msg}")
+
 if __name__ == '__main__':
-    while True:
+    log_to_android("BelindaAI", f"Application starting (v{APP_VERSION})...")
+    try:
+        BelindaApp().run()
+    except Exception as e:
+        log_to_android("BelindaAI_CRASH", traceback.format_exc())
+        # Final emergency log attempt
         try:
-            BelindaApp().run()
-            break # Exit normally if requested by user
-        except Exception as e:
-            # Prevent force close: Log and restart if needed, or just sleep
-            with open("termux_error.log", "a") as f:
-                f.write(f"\n[{datetime.now()}] FATAL LOOP RECOVERY: {traceback.format_exc()}\n")
-            
-            # Simple cool-down to prevent infinite fast-crash loop
-            print("FATAL ERROR RECOVERED. Check termux_error.log")
-            time.sleep(3)
-            # Depending on the error, we might want to exit, but user requested to stay open.
-            # We will attempt to restart the app instance.
-            continue
+            log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
+            with open(os.path.join(log_dir, "termux_error.log"), "a") as f:
+                f.write(f"\n[{datetime.now()}] APP RECOVERY CRASH: {traceback.format_exc()}\n")
+        except: pass
+        sys.exit(1)
