@@ -10,7 +10,7 @@ import webbrowser
 from datetime import datetime
 
 # --- APP VERSION ---
-APP_VERSION = "1.0.0-7"
+APP_VERSION = "1.0.0-18"
 
 # --- GLOBAL EXCEPTION HANDLER ---
 def global_exception_handler(exc_type, exc_value, exc_traceback):
