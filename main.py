@@ -5,6 +5,7 @@ import subprocess
 import time
 import json
 import traceback
+import shutil
 from datetime import datetime
 
 # --- FORCED LOG REDIRECTION (Android Only) ---
@@ -286,7 +287,6 @@ class TaskWorker(threading.Thread):
         try:
             if self.task == 'session':
                 self.callback_log(">>> Wiping session folder...\n")
-                import shutil
                 if os.path.exists("auth_info"): shutil.rmtree("auth_info")
                 self.callback_log(">>> Session wiped. Restart bot.\n")
                 self.callback_done(True)
@@ -376,82 +376,119 @@ class SetupScreen(Screen):
     def do_clone(self):
         app = App.get_running_app()
         # Ensure log_callback points to the correct console, with a fallback
-        log_callback = app.dash.update_log if hasattr(app, 'dash') else (lambda x: print(x))
+        log_callback = app.dash.update_log if hasattr(app, 'dash') else (lambda x: print(f"[CLONE LOG] {x}"))
         
+        def safe_log(text):
+            Clock.schedule_once(lambda dt: log_callback(text), 0)
+
         try:
             repo_url = "https://github.com/Danta23/Belinda_AI.git"
             target_dir = "Belinda_AI"
 
-            # Check if git is directly available (e.g., running in Termux via python, or desktop)
-            if shutil.which('git'):
-                log_callback("> Git command found in local environment. Running direct clone...\n")
+            # 1. Try Direct Git Clone (Best for Desktop or Termux Python shell)
+            git_path = shutil.which('git')
+            if git_path:
+                safe_log(f"> Found git at {git_path}. Running direct clone...\n")
                 process = subprocess.Popen(
-                    ["git", "clone", repo_url, target_dir],
+                    [git_path, "clone", repo_url, target_dir],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                     bufsize=1,
                     universal_newlines=True
                 )
-                total_progress_steps = 100 # Simulate progress
-                current_step = 0
+                
                 for line in process.stdout:
                     if line:
-                        log_callback(line)
-                        if "Receiving objects" in line or "Resolving deltas" in line:
-                            # Attempt to parse git progress for a more accurate update
+                        safe_log(line)
+                        if "%" in line: # Simple progress detection
                             try:
-                                percent_str = line.split('(')[1].split('%')[0].strip()
-                                current_step = int(percent_str)
-                                Clock.schedule_once(lambda dt, p=current_step: self.update_clone_progress(p), 0)
-                            except:
-                                pass # Ignore if parsing fails
-                        
-                        current_step = min(current_step + 1, total_progress_steps - 1) # Ensure it doesn't hit 100% until done
-                        Clock.schedule_once(lambda dt, p=current_step: self.update_clone_progress(p), 0)
+                                parts = line.split('%')[0].split()
+                                if parts:
+                                    percent = int(parts[-1])
+                                    Clock.schedule_once(lambda dt, p=percent: self.update_clone_progress(p), 0)
+                            except: pass
+                
                 process.wait()
                 if process.returncode == 0 and os.path.isdir(target_dir):
-                    log_callback(">>> Direct Git clone successful!\n")
-                    Clock.schedule_once(lambda dt: self.finish_clone(True))
-                else:
-                    log_callback(f"! Direct Git clone failed with code {process.returncode}.\n")
-                    Clock.schedule_once(lambda dt: self.finish_clone(False, f"Git clone failed directly. Error: {process.stderr.read() if process.stderr else 'No specific error from git.'}"))
-                return
-
-            # If git not directly available, attempt Termux:API Intent
-            log_callback("> Git not found locally. Attempting Termux:API clone...\n")
-            
-            # Step 1: Ensure git is installed in Termux
-            install_git_cmd = "pkg install git -y"
-            termux_api_install_cmd = f"am startservice --user 0 -n com.termux.service_execute -e command '{install_git_cmd}'"
-            subprocess.run(termux_api_install_cmd, shell=True, capture_output=True, text=True)
-            log_callback("> Sent command to Termux to install git. Waiting 5s...\n")
-            time.sleep(5) # Give Termux a moment to process pkg command
-
-            # Step 2: Perform git clone via Termux Intent
-            clone_cmd = f"git clone {repo_url} {target_dir}"
-            termux_api_clone_cmd = f"am startservice --user 0 -n com.termux.service_execute -e command '{clone_cmd}'"
-            log_callback(f"> Sending clone command to Termux: {clone_cmd}\n")
-            subprocess.run(termux_api_clone_cmd, shell=True, capture_output=True, text=True)
-            
-            # Step 3: Poll for Belinda_AI folder creation with progress updates
-            log_callback("> Polling for Belinda_AI folder... (This may take up to 2 minutes)\n")
-            total_wait_time = 120 # seconds
-            for i in range(total_wait_time):
-                progress_percent = int((i / total_wait_time) * 100)
-                Clock.schedule_once(lambda dt, p=progress_percent: self.update_clone_progress(p), 0)
-                if os.path.isdir(target_dir):
-                    log_callback(">>> Belinda_AI folder found. Clone successful!\n")
-                    Clock.schedule_once(lambda dt: self.finish_clone(True))
+                    safe_log(">>> Direct Git clone successful!\n")
+                    Clock.schedule_once(lambda dt: self.finish_clone(True), 0)
                     return
-                time.sleep(1)
+                else:
+                    safe_log(f"! Direct Git clone failed (Code {process.returncode}). Trying alternatives...\n")
+
+            # 2. Try Termux:API (Specific for Android background execution)
+            if os.path.exists('/system/bin/am'):
+                safe_log("> Detected Android environment. Using Termux:API Intent...\n")
+                
+                # We use a combined command to install git if missing AND clone
+                # Using single quotes for the command string to avoid shell expansion issues
+                full_cmd = f"pkg install git -y && git clone {repo_url} {target_dir}"
+                am_cmd = [
+                    "am", "startservice", "--user", "0",
+                    "-n", "com.termux/.app.TermuxService", # Try direct service first
+                    "-e", "com.termux.execute.background", "true",
+                    "-e", "com.termux.execute.command", full_cmd
+                ]
+                
+                # Alternative Intent for newer Termux:API versions
+                am_cmd_v2 = [
+                    "am", "startservice", "--user", "0",
+                    "-n", "com.termux.service_execute",
+                    "-e", "command", full_cmd
+                ]
+
+                try:
+                    subprocess.run(am_cmd_v2, capture_output=True)
+                    safe_log("> Dispatched command to Termux Service. Polling for directory...\n")
+                except Exception as e:
+                    safe_log(f"! Failed to send Termux intent: {e}. Trying legacy intent...\n")
+                    subprocess.run(am_cmd, capture_output=True)
+
+                # Polling for success
+                for i in range(90): # 90 seconds timeout
+                    progress = int((i / 90) * 100)
+                    Clock.schedule_once(lambda dt, p=progress: self.update_clone_progress(p), 0)
+                    if os.path.isdir(target_dir) and os.path.exists(os.path.join(target_dir, "bridge.js")):
+                        safe_log(">>> Folder detected! Clone SUCCESS via Termux background.\n")
+                        Clock.schedule_once(lambda dt: self.finish_clone(True), 0)
+                        return
+                    time.sleep(1)
+
+            # 3. Try Root/Sudo Fallback (For rooted devices)
+            safe_log("> Checking for root (su/tsu) fallback...\n")
+            root_cmd = None
+            if shutil.which('tsu'): root_cmd = 'tsu -c'
+            elif shutil.which('su'): root_cmd = 'su -c'
             
-            log_callback("! Clone timed out. Belinda_AI folder not found.\n")
-            Clock.schedule_once(lambda dt: self.finish_clone(False, "Clone timed out or failed. Ensure Termux:API is installed and Termux is running in background."))
+            if root_cmd:
+                safe_log(f"> Root access found ({root_cmd.split()[0]}). Attempting forced clone...\n")
+                try:
+                    # Attempt via root shell
+                    full_root_cmd = f"{root_cmd} 'pkg install git -y && git clone {repo_url} {target_dir}'"
+                    subprocess.run(full_root_cmd, shell=True, capture_output=True)
+                    if os.path.isdir(target_dir):
+                        safe_log(">>> Root-forced clone SUCCESS!\n")
+                        Clock.schedule_once(lambda dt: self.finish_clone(True), 0)
+                        return
+                except Exception as e:
+                    safe_log(f"! Root clone attempt failed: {e}\n")
+
+            # 4. Final Alternative: Using raw shell commands if possible
+            safe_log("> Attempting standard shell clone fallback...\n")
+            try:
+                os.system(f"git clone {repo_url} {target_dir}")
+                if os.path.isdir(target_dir):
+                    Clock.schedule_once(lambda dt: self.finish_clone(True), 0)
+                    return
+            except: pass
+
+            Clock.schedule_once(lambda dt: self.finish_clone(False, "Clone failed. Please ensure Git is installed in Termux and Termux:API is working."), 0)
 
         except Exception as e:
-            log_callback(f"CRITICAL Error during clone operation: {e}\n")
-            Clock.schedule_once(lambda dt: self.finish_clone(False, f"Critical Clone Error: {e}"))
+            traceback.print_exc()
+            safe_log(f"CRITICAL ERROR: {str(e)}\n")
+            Clock.schedule_once(lambda dt: self.finish_clone(False, f"Crash: {str(e)}"), 0)
             
     def update_clone_progress(self, percentage):
         app = App.get_running_app()
