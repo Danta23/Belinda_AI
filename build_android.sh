@@ -1,12 +1,17 @@
 #!/bin/bash
 # ULTRA-FAST Build Script for Belinda AI Manager (v2 - Fixed Path Length Error)
-# Uses persistent caching, multi-core acceleration, and smart sync.
+# Always builds from latest main.py and synchronizes version.
 
 BASE_OUTPUT_DIR="/mnt/c/Users/herda/Documents/My Projects/Belinda_AI_App"
 ANDROID_DIST_DIR="$BASE_OUTPUT_DIR/android"
 BUILD_WORK_DIR="/root/belinda_android_build"
 
-# 1. Multi-Core Acceleration (Use all available CPU cores)
+# 1. Update Tools and APP VERSION
+echo "--- Updating APP Version ---"
+# This will update version in main.py, PKGBUILD, and buildozer.spec
+python3 update_version.py
+
+# 2. Multi-Core Acceleration (Use all available CPU cores)
 export P4A_NUM_WORKERS=$(nproc)
 
 echo "--- Checking System Dependencies ---"
@@ -14,10 +19,9 @@ if ! command -v git &> /dev/null || ! command -v zip &> /dev/null; then
     sudo pacman -S --noconfirm git jdk17-openjdk zip unzip autoconf libtool pkg-config
 fi
 
-if ! pip show buildozer &> /dev/null; then
-    echo "--- Installing Buildozer ---"
-    pip install --user --upgrade git+https://github.com/kivy/buildozer.git@master cython
-fi
+# Always Upgrade Buildozer and Pip to latest
+echo "--- Updating Pip and Buildozer ---"
+pip install --user --upgrade pip buildozer cython
 
 # 2. FAST CACHE WORKSPACE (Crucial for Speed)
 if [ ! -d "$BUILD_WORK_DIR" ]; then
@@ -25,9 +29,8 @@ if [ ! -d "$BUILD_WORK_DIR" ]; then
     mkdir -p "$BUILD_WORK_DIR"
 fi
 
-echo "--- Syncing Source Files (Removing Old node_modules) ---"
+echo "--- Syncing LATEST Source Files (Mirroring main.py) ---"
 # EXPLICIT CLEANUP: Ensure no old node_modules or venv exist in the build path
-# This fixes the "ValueError: name is too long" error.
 rm -rf "$BUILD_WORK_DIR/node_modules"
 rm -rf "$BUILD_WORK_DIR/.venv"
 rm -rf "$BUILD_WORK_DIR/Belinda_AI"
