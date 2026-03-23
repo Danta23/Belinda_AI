@@ -393,7 +393,15 @@ class SplashScreen(Screen):
         anim_sub.start(self.sub_label)
         anim_ver = Animation(color=(1,1,1,0.85), duration=2)
         anim_ver.start(self.ver_label)
-        Clock.schedule_once(lambda dt: App.get_running_app().check_files_and_switch(), 3.5)
+        # Safer transition: call finish_splash through the app instance
+        Clock.schedule_once(lambda dt: self.delayed_startup(), 3.5)
+
+    def delayed_startup(self):
+        app = App.get_running_app()
+        if app and hasattr(app, 'check_files_and_switch'):
+            app.check_files_and_switch()
+        else:
+            log_safe("Warning: App not ready for splash finish.")
 
 class SetupScreen(Screen):
     def __init__(self, **kwargs):

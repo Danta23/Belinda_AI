@@ -266,14 +266,19 @@ while true; do
         # 1. Check for FancyURLopener Error (Python 3.14 compatibility)
         if grep -q "ImportError: cannot import name 'FancyURLopener'" "$LOG_FILE"; then
             echo ">>> DETECTED: Buildozer Compatibility Error (Python 3.14+)"
-            read -p ">>> Would you like to AUTO-REPAIR Buildozer now? (y/n): " fix_confirm
+            read -p ">>> Would you like to AUTO-PATCH Buildozer now? (Requires sudo) (y/n): " fix_confirm
             if [[ "$fix_confirm" =~ ^[Yy]$ ]]; then
+                # Find the actual buildozer __init__.py file
                 B_FILE=$(python3 -c "import buildozer; print(buildozer.__file__)" 2>/dev/null)
                 if [ -f "$B_FILE" ]; then
-                    sudo sed -i 's/from urllib.request import FancyURLopener/import urllib.request/g' "$B_FILE"
-                    sudo sed -i 's/class AppURLopener(FancyURLopener):/class AppURLopener(object):/g' "$B_FILE"
-                    echo ">>> Patch applied. Retrying..."
+                    echo "    >>> Patching $B_FILE..."
+                    # Replace the import and the class inheritance/usage globally
+                    sudo sed -i "s/from urllib.request import FancyURLopener/import urllib.request/g" "$B_FILE"
+                    sudo sed -i "s/FancyURLopener/object/g" "$B_FILE"
+                    echo ">>> Patch applied successfully. Retrying build..."
                     continue
+                else
+                    echo "    [ERROR] Could not locate buildozer source for patching."
                 fi
             fi
         fi
