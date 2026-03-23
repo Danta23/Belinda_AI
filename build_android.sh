@@ -5,6 +5,12 @@
 # Feature: Guaranteed versioning, auto-cleanup, and ultra-fast parallel build.
 # This version explicitly targets the "Stuck at 1.4.7" bug by wiping stale cache.
 
+# --- AUTOMATIC VERSION BUMP ---
+if [ -f "update_version.py" ]; then
+    echo ">>> [AUTO] Incrementing Version..."
+    python3 update_version.py
+fi
+
 # --- CONFIGURATION ---
 # --- CONFIGURATION ---
 export PIP_BREAK_SYSTEM_PACKAGES=1
@@ -25,6 +31,8 @@ else
     BASE_OUTPUT_DIR="/home/danta/Documents/Projects/Belinda_AI_App"
 fi
 ANDROID_DIST_DIR="$BASE_OUTPUT_DIR/android"
+echo ">>> [CLEAN] Wiping Old Outputs: $ANDROID_DIST_DIR"
+rm -rf "$ANDROID_DIST_DIR"
 # Use /home partition for build instead of /tmp (tmpfs is too small for modern NDK builds)
 BUILD_WORK_DIR="/home/danta/belinda_build_tmp"
 VER_FILE="main.py"

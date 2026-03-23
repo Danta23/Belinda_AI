@@ -10,7 +10,7 @@ import webbrowser
 from datetime import datetime
 
 # --- APP VERSION ---
-APP_VERSION = "1.4.7-29"
+APP_VERSION = "1.4.7-31"
 
 # Import Kivy as early as possible after version check
 try:
@@ -20,6 +20,9 @@ try:
 except ImportError:
     print("CRITICAL: Kivy missing.")
     sys.exit(1)
+
+log_safe(">>> PHASE: SCRIPT START")
+log_safe(f">>> VERSION: {APP_VERSION}")
 
 # --- SAFE LOGGING (Native Android) ---
 def log_safe(msg):
@@ -60,8 +63,13 @@ try:
     from kivy.properties import StringProperty, ListProperty, NumericProperty, BooleanProperty, ObjectProperty
     import random
     from kivy.utils import platform
+    request_permissions = None
+    Permission = None
     if platform == 'android':
-        from android.permissions import request_permissions, Permission
+        try:
+            from android.permissions import request_permissions, Permission
+        except ImportError:
+            log_safe("Android permissions module not found.")
 except Exception as e:
     log_safe(f"Import failure: {e}")
 except ImportError:
@@ -706,35 +714,65 @@ class SettingsScreen(Screen):
 # --- MAIN APP ---
 class BelindaApp(App):
     def build(self):
-        self.is_running = True
-        self.settings = SettingsManager()
-        self.root = FloatLayout()
-        self.bg = LiquidBackground()
-        self.root.add_widget(self.bg)
-        self.sm = ScreenManager(transition=FadeTransition(duration=0.5))
-        self.splash = SplashScreen(name='splash')
-        self.setup = SetupScreen(name='setup'); self.dash = DashboardScreen(name='dash'); self.sett = SettingsScreen(name='sett')
-        self.sm.add_widget(self.splash); self.sm.add_widget(self.setup); self.sm.add_widget(self.dash); self.sm.add_widget(self.sett)
-        self.main_container = BoxLayout(orientation='vertical')
-        self.main_container.add_widget(self.sm)
-        self.nav = LiquidCard(size_hint_y=None, height=dp(65), radius=[dp(20), dp(20), 0, 0])
-        self.btn_nav_dash = Button(text="DASHBOARD", background_color=(0,0,0,0))
-        self.btn_nav_sett = Button(text="SETTINGS", background_color=(0,0,0,0))
-        self.btn_nav_dash.bind(on_release=lambda x: self.switch_tab('dash'))
-        self.btn_nav_sett.bind(on_release=lambda x: self.switch_tab('sett'))
-        self.nav.add_widget(self.btn_nav_dash); self.nav.add_widget(self.btn_nav_sett)
-        self.main_container.add_widget(self.nav)
-        self.root.add_widget(self.main_container)
-        self.nav.opacity = 0 
-        self.toast = Label(text="", opacity=0, size_hint=(None,None), size=(dp(200), dp(40)), pos_hint={'center_x': 0.5, 'y': 0.1})
-        self.root.add_widget(self.toast)
-        self.apply_theme(); self.refresh_language()
-        self.check_root_status()
-        if platform == 'android':
-            self.request_android_permissions()
-        return self.root
+        try:
+            self.is_running = True
+            log_safe("System: build() started. Initializing screens...")
+            self.settings = SettingsManager()
+            self.root = FloatLayout()
+            self.bg = LiquidBackground()
+            self.root.add_widget(self.bg)
+            
+            # Use FadeTransition for smooth appearance
+            self.sm = ScreenManager(transition=FadeTransition(duration=0.5))
+            
+            # Initialize all screens
+            self.splash = SplashScreen(name='splash')
+            self.setup = SetupScreen(name='setup')
+            self.dash = DashboardScreen(name='dash')
+            self.sett = SettingsScreen(name='sett')
+            
+            # Add to manager
+            self.sm.add_widget(self.splash)
+            self.sm.add_widget(self.setup)
+            self.sm.add_widget(self.dash)
+            self.sm.add_widget(self.sett)
+            
+            # Set INITIAL screen explicitly to splash
+            self.sm.current = 'splash'
+            
+            self.main_container = BoxLayout(orientation='vertical')
+            self.main_container.add_widget(self.sm)
+            self.nav = LiquidCard(size_hint_y=None, height=dp(65), radius=[dp(20), dp(20), 0, 0])
+            self.btn_nav_dash = Button(text="DASHBOARD", background_color=(0,0,0,0))
+            self.btn_nav_sett = Button(text="SETTINGS", background_color=(0,0,0,0))
+            self.btn_nav_dash.bind(on_release=lambda x: self.switch_tab('dash'))
+            self.btn_nav_sett.bind(on_release=lambda x: self.switch_tab('sett'))
+            self.nav.add_widget(self.btn_nav_dash); self.nav.add_widget(self.btn_nav_sett)
+            self.main_container.add_widget(self.nav)
+            self.root.add_widget(self.main_container)
+            self.nav.opacity = 0 
+            self.toast = Label(text="", opacity=0, size_hint=(None,None), size=(dp(200), dp(40)), pos_hint={'center_x': 0.5, 'y': 0.1})
+            self.root.add_widget(self.toast)
+            self.apply_theme(); self.refresh_language()
+            self.check_root_status()
+            
+            if platform == 'android' and request_permissions:
+                self.request_android_permissions()
+                
+            log_safe("System: build() complete. Returning root.")
+            return self.root
+        except Exception as build_err:
+            log_safe(f"FATAL ERROR in build(): {build_err}")
+            # Emergency fallback: minimal label to show error on screen
+            err_box = BoxLayout(orientation='vertical', padding=dp(20))
+            err_box.add_widget(Label(text="FATAL STARTUP ERROR", color=(1,0,0,1), bold=True))
+            err_box.add_widget(Label(text=str(build_err), font_size='12sp'))
+            return err_box
 
     def request_android_permissions(self):
+        if not request_permissions or not Permission:
+            log_safe("Android permissions not available for request.")
+            return
         try:
             request_permissions([
                 Permission.READ_EXTERNAL_STORAGE,
