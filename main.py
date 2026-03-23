@@ -7,6 +7,7 @@ import json
 import traceback
 import shutil
 import webbrowser
+import urllib.parse
 from datetime import datetime
 
 # --- SAFE LOGGING (Native Android) ---
@@ -43,6 +44,34 @@ def show_native_error_dialog(message):
     except:
         return False
 
+def open_github_report(error_message):
+    """Constructs a GitHub issue URL and attempts to open it via App or Browser."""
+    try:
+        base_url = "https://github.com/Danta23/Belinda_AI/issues/new"
+        title = f"[CRASH] v{APP_VERSION} - {str(error_message)[:50]}..."
+        body = f"## Crash Details\n- **Version**: {APP_VERSION}\n- **Time**: {datetime.now()}\n\n### Traceback\n```python\n{error_message}\n```"
+        
+        encoded_url = f"{base_url}?title={urllib.parse.quote(title)}&body={urllib.parse.quote(body)}"
+        
+        # 1. Try to open via Android Intent (GitHub App)
+        from kivy.utils import platform
+        if platform == 'android':
+            try:
+                from jnius import autoclass
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                Intent = autoclass('android.content.Intent')
+                Uri = autoclass('android.net.Uri')
+                
+                intent = Intent(Intent.ACTION_VIEW, Uri.parse(encoded_url))
+                PythonActivity.mActivity.startActivity(intent)
+                return
+            except: pass
+            
+        # 2. Fallback to default browser
+        webbrowser.open(encoded_url)
+    except Exception as e:
+        log_safe(f"Failed to open GitHub report: {e}")
+
 def send_crash_notification(err_msg):
     """Sends a notification via Termux:API or Android system."""
     try:
@@ -64,7 +93,10 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
     # 2. Alert user via system notification
     send_crash_notification(str(exc_value))
     
-    # 3. Log to file
+    # 3. Automatically offer to report to GitHub
+    open_github_report(err)
+    
+    # 4. Log to file
     try:
         with open("critical_crash.log", "a") as f:
             from datetime import datetime
@@ -75,7 +107,7 @@ import sys
 sys.excepthook = global_exception_handler
 
 # --- APP VERSION ---
-APP_VERSION = "1.4.7-32"
+APP_VERSION = "1.4.7-33"
 
 # Import Kivy as early as possible after version check
 try:
@@ -105,6 +137,7 @@ try:
     from kivy.animation import Animation
     from kivy.metrics import dp
     from kivy.utils import get_color_from_hex
+    from kivy.uix.progressbar import ProgressBar
     from kivy.properties import StringProperty, ListProperty, NumericProperty, BooleanProperty, ObjectProperty
     import random
     from kivy.utils import platform
@@ -245,6 +278,7 @@ from kivy.uix.popup import Popup
 class LiquidPopup(Popup):
     def __init__(self, title_text, desc_text, on_yes, **kwargs):
         super().__init__(**kwargs)
+        self.app = App.get_running_app()
         self.title = title_text
         self.size_hint = (0.85, 0.4)
         self.separator_color = [0.2, 0.8, 1, 1]
@@ -259,10 +293,12 @@ class LiquidPopup(Popup):
         lbl.bind(size=lbl.setter('text_size'))
         
         btns = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
-        btn_no = LiquidButton(text=App.get_running_app().get_text("btn_no"), bg_color=[0.4, 0.4, 0.4, 1])
+        btn_no_text = self.app.get_text("btn_no") if self.app else "CANCEL"
+        btn_no = LiquidButton(text=btn_no_text, bg_color=[0.4, 0.4, 0.4, 1])
         btn_no.bind(on_release=self.dismiss)
         
-        btn_yes = LiquidButton(text=App.get_running_app().get_text("btn_yes"), bg_color=[1, 0.2, 0.2, 1])
+        btn_yes_text = self.app.get_text("btn_yes") if self.app else "YES"
+        btn_yes = LiquidButton(text=btn_yes_text, bg_color=[1, 0.2, 0.2, 1])
         btn_yes.bind(on_release=lambda x: [on_yes(), self.dismiss()])
         
         btns.add_widget(btn_no)
@@ -447,11 +483,13 @@ class SplashScreen(Screen):
             self.progress = ProgressBar(max=100, value=0, size_hint=(0.6, None), height=dp(4), pos_hint={'center_x': 0.5, 'center_y': 0.3}, opacity=0)
             self.layout.add_widget(self.progress)
             
+            log_safe("System: SplashScreen.__init__ - Scheduling delayed_startup")
             Clock.schedule_once(lambda dt: self.delayed_startup(), 0.5)
         except Exception as e:
             log_safe(f"Error initializing SplashScreen: {e}")
 
     def on_enter(self):
+        log_safe("System: SplashScreen.on_enter() - Starting animations")
         anim = Animation(color=(1,1,1,1), pos_hint={'center_y': 0.5}, duration=1.5, t='out_back')
         anim.start(self.logo_label)
         anim_sub = Animation(color=(1,1,1,0.6), duration=2)
@@ -462,9 +500,11 @@ class SplashScreen(Screen):
         Clock.schedule_once(lambda dt: self.delayed_startup(), 3.5)
 
     def delayed_startup(self):
+        log_safe("System: SplashScreen.delayed_startup() - Starting file checks")
         app = App.get_running_app()
         if app and hasattr(app, 'check_files_and_switch'):
             app.check_files_and_switch()
+            log_safe("System: SplashScreen.delayed_startup() - Switch requested")
         else:
             log_safe("Warning: App not ready for splash finish.")
 
@@ -773,9 +813,13 @@ class SettingsScreen(Screen):
 
 # --- MAIN APP ---
 class BelindaApp(App):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.is_running = True
+        log_safe("System: BelindaApp.__init__ complete.")
+
     def build(self):
         try:
-            self.is_running = True
             log_safe("System: build() started. Initializing screens...")
             self.settings = SettingsManager()
             self.root = FloatLayout()
@@ -827,6 +871,11 @@ class BelindaApp(App):
             err_box = BoxLayout(orientation='vertical', padding=dp(20))
             err_box.add_widget(Label(text="FATAL STARTUP ERROR", color=(1,0,0,1), bold=True))
             err_box.add_widget(Label(text=str(build_err), font_size='12sp'))
+            
+            btn_report = Button(text="REPORT BUG ON GITHUB", size_hint=(0.8, None), height=dp(50), background_color=(0.2, 0.6, 1, 1))
+            btn_report.bind(on_release=lambda x: open_github_report(traceback.format_exc()))
+            err_box.add_widget(btn_report)
+            
             return err_box
 
     def request_android_permissions(self):
@@ -901,12 +950,16 @@ class BelindaApp(App):
         return True
 
     def check_files_and_switch(self):
+        log_safe(f"System: check_files_and_switch() - Path: {os.getcwd()}")
         if os.path.exists("bridge.js"):
             self.sm.current = 'dash'; self.nav.opacity = 1; self.nav.disabled = False
             if not self.settings.data.get("deployed", False): self.dash.btn_start.disabled = True; self.dash.btn_start.opacity = 0.5
         elif os.path.isdir("Belinda_AI"):
             try:
-                os.chdir("Belinda_AI")
+                # Prevent recursive chdir if already inside
+                if not os.path.abspath(os.getcwd()).endswith("Belinda_AI"):
+                    log_safe("System: Entering Belinda_AI subdirectory...")
+                    os.chdir("Belinda_AI")
                 self.sm.current = 'dash'; self.nav.opacity = 1; self.nav.disabled = False
                 if not self.settings.data.get("deployed", False): self.dash.btn_start.disabled = True; self.dash.btn_start.opacity = 0.5
             except: self.sm.current = 'setup'
