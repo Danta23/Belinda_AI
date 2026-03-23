@@ -16,6 +16,7 @@ task.log
 venv/
 .venv/
 env/
+.buildozer_venv/
 
 # ==========================
 # Node.js
@@ -74,6 +75,7 @@ Thumbs.db
 # Build & PyInstaller / Android
 # ==========================
 build/
+build_android/
 dist/
 .buildozer/
 bin/
@@ -92,6 +94,8 @@ Belinda_AI/
 android_*.log
 crash.log
 final_crash.log
+critical_crash.log
+emergency_crash.log
 
 # ==========================
 # Arch Linux / AUR
@@ -103,3 +107,10 @@ src/
 *.fakeroot
 belinda-ai-*.tar.gz
 /belinda-ai
+
+# ==========================
+# Build Artifacts & Logs
+# ==========================
+build_error.log
+belinda_android_build_tmp/
+.buildozer_venv/

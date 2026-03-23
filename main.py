@@ -10,7 +10,7 @@ import webbrowser
 from datetime import datetime
 
 # --- APP VERSION ---
-APP_VERSION = "1.0.0-24"
+APP_VERSION = "1.4.7-29"
 
 # Import Kivy as early as possible after version check
 try:
@@ -59,6 +59,9 @@ try:
     from kivy.utils import get_color_from_hex
     from kivy.properties import StringProperty, ListProperty, NumericProperty, BooleanProperty, ObjectProperty
     import random
+    from kivy.utils import platform
+    if platform == 'android':
+        from android.permissions import request_permissions, Permission
 except Exception as e:
     log_safe(f"Import failure: {e}")
 except ImportError:
@@ -695,6 +698,7 @@ class SettingsScreen(Screen):
 # --- MAIN APP ---
 class BelindaApp(App):
     def build(self):
+        self.is_running = True
         self.settings = SettingsManager()
         self.root = FloatLayout()
         self.bg = LiquidBackground()
@@ -718,7 +722,33 @@ class BelindaApp(App):
         self.root.add_widget(self.toast)
         self.apply_theme(); self.refresh_language()
         self.check_root_status()
+        if platform == 'android':
+            self.request_android_permissions()
         return self.root
+
+    def request_android_permissions(self):
+        try:
+            request_permissions([
+                Permission.READ_EXTERNAL_STORAGE,
+                Permission.WRITE_EXTERNAL_STORAGE,
+                Permission.POST_NOTIFICATIONS
+            ])
+        except Exception as e:
+            log_safe(f"Permission request failed: {e}")
+
+    def on_pause(self):
+        # Return True to allow the app to be paused (backgrounded)
+        return True
+
+    def on_resume(self):
+        pass
+
+    def on_stop(self):
+        # App is closing. Stop internal updates but keep bot in background if intended.
+        self.is_running = False
+        log_safe("System: App manager stopping. Background bot services remain active.")
+        # Note: We NO LONGER call run_task('stop') here to allow background running.
+        time.sleep(0.5)
 
     def check_root_status(self):
         self.is_rooted = False
@@ -843,14 +873,20 @@ class BelindaApp(App):
         worker = TaskWorker(task, self.dash.update_log, self.on_task_done); worker.start()
 
     def on_task_done(self, success):
+        if not self.is_running: return
         app = App.get_running_app()
+        if not app: return
         if self.dash.console.text.strip().endswith("Deployment Successful!"):
             app.settings.data["deployed"] = True; app.settings.save()
-            Clock.schedule_once(lambda dt: app.switch_tab('sett'), 1); app.show_toast(app.get_text("toast_deploy_done"))
+            Clock.schedule_once(lambda dt: self.safe_switch('sett'), 1); app.show_toast(app.get_text("toast_deploy_done"))
         def update(dt):
+            if not self.is_running: return
             self.dash.lbl_status.text = "ONLINE" if success else "STOPPED"
             self.dash.lbl_status.color = [0, 1, 0, 1] if success else [1, 0, 0, 1]
         Clock.schedule_once(update)
+
+    def safe_switch(self, name):
+        if self.is_running: self.switch_tab(name)
 
 # --- PROTECTED APP START ---
 if __name__ == '__main__':

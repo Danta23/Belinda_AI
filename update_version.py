@@ -71,20 +71,31 @@ def update_version(major=False):
         with open(buildozer_spec, "r", encoding="utf-8") as f:
             spec_content = f.read()
         
-        # USE 3-PART VERSION FOR ANDROID: Major.Minor.Build (e.g., 1.0.19)
-        # This prevents the "Value is null" 10-billion overflow and malformed strings.
+        # USE 3-PART VERSION FOR ANDROID: Major.Minor.Build (e.g., 1.4.28)
+        # This prevents the 10-billion integer overflow in Gradle versionCode.
         m_parts = new_base.split(".")
         safe_android_ver = f"{m_parts[0]}.{m_parts[1]}.{new_build}"
+        # Calculate a safe 32-bit versionCode (Max: 2,147,483,647)
+        # Formula: Major*1000000 + Minor*10000 + Build
+        numeric_version = int(m_parts[0])*1000000 + int(m_parts[1])*10000 + int(new_build)
         
         # Update string version
-        spec_content = re.sub(r'version = [\d.]+', f'version = {safe_android_ver}', spec_content)
+        spec_content = re.sub(r'version = [\d.-]+', f'version = {safe_android_ver}', spec_content)
         
-        # REMOVE numeric_version if it exists to let Buildozer calculate a clean one from the 3-part version
-        spec_content = re.sub(r'\nandroid\.numeric_version = .*\n', '\n', spec_content)
+        # Explicitly set numeric_version to avoid automatic overflow
+        if "android.numeric_version =" in spec_content:
+            spec_content = re.sub(r'android\.numeric_version = \d+', f'android.numeric_version = {numeric_version}', spec_content)
+        elif "# android.numeric_version =" in spec_content:
+            spec_content = re.sub(r'# android\.numeric_version =', f'android.numeric_version = {numeric_version}\n# android.numeric_version =', spec_content)
+        elif "#android.numeric_version =" in spec_content:
+            spec_content = re.sub(r'#android\.numeric_version =', f'android.numeric_version = {numeric_version}\n#android.numeric_version =', spec_content)
+        else:
+            # Add it after the version line
+            spec_content = re.sub(r'(version = [\d.-]+)', f'\\1\nandroid.numeric_version = {numeric_version}', spec_content)
 
         with open(buildozer_spec, "w", encoding="utf-8") as f:
             f.write(spec_content)
-        print(f"Updated {buildozer_spec} to {safe_android_ver}")
+        print(f"Updated {buildozer_spec} to {safe_android_ver} (Numeric: {numeric_version})")
 
     # 5. Update pyproject.toml
     if os.path.exists(pyproject_toml):
