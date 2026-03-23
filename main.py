@@ -9,8 +9,73 @@ import shutil
 import webbrowser
 from datetime import datetime
 
+# --- SAFE LOGGING (Native Android) ---
+def log_safe(msg):
+    try:
+        from jnius import autoclass
+        Log = autoclass('android.util.Log')
+        Log.d("BelindaAI", str(msg))
+    except:
+        # Fallback to Kivy Logger if possible
+        try:
+            from kivy.logger import Logger
+            Logger.info(f"BelindaAI: {msg}")
+        except:
+            print(f"BelindaAI: {msg}")
+
+def show_native_error_dialog(message):
+    """Shows a native Android AlertDialog if possible."""
+    try:
+        from jnius import autoclass, cast
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        activity = PythonActivity.mActivity
+        
+        if not activity: return False
+        
+        AlertDialogBuilder = autoclass('android.app.AlertDialog$Builder')
+        builder = AlertDialogBuilder(activity)
+        builder.setTitle(cast('java.lang.CharSequence', 'BELINDA AI: FATAL ERROR'))
+        builder.setMessage(cast('java.lang.CharSequence', str(message)))
+        builder.setPositiveButton(cast('java.lang.CharSequence', 'CLOSE'), None)
+        
+        activity.runOnUiThread(builder.show)
+        return True
+    except:
+        return False
+
+def send_crash_notification(err_msg):
+    """Sends a notification via Termux:API or Android system."""
+    try:
+        # 1. Try Termux-API
+        import subprocess
+        subprocess.run(["termux-notification", "-t", "Belinda AI: Crash Report", "-c", str(err_msg)[:100] + "...", "--priority", "high"], capture_output=True)
+    except:
+        # 2. Fallback to native Android notification if needed (Complex using jnius, but Termux usually sufficient)
+        pass
+
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    import traceback
+    err = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    log_safe(f"CRITICAL ERROR:\n{err}")
+    
+    # 1. Alert user visually
+    show_native_error_dialog(f"The app encountered a fatal error:\n\n{str(exc_value)}")
+    
+    # 2. Alert user via system notification
+    send_crash_notification(str(exc_value))
+    
+    # 3. Log to file
+    try:
+        with open("critical_crash.log", "a") as f:
+            from datetime import datetime
+            f.write(f"\n[{datetime.now()}] {err}\n")
+    except: pass
+
+import sys
+sys.excepthook = global_exception_handler
+
 # --- APP VERSION ---
-APP_VERSION = "1.4.7-31"
+APP_VERSION = "1.4.7-32"
 
 # Import Kivy as early as possible after version check
 try:
@@ -23,26 +88,6 @@ except ImportError:
 
 log_safe(">>> PHASE: SCRIPT START")
 log_safe(f">>> VERSION: {APP_VERSION}")
-
-# --- SAFE LOGGING (Native Android) ---
-def log_safe(msg):
-    try:
-        from jnius import autoclass
-        Log = autoclass('android.util.Log')
-        Log.d("BelindaAI", str(msg))
-    except:
-        Logger.info(f"BelindaAI: {msg}")
-
-def global_exception_handler(exc_type, exc_value, exc_traceback):
-    err = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-    log_safe(f"CRITICAL ERROR:\n{err}")
-    # Try writing to a fixed internal path if possible
-    try:
-        with open("critical_crash.log", "a") as f:
-            f.write(f"\n[{datetime.now()}] {err}\n")
-    except: pass
-
-sys.excepthook = global_exception_handler
 
 # Delayed imports to prevent early crash
 try:
@@ -383,16 +428,28 @@ class TaskWorker(threading.Thread):
 # --- SCREENS ---
 class SplashScreen(Screen):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.layout = FloatLayout()
-        self.logo_label = Label(text="BELINDA AI", font_size='42sp', bold=True, color=(1,1,1,0), pos_hint={'center_x': 0.5, 'center_y': 0.55})
-        tagline = random.choice(TAGLINES)
-        self.sub_label = Label(text=tagline, font_size='14sp', color=(1,1,1,0), pos_hint={'center_x': 0.5, 'center_y': 0.45})
-        self.ver_label = Label(text=f"v{APP_VERSION}", font_size='12sp', color=(1,1,1,0), pos_hint={'center_x': 0.5, 'y': 0.08})
-        self.layout.add_widget(self.logo_label)
-        self.layout.add_widget(self.sub_label)
-        self.layout.add_widget(self.ver_label)
-        self.add_widget(self.layout)
+        try:
+            super().__init__(**kwargs)
+            self.layout = FloatLayout()
+            self.add_widget(self.layout)
+            
+            # Logo/Title
+            self.logo_label = Label(text="BELINDA AI", font_size='42sp', bold=True, color=(1,1,1,0), pos_hint={'center_x': 0.5, 'center_y': 0.55})
+            tagline = random.choice(TAGLINES)
+            self.sub_label = Label(text=tagline, font_size='14sp', color=(1,1,1,0), pos_hint={'center_x': 0.5, 'center_y': 0.45})
+            self.ver_label = Label(text=f"v{APP_VERSION}", font_size='12sp', color=(1,1,1,0), pos_hint={'center_x': 0.5, 'y': 0.08})
+            
+            self.layout.add_widget(self.logo_label)
+            self.layout.add_widget(self.sub_label)
+            self.layout.add_widget(self.ver_label)
+            
+            # Keep the progress bar as a new safety feature
+            self.progress = ProgressBar(max=100, value=0, size_hint=(0.6, None), height=dp(4), pos_hint={'center_x': 0.5, 'center_y': 0.3}, opacity=0)
+            self.layout.add_widget(self.progress)
+            
+            Clock.schedule_once(lambda dt: self.delayed_startup(), 0.5)
+        except Exception as e:
+            log_safe(f"Error initializing SplashScreen: {e}")
 
     def on_enter(self):
         anim = Animation(color=(1,1,1,1), pos_hint={'center_y': 0.5}, duration=1.5, t='out_back')
@@ -413,19 +470,20 @@ class SplashScreen(Screen):
 
 class SetupScreen(Screen):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.layout = BoxLayout(orientation='vertical', padding=dp(30), spacing=dp(20))
-        self.lbl_title = Label(text="INITIAL SETUP", font_size='24sp', bold=True, size_hint_y=None, height=dp(50))
-        self.lbl_desc = Label(text="Files not found.", halign='center', size_hint_y=None, height=dp(100))
-        self.lbl_desc.bind(size=self.lbl_desc.setter('text_size'))
-        self.btn_clone = LiquidButton(text="CLONE PROJECT", size_hint_y=None, height=dp(55))
-        self.btn_clone.bind(on_release=self.start_clone)
-        self.layout.add_widget(Widget())
-        self.layout.add_widget(self.lbl_title)
-        self.layout.add_widget(self.lbl_desc)
-        self.layout.add_widget(self.btn_clone)
-        self.layout.add_widget(Widget())
-        self.add_widget(self.layout)
+        try:
+            super().__init__(**kwargs)
+            self.layout = BoxLayout(orientation='vertical', padding=dp(30), spacing=dp(20))
+            self.lbl_title = Label(text="INITIAL SETUP", font_size='24sp', bold=True, size_hint_y=None, height=dp(50))
+            self.lbl_desc = Label(text="Please ensure Termux is running in the background. \nClone the repository to continue.", halign='center', color=(1,1,1,0.7))
+            self.btn_clone = LiquidButton(text="CLONE PROJECT", size_hint_y=None, height=dp(55))
+            self.btn_clone.bind(on_release=self.start_clone)
+            self.layout.add_widget(self.lbl_title)
+            self.layout.add_widget(self.lbl_desc)
+            self.layout.add_widget(Widget()) # Spacer
+            self.layout.add_widget(self.btn_clone)
+            self.add_widget(self.layout)
+        except Exception as e:
+            log_safe(f"Error initializing SetupScreen: {e}")
 
     def start_clone(self, instance):
         self.btn_clone.disabled = True
@@ -571,50 +629,52 @@ class SetupScreen(Screen):
 
 class DashboardScreen(Screen):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.main = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
-        
-        self.card = LiquidCard(orientation='vertical', size_hint_y=None, height=dp(90))
-        self.lbl_sys = Label(text="SYSTEM STATUS", font_size='11sp')
-        self.lbl_status = Label(text="READY", font_size='22sp', bold=True)
-        self.card.add_widget(self.lbl_sys)
-        self.card.add_widget(self.lbl_status)
-        
-        self.console_card = LiquidCard(radius=[dp(15)])
-        self.console = TextInput(readonly=True, background_color=(0,0,0,0), foreground_color=(0,1,0,1), font_size='10sp')
-        self.console_card.add_widget(self.console)
-        
-        # New Structured Buttons Layout
-        controls = BoxLayout(orientation='vertical', spacing=dp(10), size_hint_y=None, height=dp(170))
-        self.btn_grid = GridLayout(cols=2, spacing=dp(10))
-        
-        self.btn_start = LiquidButton(text="START BOT")
-        self.btn_start.bind(on_release=lambda x: App.get_running_app().run_task('start'))
-        
-        self.btn_stop = LiquidButton(text="STOP BOT", bg_color=[1,0.3,0.3,1])
-        self.btn_stop.bind(on_release=lambda x: App.get_running_app().run_task('stop'))
-        
-        self.btn_reset = LiquidButton(text="RESET BOT", bg_color=[0.5,0.2,0.8,1])
-        self.btn_reset.bind(on_release=lambda x: App.get_running_app().run_task('reset'))
-        
-        self.btn_factory = LiquidButton(text="FACTORY RESET", bg_color=[1,0.2,0.2,1])
-        self.btn_factory.bind(on_release=lambda x: App.get_running_app().confirm_factory_reset())
-        
-        self.btn_grid.add_widget(self.btn_start)
-        self.btn_grid.add_widget(self.btn_stop)
-        self.btn_grid.add_widget(self.btn_reset)
-        self.btn_grid.add_widget(self.btn_factory)
-        
-        self.btn_deploy = LiquidButton(text="FULL DEPLOYMENT", bg_color=[0.2,0.8,0.4,1], size_hint_y=None, height=dp(55))
-        self.btn_deploy.bind(on_release=lambda x: App.get_running_app().run_task('deploy'))
-        
-        controls.add_widget(self.btn_grid)
-        controls.add_widget(self.btn_deploy)
-        
-        self.main.add_widget(self.card)
-        self.main.add_widget(self.console_card)
-        self.main.add_widget(controls)
-        self.add_widget(self.main)
+        try:
+            super().__init__(**kwargs)
+            self.main = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            
+            self.card = LiquidCard(orientation='vertical', size_hint_y=None, height=dp(90))
+            self.lbl_sys = Label(text="SYSTEM STATUS", font_size='11sp')
+            self.lbl_status = Label(text="READY", font_size='22sp', bold=True)
+            self.card.add_widget(self.lbl_sys)
+            self.card.add_widget(self.lbl_status)
+            
+            self.console_card = LiquidCard(radius=[dp(15)])
+            self.console = TextInput(readonly=True, background_color=(0,0,0,0), foreground_color=(0,1,0,1), font_size='10sp')
+            self.console_card.add_widget(self.console)
+            
+            controls = BoxLayout(orientation='vertical', spacing=dp(10), size_hint_y=None, height=dp(170))
+            self.btn_grid = GridLayout(cols=2, spacing=dp(10))
+            
+            self.btn_start = LiquidButton(text="START BOT")
+            self.btn_start.bind(on_release=lambda x: App.get_running_app().run_task('start'))
+            
+            self.btn_stop = LiquidButton(text="STOP BOT", bg_color=[1,0.3,0.3,1])
+            self.btn_stop.bind(on_release=lambda x: App.get_running_app().run_task('stop'))
+            
+            self.btn_reset = LiquidButton(text="RESET BOT", bg_color=[0.5,0.2,0.8,1])
+            self.btn_reset.bind(on_release=lambda x: App.get_running_app().run_task('reset'))
+            
+            self.btn_factory = LiquidButton(text="FACTORY RESET", bg_color=[1,0.2,0.2,1])
+            self.btn_factory.bind(on_release=lambda x: App.get_running_app().confirm_factory_reset())
+            
+            self.btn_grid.add_widget(self.btn_start)
+            self.btn_grid.add_widget(self.btn_stop)
+            self.btn_grid.add_widget(self.btn_reset)
+            self.btn_grid.add_widget(self.btn_factory)
+            
+            self.btn_deploy = LiquidButton(text="FULL DEPLOYMENT", size_hint_y=None, height=dp(55), bg_color=[0.2,0.8,0.4,1])
+            self.btn_deploy.bind(on_release=lambda x: App.get_running_app().run_task('deploy'))
+            
+            controls.add_widget(self.btn_grid)
+            controls.add_widget(self.btn_deploy)
+            
+            self.main.add_widget(self.card)
+            self.main.add_widget(self.console_card)
+            self.main.add_widget(controls)
+            self.add_widget(self.main)
+        except Exception as e:
+            log_safe(f"Error initializing DashboardScreen: {e}")
 
     def update_log(self, text):
         self.console.text += text
