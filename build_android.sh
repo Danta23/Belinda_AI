@@ -74,9 +74,11 @@ if ! is_buildozer_healthy; then
     # Apply Nuclear Patches (always safe to re-apply)
     PATCH_INIT=$(find "$BUILDOZER_VENV" -name "__init__.py" | grep "buildozer/__init__.py")
     if [ -f "$PATCH_INIT" ]; then
-        echo "    ! Applying urlretrieve patch to $PATCH_INIT..."
+        echo "    ! Applying nuclear urllib patch to $PATCH_INIT..."
+        # Fix for Python 3.14: urllib.request.FancyURLopener removal
         sed -i 's/from urllib.request import FancyURLopener/import urllib.request/g' "$PATCH_INIT"
-        sed -i '/class ChromeDownloader(FancyURLopener):/,/urlretrieve = ChromeDownloader().retrieve/c\def urlretrieve(url, filename=None, reporthook=None, data=None):\n    opener = urllib.request.build_opener()\n    opener.addheaders = [("User-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1500.71 Safari/537.36")]\n    urllib.request.install_opener(opener)\n    return urllib.request.urlretrieve(url, filename, reporthook, data)' "$PATCH_INIT"
+        sed -i 's/class ChromeDownloader(FancyURLopener):/class ChromeDownloader(object):/g' "$PATCH_INIT"
+        sed -i 's/FancyURLopener\.retrieve/urllib.request.urlretrieve/g' "$PATCH_INIT"
     fi
     
     PATCH_ANDROID=$(find "$BUILDOZER_VENV" -name "android.py" | grep "buildozer/targets/android.py")

@@ -10,6 +10,10 @@ import webbrowser
 import urllib.parse
 from datetime import datetime
 
+# --- APP VERSION ---
+# Define this as early as possible so global_exception_handler can use it
+APP_VERSION = "1.4.7.2-1"
+
 # --- SAFE LOGGING (Native Android) ---
 def log_safe(msg):
     try:
@@ -83,43 +87,67 @@ def send_crash_notification(err_msg):
         pass
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
-    import traceback
-    err = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-    log_safe(f"CRITICAL ERROR:\n{err}")
-    
-    # 1. Alert user visually
-    show_native_error_dialog(f"The app encountered a fatal error:\n\n{str(exc_value)}")
-    
-    # 2. Alert user via system notification
-    send_crash_notification(str(exc_value))
-    
-    # 3. Automatically offer to report to GitHub
-    open_github_report(err)
-    
-    # 4. Log to file
+    # 0. Wrap the handler itself to prevent recursion/secondary crashes
     try:
-        with open("critical_crash.log", "a") as f:
-            from datetime import datetime
-            f.write(f"\n[{datetime.now()}] {err}\n")
-    except: pass
+        import traceback
+        err = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        log_safe(f"CRITICAL ERROR:\n{err}")
+        
+        # 1. Log to emergency file FIRST (Most reliable)
+        try:
+            log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
+            with open(os.path.join(log_dir, "emergency_crash.log"), "a") as f:
+                f.write(f"\n[{datetime.now()}] GLOBAL EXCEPTION:\n{err}\n")
+        except: pass
+
+        # 2. Alert user via notification
+        try: send_crash_notification(str(exc_value))
+        except: pass
+        
+        # 3. Alert user visually (Native Dialog)
+        try: show_native_error_dialog(f"FATAL ERROR:\n{str(exc_value)}")
+        except: pass
+        
+        # 4. Attempt GitHub Report
+        try: open_github_report(err)
+        except: pass
+    except:
+        # Absolute last resort: print to stderr
+        print("CRITICAL: Exception handler itself crashed.")
+        try:
+            import traceback
+            traceback.print_exc()
+        except: pass
 
 import sys
 sys.excepthook = global_exception_handler
 
-# --- APP VERSION ---
-APP_VERSION = "1.4.7-33"
+# --- APP VERSION MOVED TO TOP ---
 
 # Import Kivy as early as possible after version check
 try:
     from kivy.app import App
     from kivy.logger import Logger
     from kivy.clock import Clock
-except ImportError:
-    print("CRITICAL: Kivy missing.")
+    from kivy.utils import platform
+    from kivy.metrics import dp
+except Exception as e:
+    print(f"CRITICAL: Early Kivy import failure: {e}")
+    # We can't use log_safe here yet because it might rely on Kivy Logger
     sys.exit(1)
 
 log_safe(">>> PHASE: SCRIPT START")
 log_safe(f">>> VERSION: {APP_VERSION}")
+
+# Android-only imports
+request_permissions = None
+Permission = None
+if platform == 'android':
+    try:
+        from android.permissions import request_permissions, Permission
+        log_safe("System: Android permissions module loaded.")
+    except Exception as e:
+        log_safe(f"Warning: Android permissions module unavailable: {e}")
 
 # Delayed imports to prevent early crash
 try:
@@ -309,9 +337,21 @@ class LiquidPopup(Popup):
 
 class SettingsManager:
     def __init__(self):
-        # Use a safe path for data storage on Android
-        log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
+        # Use Kivy's user data directory for safe storage on all platforms
+        from kivy.app import App
+        app = App.get_running_app()
+        if app:
+            log_dir = app.user_data_dir
+        else:
+            # Fallback for early initialization before App.run()
+            log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
+            
+        if not os.path.exists(log_dir):
+            try: os.makedirs(log_dir, exist_ok=True)
+            except: pass
+            
         self.file = os.path.join(log_dir, "mobile_settings.json")
+        log_safe(f"System: Settings path: {self.file}")
         self.data = self.load()
 
     def load(self):
@@ -1049,18 +1089,26 @@ class BelindaApp(App):
 
 # --- PROTECTED APP START ---
 if __name__ == '__main__':
+    log_safe("System: Main Entry Point Initiated")
     try:
         # Final safety: Ensure jnius is ready before logger calls
         log_safe("System: Bootstrap starting...")
+        
+        # Initialize Kivy App
         app = BelindaApp()
-        log_safe("System: App instance created. Running...")
+        log_safe(f"System: App instance created (id={id(app)}). Running...")
+        
+        # Run the app
         app.run()
+        
+        log_safe("System: App execution finished normally.")
     except Exception as launch_err:
         log_safe(f"FATAL LAUNCH ERROR: {launch_err}")
+        traceback.print_exc()
+        # Trigger the global handler manually if it didn't catch it
         try:
-            # Emergency log to file
-            log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
-            with open(os.path.join(log_dir, "emergency_crash.log"), "a") as f:
-                f.write(f"\n[{datetime.now()}] LAUNCH FAILURE:\n{traceback.format_exc()}\n")
-        except: pass
+            global_exception_handler(type(launch_err), launch_err, launch_err.__traceback__)
+        except:
+            # Last resort print
+            print(f"FAILED TO HANDLER CRASH: {launch_err}")
         sys.exit(1)
