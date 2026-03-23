@@ -11,120 +11,43 @@ import urllib.parse
 from datetime import datetime
 
 # --- APP VERSION ---
-# Define this as early as possible so global_exception_handler can use it
-APP_VERSION = "1.4.7.2-1"
+APP_VERSION = "1.4.7.2-4"
 
-# --- SAFE LOGGING (Native Android) ---
-def log_safe(msg):
+# --- EARLY CRASH LOG (works before Kivy is loaded) ---
+def _write_crash_log(msg):
+    """Write crash info to a file. Works everywhere, even before Kivy."""
     try:
-        from jnius import autoclass
-        Log = autoclass('android.util.Log')
-        Log.d("BelindaAI", str(msg))
+        log_dir = os.environ.get('PYTHON_HOME', os.path.dirname(os.path.abspath(__file__)))
+        crash_file = os.path.join(log_dir, "crash_report.log")
+        with open(crash_file, "a") as f:
+            f.write(f"\n[{datetime.now()}] {msg}\n")
     except:
-        # Fallback to Kivy Logger if possible
-        try:
-            from kivy.logger import Logger
-            Logger.info(f"BelindaAI: {msg}")
-        except:
-            print(f"BelindaAI: {msg}")
-
-def show_native_error_dialog(message):
-    """Shows a native Android AlertDialog if possible."""
-    try:
-        from jnius import autoclass, cast
-        PythonActivity = autoclass('org.kivy.android.PythonActivity')
-        activity = PythonActivity.mActivity
-        
-        if not activity: return False
-        
-        AlertDialogBuilder = autoclass('android.app.AlertDialog$Builder')
-        builder = AlertDialogBuilder(activity)
-        builder.setTitle(cast('java.lang.CharSequence', 'BELINDA AI: FATAL ERROR'))
-        builder.setMessage(cast('java.lang.CharSequence', str(message)))
-        builder.setPositiveButton(cast('java.lang.CharSequence', 'CLOSE'), None)
-        
-        activity.runOnUiThread(builder.show)
-        return True
-    except:
-        return False
-
-def open_github_report(error_message):
-    """Constructs a GitHub issue URL and attempts to open it via App or Browser."""
-    try:
-        base_url = "https://github.com/Danta23/Belinda_AI/issues/new"
-        title = f"[CRASH] v{APP_VERSION} - {str(error_message)[:50]}..."
-        body = f"## Crash Details\n- **Version**: {APP_VERSION}\n- **Time**: {datetime.now()}\n\n### Traceback\n```python\n{error_message}\n```"
-        
-        encoded_url = f"{base_url}?title={urllib.parse.quote(title)}&body={urllib.parse.quote(body)}"
-        
-        # 1. Try to open via Android Intent (GitHub App)
-        from kivy.utils import platform
-        if platform == 'android':
-            try:
-                from jnius import autoclass
-                PythonActivity = autoclass('org.kivy.android.PythonActivity')
-                Intent = autoclass('android.content.Intent')
-                Uri = autoclass('android.net.Uri')
-                
-                intent = Intent(Intent.ACTION_VIEW, Uri.parse(encoded_url))
-                PythonActivity.mActivity.startActivity(intent)
-                return
-            except: pass
-            
-        # 2. Fallback to default browser
-        webbrowser.open(encoded_url)
-    except Exception as e:
-        log_safe(f"Failed to open GitHub report: {e}")
-
-def send_crash_notification(err_msg):
-    """Sends a notification via Termux:API or Android system."""
-    try:
-        # 1. Try Termux-API
-        import subprocess
-        subprocess.run(["termux-notification", "-t", "Belinda AI: Crash Report", "-c", str(err_msg)[:100] + "...", "--priority", "high"], capture_output=True)
-    except:
-        # 2. Fallback to native Android notification if needed (Complex using jnius, but Termux usually sufficient)
         pass
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
-    # 0. Wrap the handler itself to prevent recursion/secondary crashes
+    """Global crash handler - writes to file and tries to show Kivy popup."""
     try:
-        import traceback
         err = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-        log_safe(f"CRITICAL ERROR:\n{err}")
-        
-        # 1. Log to emergency file FIRST (Most reliable)
+        _write_crash_log(f"GLOBAL EXCEPTION:\n{err}")
+        # Try to show a Kivy popup if the app is running
         try:
-            log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
-            with open(os.path.join(log_dir, "emergency_crash.log"), "a") as f:
-                f.write(f"\n[{datetime.now()}] GLOBAL EXCEPTION:\n{err}\n")
-        except: pass
-
-        # 2. Alert user via notification
-        try: send_crash_notification(str(exc_value))
-        except: pass
-        
-        # 3. Alert user visually (Native Dialog)
-        try: show_native_error_dialog(f"FATAL ERROR:\n{str(exc_value)}")
-        except: pass
-        
-        # 4. Attempt GitHub Report
-        try: open_github_report(err)
-        except: pass
+            from kivy.app import App
+            from kivy.clock import Clock
+            app = App.get_running_app()
+            if app and hasattr(app, 'show_error_popup'):
+                Clock.schedule_once(lambda dt: app.show_error_popup(
+                    "FATAL CRASH",
+                    f"{exc_value}\n\nSee crash_report.log for details."
+                ), 0)
+                time.sleep(5)  # Give popup time to display
+        except:
+            pass
     except:
-        # Absolute last resort: print to stderr
-        print("CRITICAL: Exception handler itself crashed.")
-        try:
-            import traceback
-            traceback.print_exc()
-        except: pass
+        print(f"CRASH HANDLER FAILED: {exc_value}")
 
-import sys
 sys.excepthook = global_exception_handler
 
-# --- APP VERSION MOVED TO TOP ---
-
-# Import Kivy as early as possible after version check
+# --- KIVY IMPORTS (Phase 1: Core) ---
 try:
     from kivy.app import App
     from kivy.logger import Logger
@@ -132,24 +55,11 @@ try:
     from kivy.utils import platform
     from kivy.metrics import dp
 except Exception as e:
-    print(f"CRITICAL: Early Kivy import failure: {e}")
-    # We can't use log_safe here yet because it might rely on Kivy Logger
+    _write_crash_log(f"CRITICAL: Cannot load Kivy core: {e}")
+    print(f"CRITICAL: Kivy import failed: {e}")
     sys.exit(1)
 
-log_safe(">>> PHASE: SCRIPT START")
-log_safe(f">>> VERSION: {APP_VERSION}")
-
-# Android-only imports
-request_permissions = None
-Permission = None
-if platform == 'android':
-    try:
-        from android.permissions import request_permissions, Permission
-        log_safe("System: Android permissions module loaded.")
-    except Exception as e:
-        log_safe(f"Warning: Android permissions module unavailable: {e}")
-
-# Delayed imports to prevent early crash
+# --- KIVY IMPORTS (Phase 2: UI Widgets) ---
 try:
     from kivy.core.window import Window
     from kivy.uix.boxlayout import BoxLayout
@@ -161,28 +71,28 @@ try:
     from kivy.uix.scrollview import ScrollView
     from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
     from kivy.uix.widget import Widget
+    from kivy.uix.popup import Popup
     from kivy.graphics import Color, RoundedRectangle, Line, Rectangle
     from kivy.animation import Animation
-    from kivy.metrics import dp
     from kivy.utils import get_color_from_hex
     from kivy.uix.progressbar import ProgressBar
     from kivy.properties import StringProperty, ListProperty, NumericProperty, BooleanProperty, ObjectProperty
-    import random
-    from kivy.utils import platform
-    request_permissions = None
-    Permission = None
-    if platform == 'android':
-        try:
-            from android.permissions import request_permissions, Permission
-        except ImportError:
-            log_safe("Android permissions module not found.")
 except Exception as e:
-    log_safe(f"Import failure: {e}")
-except ImportError:
-    print("CRITICAL: Kivy is not installed. Please run 'pip install kivy'.")
+    _write_crash_log(f"CRITICAL: Cannot load Kivy UI: {e}")
+    print(f"CRITICAL: Kivy UI import failed: {e}")
     sys.exit(1)
 
+# --- ANDROID PERMISSIONS (safe import) ---
+request_permissions = None
+Permission = None
+if platform == 'android':
+    try:
+        from android.permissions import request_permissions, Permission
+    except Exception:
+        pass
+
 import random
+
 
 # --- CONFIG & CONSTANTS ---
 TAGLINES = [
@@ -351,7 +261,7 @@ class SettingsManager:
             except: pass
             
         self.file = os.path.join(log_dir, "mobile_settings.json")
-        log_safe(f"System: Settings path: {self.file}")
+        _write_crash_log(f"System: Settings path: {self.file}")
         self.data = self.load()
 
     def load(self):
@@ -523,13 +433,13 @@ class SplashScreen(Screen):
             self.progress = ProgressBar(max=100, value=0, size_hint=(0.6, None), height=dp(4), pos_hint={'center_x': 0.5, 'center_y': 0.3}, opacity=0)
             self.layout.add_widget(self.progress)
             
-            log_safe("System: SplashScreen.__init__ - Scheduling delayed_startup")
+            _write_crash_log("System: SplashScreen.__init__ - Scheduling delayed_startup")
             Clock.schedule_once(lambda dt: self.delayed_startup(), 0.5)
         except Exception as e:
-            log_safe(f"Error initializing SplashScreen: {e}")
+            _write_crash_log(f"Error initializing SplashScreen: {e}")
 
     def on_enter(self):
-        log_safe("System: SplashScreen.on_enter() - Starting animations")
+        _write_crash_log("System: SplashScreen.on_enter() - Starting animations")
         anim = Animation(color=(1,1,1,1), pos_hint={'center_y': 0.5}, duration=1.5, t='out_back')
         anim.start(self.logo_label)
         anim_sub = Animation(color=(1,1,1,0.6), duration=2)
@@ -540,13 +450,13 @@ class SplashScreen(Screen):
         Clock.schedule_once(lambda dt: self.delayed_startup(), 3.5)
 
     def delayed_startup(self):
-        log_safe("System: SplashScreen.delayed_startup() - Starting file checks")
+        _write_crash_log("System: SplashScreen.delayed_startup() - Starting file checks")
         app = App.get_running_app()
         if app and hasattr(app, 'check_files_and_switch'):
             app.check_files_and_switch()
-            log_safe("System: SplashScreen.delayed_startup() - Switch requested")
+            _write_crash_log("System: SplashScreen.delayed_startup() - Switch requested")
         else:
-            log_safe("Warning: App not ready for splash finish.")
+            _write_crash_log("Warning: App not ready for splash finish.")
 
 class SetupScreen(Screen):
     def __init__(self, **kwargs):
@@ -563,7 +473,7 @@ class SetupScreen(Screen):
             self.layout.add_widget(self.btn_clone)
             self.add_widget(self.layout)
         except Exception as e:
-            log_safe(f"Error initializing SetupScreen: {e}")
+            _write_crash_log(f"Error initializing SetupScreen: {e}")
 
     def start_clone(self, instance):
         self.btn_clone.disabled = True
@@ -754,7 +664,7 @@ class DashboardScreen(Screen):
             self.main.add_widget(controls)
             self.add_widget(self.main)
         except Exception as e:
-            log_safe(f"Error initializing DashboardScreen: {e}")
+            _write_crash_log(f"Error initializing DashboardScreen: {e}")
 
     def update_log(self, text):
         self.console.text += text
@@ -856,11 +766,49 @@ class BelindaApp(App):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.is_running = True
-        log_safe("System: BelindaApp.__init__ complete.")
+
+    def show_error_popup(self, title, message):
+        """Show a Kivy Popup with error details — visible on ALL platforms."""
+        try:
+            content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
+            
+            # Error message (scrollable)
+            scroll = ScrollView(size_hint_y=0.7)
+            error_label = Label(
+                text=str(message),
+                font_size='12sp',
+                color=(1, 0.3, 0.3, 1),
+                size_hint_y=None,
+                text_size=(dp(280), None),
+                halign='left',
+                valign='top'
+            )
+            error_label.bind(texture_size=error_label.setter('size'))
+            scroll.add_widget(error_label)
+            content.add_widget(scroll)
+            
+            # Close button
+            btn_close = Button(
+                text="CLOSE",
+                size_hint_y=None,
+                height=dp(45),
+                background_color=(0.8, 0.2, 0.2, 1)
+            )
+            content.add_widget(btn_close)
+            
+            popup = Popup(
+                title=f"⚠ {title}",
+                content=content,
+                size_hint=(0.9, 0.7),
+                auto_dismiss=False
+            )
+            btn_close.bind(on_release=popup.dismiss)
+            popup.open()
+        except Exception as e:
+            _write_crash_log(f"show_error_popup itself failed: {e}")
 
     def build(self):
         try:
-            log_safe("System: build() started. Initializing screens...")
             self.settings = SettingsManager()
             self.root = FloatLayout()
             self.bg = LiquidBackground()
@@ -903,24 +851,43 @@ class BelindaApp(App):
             if platform == 'android' and request_permissions:
                 self.request_android_permissions()
                 
-            log_safe("System: build() complete. Returning root.")
             return self.root
         except Exception as build_err:
-            log_safe(f"FATAL ERROR in build(): {build_err}")
-            # Emergency fallback: minimal label to show error on screen
-            err_box = BoxLayout(orientation='vertical', padding=dp(20))
-            err_box.add_widget(Label(text="FATAL STARTUP ERROR", color=(1,0,0,1), bold=True))
-            err_box.add_widget(Label(text=str(build_err), font_size='12sp'))
-            
-            btn_report = Button(text="REPORT BUG ON GITHUB", size_hint=(0.8, None), height=dp(50), background_color=(0.2, 0.6, 1, 1))
-            btn_report.bind(on_release=lambda x: open_github_report(traceback.format_exc()))
-            err_box.add_widget(btn_report)
-            
-            return err_box
+            _write_crash_log(f"FATAL ERROR in build(): {build_err}\n{traceback.format_exc()}")
+            # Show a visual crash screen instead of silently dying
+            crash_box = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(15))
+            crash_box.add_widget(Label(
+                text="⚠ BELINDA AI CRASH ⚠",
+                font_size='28sp',
+                color=(1, 0.2, 0.2, 1),
+                bold=True,
+                size_hint_y=0.15
+            ))
+            crash_box.add_widget(Label(
+                text=f"Version: {APP_VERSION}\n\nError:\n{str(build_err)}",
+                font_size='13sp',
+                color=(1, 1, 1, 0.9),
+                size_hint_y=0.6,
+                text_size=(dp(300), None),
+                halign='left',
+                valign='top'
+            ))
+            btn_report = Button(
+                text="TAP TO REPORT BUG ON GITHUB",
+                size_hint=(1, None),
+                height=dp(55),
+                background_color=(0.2, 0.6, 1, 1),
+                bold=True
+            )
+            btn_report.bind(on_release=lambda x: webbrowser.open(
+                f"https://github.com/Danta23/Belinda_AI/issues/new?title={urllib.parse.quote(f'[CRASH] v{APP_VERSION}')}&body={urllib.parse.quote(f'Error: {build_err}')}"
+            ))
+            crash_box.add_widget(btn_report)
+            return crash_box
 
     def request_android_permissions(self):
         if not request_permissions or not Permission:
-            log_safe("Android permissions not available for request.")
+            _write_crash_log("Android permissions not available for request.")
             return
         try:
             request_permissions([
@@ -929,7 +896,7 @@ class BelindaApp(App):
                 Permission.POST_NOTIFICATIONS
             ])
         except Exception as e:
-            log_safe(f"Permission request failed: {e}")
+            _write_crash_log(f"Permission request failed: {e}")
 
     def on_pause(self):
         # Return True to allow the app to be paused (backgrounded)
@@ -941,7 +908,7 @@ class BelindaApp(App):
     def on_stop(self):
         # App is closing. Stop internal updates but keep bot in background if intended.
         self.is_running = False
-        log_safe("System: App manager stopping. Background bot services remain active.")
+        _write_crash_log("System: App manager stopping. Background bot services remain active.")
         # Note: We NO LONGER call run_task('stop') here to allow background running.
         time.sleep(0.5)
 
@@ -990,7 +957,7 @@ class BelindaApp(App):
         return True
 
     def check_files_and_switch(self):
-        log_safe(f"System: check_files_and_switch() - Path: {os.getcwd()}")
+        _write_crash_log(f"System: check_files_and_switch() - Path: {os.getcwd()}")
         if os.path.exists("bridge.js"):
             self.sm.current = 'dash'; self.nav.opacity = 1; self.nav.disabled = False
             if not self.settings.data.get("deployed", False): self.dash.btn_start.disabled = True; self.dash.btn_start.opacity = 0.5
@@ -998,7 +965,7 @@ class BelindaApp(App):
             try:
                 # Prevent recursive chdir if already inside
                 if not os.path.abspath(os.getcwd()).endswith("Belinda_AI"):
-                    log_safe("System: Entering Belinda_AI subdirectory...")
+                    _write_crash_log("System: Entering Belinda_AI subdirectory...")
                     os.chdir("Belinda_AI")
                 self.sm.current = 'dash'; self.nav.opacity = 1; self.nav.disabled = False
                 if not self.settings.data.get("deployed", False): self.dash.btn_start.disabled = True; self.dash.btn_start.opacity = 0.5
@@ -1089,21 +1056,21 @@ class BelindaApp(App):
 
 # --- PROTECTED APP START ---
 if __name__ == '__main__':
-    log_safe("System: Main Entry Point Initiated")
+    _write_crash_log("System: Main Entry Point Initiated")
     try:
         # Final safety: Ensure jnius is ready before logger calls
-        log_safe("System: Bootstrap starting...")
+        _write_crash_log("System: Bootstrap starting...")
         
         # Initialize Kivy App
         app = BelindaApp()
-        log_safe(f"System: App instance created (id={id(app)}). Running...")
+        _write_crash_log(f"System: App instance created (id={id(app)}). Running...")
         
         # Run the app
         app.run()
         
-        log_safe("System: App execution finished normally.")
+        _write_crash_log("System: App execution finished normally.")
     except Exception as launch_err:
-        log_safe(f"FATAL LAUNCH ERROR: {launch_err}")
+        _write_crash_log(f"FATAL LAUNCH ERROR: {launch_err}")
         traceback.print_exc()
         # Trigger the global handler manually if it didn't catch it
         try:
