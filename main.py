@@ -2,20 +2,25 @@ import os
 import sys
 import threading
 import subprocess
-import time
+import asyncio
 import json
 import traceback
 import shutil
 import webbrowser
 import urllib.parse
 from datetime import datetime
+import time
+import random
+
+import toga
+from toga.style import Pack
+from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
 # --- APP VERSION ---
-APP_VERSION = "1.4.7.2-4"
+APP_VERSION = "1.4.7.2-5"
 
-# --- EARLY CRASH LOG (works before Kivy is loaded) ---
+# --- EARLY CRASH LOG ---
 def _write_crash_log(msg):
-    """Write crash info to a file. Works everywhere, even before Kivy."""
     try:
         log_dir = os.environ.get('PYTHON_HOME', os.path.dirname(os.path.abspath(__file__)))
         crash_file = os.path.join(log_dir, "crash_report.log")
@@ -25,76 +30,15 @@ def _write_crash_log(msg):
         pass
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
-    """Global crash handler - writes to file and tries to show Kivy popup."""
     try:
         err = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
         _write_crash_log(f"GLOBAL EXCEPTION:\n{err}")
-        # Try to show a Kivy popup if the app is running
-        try:
-            from kivy.app import App
-            from kivy.clock import Clock
-            app = App.get_running_app()
-            if app and hasattr(app, 'show_error_popup'):
-                Clock.schedule_once(lambda dt: app.show_error_popup(
-                    "FATAL CRASH",
-                    f"{exc_value}\n\nSee crash_report.log for details."
-                ), 0)
-                time.sleep(5)  # Give popup time to display
-        except:
-            pass
     except:
         print(f"CRASH HANDLER FAILED: {exc_value}")
 
 sys.excepthook = global_exception_handler
 
-# --- KIVY IMPORTS (Phase 1: Core) ---
-try:
-    from kivy.app import App
-    from kivy.logger import Logger
-    from kivy.clock import Clock
-    from kivy.utils import platform
-    from kivy.metrics import dp
-except Exception as e:
-    _write_crash_log(f"CRITICAL: Cannot load Kivy core: {e}")
-    print(f"CRITICAL: Kivy import failed: {e}")
-    sys.exit(1)
-
-# --- KIVY IMPORTS (Phase 2: UI Widgets) ---
-try:
-    from kivy.core.window import Window
-    from kivy.uix.boxlayout import BoxLayout
-    from kivy.uix.floatlayout import FloatLayout
-    from kivy.uix.gridlayout import GridLayout
-    from kivy.uix.button import Button
-    from kivy.uix.label import Label
-    from kivy.uix.textinput import TextInput
-    from kivy.uix.scrollview import ScrollView
-    from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
-    from kivy.uix.widget import Widget
-    from kivy.uix.popup import Popup
-    from kivy.graphics import Color, RoundedRectangle, Line, Rectangle
-    from kivy.animation import Animation
-    from kivy.utils import get_color_from_hex
-    from kivy.uix.progressbar import ProgressBar
-    from kivy.properties import StringProperty, ListProperty, NumericProperty, BooleanProperty, ObjectProperty
-except Exception as e:
-    _write_crash_log(f"CRITICAL: Cannot load Kivy UI: {e}")
-    print(f"CRITICAL: Kivy UI import failed: {e}")
-    sys.exit(1)
-
-# --- ANDROID PERMISSIONS (safe import) ---
-request_permissions = None
-Permission = None
-if platform == 'android':
-    try:
-        from android.permissions import request_permissions, Permission
-    except Exception:
-        pass
-
-import random
-
-
-# --- CONFIG & CONSTANTS ---
+# --- CONSTANTS ---
 TAGLINES = [
     "Liquid Mobile Edition",
     "Your AI Assistant on the Go",
@@ -190,78 +134,32 @@ TRANSLATIONS = {
     }
 }
 
-# --- THEMES ---
 DARK_THEME = {
-    "bg": get_color_from_hex('#0F0F14'),
-    "card": (0.1, 0.1, 0.2, 0.6),
-    "border": (0.4, 0.6, 1.0, 0.3),
-    "text": (1, 1, 1, 1),
-    "text_sec": (1, 1, 1, 0.6),
-    "input_bg": (0, 0, 0, 0.4),
-    "console_text": (0, 1, 0, 1)
+    "bg": "#0F0F14",
+    "card": "#1A1A24",
+    "text": "#FFFFFF",
+    "text_sec": "#A0A0A0",
+    "input_bg": "#000000",
+    "console_text": "#33FF33"
 }
+
 LIGHT_THEME = {
-    "bg": get_color_from_hex('#F8F9FA'),
-    "card": (1, 1, 1, 0.95),
-    "border": (0, 0, 0, 0.1),
-    "text": (0, 0, 0, 0.95),
-    "text_sec": (0.1, 0.1, 0.1, 0.7),
-    "input_bg": (0, 0, 0, 0.08),
-    "console_text": (0, 0, 0, 0.9)
+    "bg": "#F8F9FA",
+    "card": "#FFFFFF",
+    "text": "#000000",
+    "text_sec": "#505050",
+    "input_bg": "#E0E0E0",
+    "console_text": "#000000"
 }
 
-# --- UTILS ---
-from kivy.uix.popup import Popup
-
-class LiquidPopup(Popup):
-    def __init__(self, title_text, desc_text, on_yes, **kwargs):
-        super().__init__(**kwargs)
-        self.app = App.get_running_app()
-        self.title = title_text
-        self.size_hint = (0.85, 0.4)
-        self.separator_color = [0.2, 0.8, 1, 1]
-        self.background = ""
-        
-        content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
-        with content.canvas.before:
-            Color(0.1, 0.1, 0.15, 0.95)
-            RoundedRectangle(pos=content.pos, size=content.size, radius=[dp(20)])
-        
-        lbl = Label(text=desc_text, halign='center', font_size='14sp')
-        lbl.bind(size=lbl.setter('text_size'))
-        
-        btns = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
-        btn_no_text = self.app.get_text("btn_no") if self.app else "CANCEL"
-        btn_no = LiquidButton(text=btn_no_text, bg_color=[0.4, 0.4, 0.4, 1])
-        btn_no.bind(on_release=self.dismiss)
-        
-        btn_yes_text = self.app.get_text("btn_yes") if self.app else "YES"
-        btn_yes = LiquidButton(text=btn_yes_text, bg_color=[1, 0.2, 0.2, 1])
-        btn_yes.bind(on_release=lambda x: [on_yes(), self.dismiss()])
-        
-        btns.add_widget(btn_no)
-        btns.add_widget(btn_yes)
-        content.add_widget(lbl)
-        content.add_widget(btns)
-        self.content = content
+ACCENT_BLUE = "#33CCFF"
+DANGER_RED = "#FF4D4D"
+SUCCESS_GREEN = "#33CC66"
 
 class SettingsManager:
-    def __init__(self):
-        # Use Kivy's user data directory for safe storage on all platforms
-        from kivy.app import App
-        app = App.get_running_app()
-        if app:
-            log_dir = app.user_data_dir
-        else:
-            # Fallback for early initialization before App.run()
-            log_dir = os.environ.get('PYTHON_HOME', os.getcwd())
-            
-        if not os.path.exists(log_dir):
-            try: os.makedirs(log_dir, exist_ok=True)
-            except: pass
-            
-        self.file = os.path.join(log_dir, "mobile_settings.json")
-        _write_crash_log(f"System: Settings path: {self.file}")
+    def __init__(self, app):
+        self.app = app
+        self.file = os.path.join(self.app.paths.data, "settings.json")
         self.data = self.load()
 
     def load(self):
@@ -274,643 +172,146 @@ class SettingsManager:
 
     def save(self):
         try:
+            os.makedirs(os.path.dirname(self.file), exist_ok=True)
             with open(self.file, 'w', encoding='utf-8') as f:
                 json.dump(self.data, f)
-        except Exception as e:
-            print(f"Failed to save settings: {e}")
+        except: pass
 
-# --- CUSTOM UI WIDGETS ---
-class LiquidBackground(Widget):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        with self.canvas:
-            self.bg_color = Color(rgba=DARK_THEME["bg"])
-            self.rect = Rectangle(pos=self.pos, size=self.size)
-            self.orb1_color = Color(0.2, 0.1, 0.4, 0.2)
-            self.orb1 = RoundedRectangle(pos=(0, 0), size=(dp(300), dp(300)), radius=[dp(150)])
-            self.orb2_color = Color(0.1, 0.3, 0.4, 0.15)
-            self.orb2 = RoundedRectangle(pos=(dp(200), dp(400)), size=(dp(400), dp(400)), radius=[dp(200)])
-        self.bind(pos=self.update_rect, size=self.update_rect)
-        self.animate_orbs()
-
-    def update_rect(self, *args):
-        self.rect.pos = self.pos
-        self.rect.size = self.size
-
-    def animate_orbs(self):
-        anim1 = Animation(pos=(dp(50), dp(100)), duration=10, t='in_out_sine') + \
-                Animation(pos=(dp(-50), dp(-50)), duration=10, t='in_out_sine')
-        anim1.repeat = True
-        anim1.start(self.orb1)
-        anim2 = Animation(pos=(dp(100), dp(200)), duration=15, t='in_out_sine') + \
-                Animation(pos=(dp(300), dp(500)), duration=15, t='in_out_sine')
-        anim2.repeat = True
-        anim2.start(self.orb2)
-
-class LiquidCard(BoxLayout):
-    radius = ListProperty([dp(20)])
-    def __init__(self, **kwargs):
-        if 'radius' in kwargs:
-            self.radius = kwargs.pop('radius')
-        super().__init__(**kwargs)
-        self.padding = dp(15)
-        self.background_color = (0,0,0,0)
-        with self.canvas.before:
-            self.color_node = Color(0,0,0,0)
-            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=self.radius)
-            self.line_color = Color(0,0,0,0)
-            self.border = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, self.radius[0]), width=1.1)
-        self.bind(pos=self.update_rect, size=self.update_rect)
-
-    def update_rect(self, *args):
-        self.rect.pos = self.pos
-        self.rect.size = self.size
-        self.rect.radius = self.radius
-        self.border.rounded_rectangle = (self.x, self.y, self.width, self.height, self.radius[0])
-
-class LiquidButton(Button):
-    bg_color = ListProperty([0.2, 0.7, 1, 1])
-    radius = ListProperty([dp(12)])
-    def __init__(self, **kwargs):
-        if 'radius' in kwargs:
-            self.radius = kwargs.pop('radius')
-        super().__init__(**kwargs)
-        self.background_normal = ''
-        self.background_down = ''
-        self.background_color = (0,0,0,0)
-        self.bold = True
-        with self.canvas.before:
-            self.btn_color = Color(*self.bg_color)
-            self.btn_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=self.radius)
-        self.bind(pos=self.update_btn, size=self.update_btn)
-
-    def update_btn(self, *args):
-        self.btn_rect.pos = self.pos
-        self.btn_rect.size = self.size
-        self.btn_rect.radius = self.radius
-
-# --- WORKER THREAD ---
-class TaskWorker(threading.Thread):
-    def __init__(self, task, callback_log, callback_done):
-        super().__init__()
-        self.task = task
-        self._log = callback_log
-        self.callback_done = callback_done
-        self.daemon = True
-
-    def callback_log(self, text):
-        Clock.schedule_once(lambda dt: self._log(text))
-
-    def run(self):
-        try:
-            if self.task == 'session':
-                self.callback_log(">>> Wiping session folder...\n")
-                if os.path.exists("auth_info"): shutil.rmtree("auth_info")
-                self.callback_log(">>> Session wiped. Restart bot.\n")
-                self.callback_done(True)
-                return
-            
-            if self.task == 'deploy':
-                self.run_deployment()
-                return
-
-            script_map = {
-                'start': 'start_termux.sh' if os.path.exists('start_termux.sh') else 'start.sh',
-                'stop': 'stop_termux.sh' if os.path.exists('stop_termux.sh') else 'stop.sh',
-                'reset': 'reset_termux.sh' if os.path.exists('reset_termux.sh') else 'reset.sh'
-            }
-            cmd = script_map.get(self.task)
-            if not cmd:
-                self.callback_log(f"Unknown task: {self.task}\n")
-                self.callback_done(False)
-                return
-            try: subprocess.run(['chmod', '+x', cmd])
-            except: pass
-            self.callback_log(f">>> Executing {cmd}...\n")
-            process = subprocess.Popen(['bash', cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, universal_newlines=True)
-            for line in process.stdout:
-                if line: self.callback_log(line)
-            process.wait()
-            self.callback_log(f">>> Task {self.task} finished with code {process.returncode}\n")
-            self.callback_done(process.returncode == 0)
-        except Exception as e:
-            self.callback_log(f"CRITICAL ERROR: {str(e)}\n")
-            self.callback_done(False)
-
-    def run_deployment(self):
-        self.callback_log(">>> Starting Full Deployment...\n")
-        try:
-            subprocess.run(["pkg", "install", "python", "nodejs-lts", "git", "-y"], check=False)
-            subprocess.run([sys.executable, "-m", "venv", ".venv"], check=True)
-            pip_cmd = ".venv/bin/pip" if os.name != 'nt' else ".venv\\Scripts\\pip"
-            subprocess.run([pip_cmd, "install", "-r", "requirements.txt"], check=True)
-            subprocess.run(["npm", "install"], check=True)
-            self.callback_log(">>> Deployment Successful!\n")
-            self.callback_done(True)
-        except Exception as e:
-            self.callback_log(f"Error during deployment: {e}\n")
-            self.callback_done(False)
-
-# --- SCREENS ---
-class SplashScreen(Screen):
-    def __init__(self, **kwargs):
-        try:
-            super().__init__(**kwargs)
-            self.layout = FloatLayout()
-            self.add_widget(self.layout)
-            
-            # Logo/Title
-            self.logo_label = Label(text="BELINDA AI", font_size='42sp', bold=True, color=(1,1,1,0), pos_hint={'center_x': 0.5, 'center_y': 0.55})
-            tagline = random.choice(TAGLINES)
-            self.sub_label = Label(text=tagline, font_size='14sp', color=(1,1,1,0), pos_hint={'center_x': 0.5, 'center_y': 0.45})
-            self.ver_label = Label(text=f"v{APP_VERSION}", font_size='12sp', color=(1,1,1,0), pos_hint={'center_x': 0.5, 'y': 0.08})
-            
-            self.layout.add_widget(self.logo_label)
-            self.layout.add_widget(self.sub_label)
-            self.layout.add_widget(self.ver_label)
-            
-            # Keep the progress bar as a new safety feature
-            self.progress = ProgressBar(max=100, value=0, size_hint=(0.6, None), height=dp(4), pos_hint={'center_x': 0.5, 'center_y': 0.3}, opacity=0)
-            self.layout.add_widget(self.progress)
-            
-            _write_crash_log("System: SplashScreen.__init__ - Scheduling delayed_startup")
-            Clock.schedule_once(lambda dt: self.delayed_startup(), 0.5)
-        except Exception as e:
-            _write_crash_log(f"Error initializing SplashScreen: {e}")
-
-    def on_enter(self):
-        _write_crash_log("System: SplashScreen.on_enter() - Starting animations")
-        anim = Animation(color=(1,1,1,1), pos_hint={'center_y': 0.5}, duration=1.5, t='out_back')
-        anim.start(self.logo_label)
-        anim_sub = Animation(color=(1,1,1,0.6), duration=2)
-        anim_sub.start(self.sub_label)
-        anim_ver = Animation(color=(1,1,1,0.85), duration=2)
-        anim_ver.start(self.ver_label)
-        # Safer transition: call finish_splash through the app instance
-        Clock.schedule_once(lambda dt: self.delayed_startup(), 3.5)
-
-    def delayed_startup(self):
-        _write_crash_log("System: SplashScreen.delayed_startup() - Starting file checks")
-        app = App.get_running_app()
-        if app and hasattr(app, 'check_files_and_switch'):
-            app.check_files_and_switch()
-            _write_crash_log("System: SplashScreen.delayed_startup() - Switch requested")
-        else:
-            _write_crash_log("Warning: App not ready for splash finish.")
-
-class SetupScreen(Screen):
-    def __init__(self, **kwargs):
-        try:
-            super().__init__(**kwargs)
-            self.layout = BoxLayout(orientation='vertical', padding=dp(30), spacing=dp(20))
-            self.lbl_title = Label(text="INITIAL SETUP", font_size='24sp', bold=True, size_hint_y=None, height=dp(50))
-            self.lbl_desc = Label(text="Please ensure Termux is running in the background. \nClone the repository to continue.", halign='center', color=(1,1,1,0.7))
-            self.btn_clone = LiquidButton(text="CLONE PROJECT", size_hint_y=None, height=dp(55))
-            self.btn_clone.bind(on_release=self.start_clone)
-            self.layout.add_widget(self.lbl_title)
-            self.layout.add_widget(self.lbl_desc)
-            self.layout.add_widget(Widget()) # Spacer
-            self.layout.add_widget(self.btn_clone)
-            self.add_widget(self.layout)
-        except Exception as e:
-            _write_crash_log(f"Error initializing SetupScreen: {e}")
-
-    def start_clone(self, instance):
-        self.btn_clone.disabled = True
-        self.btn_clone.text = App.get_running_app().get_text("status_cloning")
-        threading.Thread(target=self.do_clone, daemon=True).start()
-
-    def do_clone(self):
-        app = App.get_running_app()
-        # Verify Termux & API first
-        if not app.check_termux_and_api():
-            return
-            
-        # Ensure log_callback points to the correct console, with a fallback
-        log_callback = app.dash.update_log if hasattr(app, 'dash') else (lambda x: print(f"[CLONE LOG] {x}"))
+class BelindaApp(toga.App):
+    def startup(self):
+        self.settings = SettingsManager(self)
+        self.main_window = toga.MainWindow(title="Belinda AI Manager", size=(400, 700))
+        self.container = toga.Box(style=Pack(direction=COLUMN))
         
-        def safe_log(text):
-            Clock.schedule_once(lambda dt: log_callback(text), 0)
+        # Dashboard Components
+        self.status_box = toga.Box(style=Pack(direction=COLUMN, margin=10))
+        self.lbl_sys_status = toga.Label("SYSTEM STATUS", style=Pack(font_size=10))
+        self.lbl_status_val = toga.Label("READY", style=Pack(font_size=20, font_weight='bold'))
+        self.status_box.add(self.lbl_sys_status)
+        self.status_box.add(self.lbl_status_val)
+        
+        self.console = toga.MultilineTextInput(readonly=True, style=Pack(flex=1, margin=10, font_family='monospace', font_size=10))
+        
+        self.btn_box = toga.Box(style=Pack(direction=COLUMN, margin=10))
+        grid_box = toga.Box(style=Pack(direction=COLUMN))
+        row1 = toga.Box(style=Pack(direction=ROW, margin=5))
+        self.btn_start = toga.Button("START BOT", on_press=self.handle_start, style=Pack(flex=1, margin=2))
+        self.btn_stop = toga.Button("STOP BOT", on_press=self.handle_stop, style=Pack(flex=1, margin=2, color=DANGER_RED))
+        row1.add(self.btn_start); row1.add(self.btn_stop)
+        row2 = toga.Box(style=Pack(direction=ROW, margin=5))
+        self.btn_reset = toga.Button("RESET BOT", on_press=self.handle_reset, style=Pack(flex=1, margin=2))
+        self.btn_factory = toga.Button("FACTORY RESET", on_press=self.handle_factory, style=Pack(flex=1, margin=2, color=DANGER_RED))
+        row2.add(self.btn_reset); row2.add(self.btn_factory)
+        
+        self.btn_deploy = toga.Button("FULL DEPLOYMENT", on_press=self.handle_deploy, style=Pack(margin=5, background_color=SUCCESS_GREEN, color="#FFFFFF"))
+        grid_box.add(row1); grid_box.add(row2)
+        self.btn_box.add(grid_box); self.btn_box.add(self.btn_deploy)
+        
+        # Navigation
+        self.nav_box = toga.Box(style=Pack(direction=ROW, height=60))
+        self.btn_nav_dash = toga.Button("DASHBOARD", on_press=lambda x: self.switch_view("dash"), style=Pack(flex=1))
+        self.btn_nav_sett = toga.Button("SETTINGS", on_press=lambda x: self.switch_view("sett"), style=Pack(flex=1))
+        self.nav_box.add(self.btn_nav_dash); self.nav_box.add(self.btn_nav_sett)
+        
+        # Settings Components
+        self.settings_content = toga.Box(style=Pack(direction=COLUMN, margin=20))
+        self.settings_scroll = toga.ScrollContainer(content=self.settings_content, style=Pack(flex=1))
+        
+        self.lbl_sett_title = toga.Label("CONFIGURATION", style=Pack(font_size=20, font_weight='bold', margin_bottom=20))
+        self.theme_sel = toga.Selection(items=["Dark", "Light"], on_change=self.toggle_theme)
+        self.lang_sel = toga.Selection(items=list(TRANSLATIONS.keys()), on_change=self.change_lang)
+        self.env_box = toga.Box(style=Pack(direction=COLUMN, margin_top=20))
+        self.btn_save_sett = toga.Button("SAVE CHANGES", on_press=self.save_settings, style=Pack(margin_top=20, background_color=SUCCESS_GREEN))
+        
+        self.refresh_ui()
+        self.switch_view("splash")
+        self.main_window.content = self.container
+        self.main_window.show()
+        
+        self.check_root_status()
+        asyncio.create_task(self.delayed_startup())
 
-        try:
-            repo_url = "https://github.com/Danta23/Belinda_AI.git"
-            target_dir = "Belinda_AI"
+    def get_text(self, key):
+        lang = self.settings.data["language"]
+        return TRANSLATIONS.get(lang, TRANSLATIONS["English"]).get(key, key)
 
-            # 1. Try Direct Git Clone (Best for Desktop or Termux Python shell)
-            git_path = shutil.which('git')
-            if git_path:
-                safe_log(f"> Found git at {git_path}. Running direct clone...\n")
-                process = subprocess.Popen(
-                    [git_path, "clone", repo_url, target_dir],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                    universal_newlines=True
-                )
-                
-                for line in process.stdout:
-                    if line:
-                        safe_log(line)
-                        if "%" in line: # Simple progress detection
-                            try:
-                                parts = line.split('%')[0].split()
-                                if parts:
-                                    percent = int(parts[-1])
-                                    Clock.schedule_once(lambda dt, p=percent: self.update_clone_progress(p), 0)
-                            except: pass
-                
-                process.wait()
-                if process.returncode == 0 and os.path.isdir(target_dir):
-                    safe_log(">>> Direct Git clone successful!\n")
-                    Clock.schedule_once(lambda dt: self.finish_clone(True), 0)
-                    return
-                else:
-                    safe_log(f"! Direct Git clone failed (Code {process.returncode}). Trying alternatives...\n")
+    def refresh_ui(self):
+        t = DARK_THEME if self.settings.data["theme"] == "Dark" else LIGHT_THEME
+        self.container.style.background_color = t['bg']
+        self.status_box.style.background_color = t['card']
+        self.lbl_sys_status.style.color = t['text_sec']
+        self.lbl_status_val.style.color = ACCENT_BLUE if self.settings.data["theme"] == "Dark" else "#004470"
+        self.console.style.background_color = t['input_bg']
+        self.console.style.color = t['console_text']
+        self.nav_box.style.background_color = t['card']
+        
+        self.btn_deploy.text = self.get_text("btn_deploy")
+        self.btn_start.text = self.get_text("btn_start")
+        self.btn_stop.text = self.get_text("btn_stop")
+        self.btn_reset.text = self.get_text("btn_reset")
+        self.btn_factory.text = self.get_text("btn_factory")
+        self.btn_nav_dash.text = self.get_text("nav_dash")
+        self.btn_nav_sett.text = self.get_text("nav_sett")
 
-            # 2. Try Termux:API (Specific for Android background execution)
-            if os.path.exists('/system/bin/am'):
-                safe_log("> Detected Android environment. Using Termux:API Intent...\n")
-                
-                # We use a combined command to install git if missing AND clone
-                # Using single quotes for the command string to avoid shell expansion issues
-                full_cmd = f"pkg install git -y && git clone {repo_url} {target_dir}"
-                am_cmd = [
-                    "am", "startservice", "--user", "0",
-                    "-n", "com.termux/.app.TermuxService", # Try direct service first
-                    "-e", "com.termux.execute.background", "true",
-                    "-e", "com.termux.execute.command", full_cmd
-                ]
-                
-                # Alternative Intent for newer Termux:API versions
-                am_cmd_v2 = [
-                    "am", "startservice", "--user", "0",
-                    "-n", "com.termux.service_execute",
-                    "-e", "command", full_cmd
-                ]
+    def switch_view(self, view_name):
+        self.container.clear()
+        if view_name == "splash":
+            splash = toga.Box(style=Pack(direction=COLUMN, flex=1, alignment=CENTER, justify_content=CENTER))
+            splash.add(toga.Label("BELINDA AI", style=Pack(font_size=40, font_weight='bold', color=ACCENT_BLUE)))
+            splash.add(toga.Label(random.choice(TAGLINES), style=Pack(font_size=14, color="#AAAAAA", margin_top=10)))
+            splash.add(toga.Label(f"v{APP_VERSION}", style=Pack(font_size=10, color="#888888", margin_top=20)))
+            self.container.add(splash)
+        elif view_name == "setup":
+            t = DARK_THEME if self.settings.data["theme"] == "Dark" else LIGHT_THEME
+            setup = toga.Box(style=Pack(direction=COLUMN, margin=30))
+            setup.add(toga.Label(self.get_text("title_setup"), style=Pack(font_size=24, font_weight='bold', color=t['text'])))
+            setup.add(toga.Label(self.get_text("desc_setup"), style=Pack(margin_top=20, color=t['text_sec'])))
+            self.btn_clone = toga.Button(self.get_text("btn_clone"), on_press=self.start_clone, style=Pack(margin_top=40, font_size=16, background_color=ACCENT_BLUE, color="#FFFFFF"))
+            setup.add(self.btn_clone)
+            self.container.add(setup)
+        elif view_name == "dash":
+            self.container.add(self.status_box)
+            self.container.add(self.console)
+            self.container.add(self.btn_box)
+            self.container.add(self.nav_box)
+        elif view_name == "sett":
+            self.settings_content.add(self.lbl_sett_title)
+            self.settings_content.add(toga.Box(children=[toga.Label("Language", style=Pack(flex=1)), self.lang_sel], style=Pack(direction=ROW, margin=5)))
+            self.settings_content.add(toga.Box(children=[toga.Label("Theme", style=Pack(flex=1)), self.theme_sel], style=Pack(direction=ROW, margin=5)))
+            self.settings_content.add(self.env_box)
+            self.settings_content.add(self.btn_save_sett)
+            self.refresh_env_list()
+            self.container.add(self.settings_scroll)
+            self.container.add(self.nav_box)
 
-                try:
-                    subprocess.run(am_cmd_v2, capture_output=True)
-                    safe_log("> Dispatched command to Termux Service. Polling for directory...\n")
-                except Exception as e:
-                    safe_log(f"! Failed to send Termux intent: {e}. Trying legacy intent...\n")
-                    subprocess.run(am_cmd, capture_output=True)
+    async def delayed_startup(self):
+        await asyncio.sleep(2.0)
+        self.check_files_and_switch()
 
-                # Polling for success
-                for i in range(90): # 90 seconds timeout
-                    progress = int((i / 90) * 100)
-                    Clock.schedule_once(lambda dt, p=progress: self.update_clone_progress(p), 0)
-                    if os.path.isdir(target_dir) and os.path.exists(os.path.join(target_dir, "bridge.js")):
-                        safe_log(">>> Folder detected! Clone SUCCESS via Termux background.\n")
-                        Clock.schedule_once(lambda dt: self.finish_clone(True), 0)
-                        return
-                    time.sleep(1)
-
-            # 3. Try Root/Sudo Fallback (For rooted devices)
-            safe_log("> Checking for root (su/tsu) fallback...\n")
-            root_cmd = None
-            if shutil.which('tsu'): root_cmd = 'tsu -c'
-            elif shutil.which('su'): root_cmd = 'su -c'
-            
-            if root_cmd:
-                safe_log(f"> Root access found ({root_cmd.split()[0]}). Attempting forced clone...\n")
-                try:
-                    # Attempt via root shell
-                    full_root_cmd = f"{root_cmd} 'pkg install git -y && git clone {repo_url} {target_dir}'"
-                    subprocess.run(full_root_cmd, shell=True, capture_output=True)
-                    if os.path.isdir(target_dir):
-                        safe_log(">>> Root-forced clone SUCCESS!\n")
-                        Clock.schedule_once(lambda dt: self.finish_clone(True), 0)
-                        return
-                except Exception as e:
-                    safe_log(f"! Root clone attempt failed: {e}\n")
-
-            # 4. Final Alternative: Using raw shell commands if possible
-            safe_log("> Attempting standard shell clone fallback...\n")
+    def check_files_and_switch(self):
+        if os.path.exists("bridge.js"):
+            self.switch_view("dash")
+            if not self.settings.data.get("deployed", False):
+                self.btn_start.enabled = False
+        elif os.path.isdir("Belinda_AI"):
             try:
-                os.system(f"git clone {repo_url} {target_dir}")
-                if os.path.isdir(target_dir):
-                    Clock.schedule_once(lambda dt: self.finish_clone(True), 0)
-                    return
-            except: pass
+                if not os.path.abspath(os.getcwd()).endswith("Belinda_AI"):
+                    os.chdir("Belinda_AI")
+                self.switch_view("dash")
+                if not self.settings.data.get("deployed", False):
+                    self.btn_start.enabled = False
+            except: self.switch_view("setup")
+        else:
+            self.switch_view("setup")
 
-            Clock.schedule_once(lambda dt: self.finish_clone(False, "Clone failed. Please ensure Git is installed in Termux and Termux:API is working."), 0)
+    def show_toast(self, text):
+        self.main_window.info_dialog("Info", text)
 
-        except Exception as e:
-            traceback.print_exc()
-            safe_log(f"CRITICAL ERROR: {str(e)}\n")
-            Clock.schedule_once(lambda dt: self.finish_clone(False, f"Crash: {str(e)}"), 0)
-            
-    def update_clone_progress(self, percentage):
-        app = App.get_running_app()
-        self.btn_clone.text = f"{app.get_text('status_cloning')} ({percentage}%)"
-
-    def finish_clone(self, success, err=""):
-        app = App.get_running_app()
-        self.btn_clone.disabled = False
-        self.btn_clone.text = app.get_text("btn_clone")
-        if success:
-            app.show_toast(app.get_text("toast_cloned"))
-            app.show_notification("Clone Successful", "Cloning complete. Please click FULL DEPLOYMENT to install dependencies.")
-            app.check_files_and_switch()
-            # Automatically switch to Dashboard menu
-            Clock.schedule_once(lambda dt: app.switch_tab('dash'), 0.5)
-        else: self.lbl_desc.text = f"Error: {err}"
-
-class DashboardScreen(Screen):
-    def __init__(self, **kwargs):
+    def show_notification(self, title, message):
         try:
-            super().__init__(**kwargs)
-            self.main = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
-            
-            self.card = LiquidCard(orientation='vertical', size_hint_y=None, height=dp(90))
-            self.lbl_sys = Label(text="SYSTEM STATUS", font_size='11sp')
-            self.lbl_status = Label(text="READY", font_size='22sp', bold=True)
-            self.card.add_widget(self.lbl_sys)
-            self.card.add_widget(self.lbl_status)
-            
-            self.console_card = LiquidCard(radius=[dp(15)])
-            self.console = TextInput(readonly=True, background_color=(0,0,0,0), foreground_color=(0,1,0,1), font_size='10sp')
-            self.console_card.add_widget(self.console)
-            
-            controls = BoxLayout(orientation='vertical', spacing=dp(10), size_hint_y=None, height=dp(170))
-            self.btn_grid = GridLayout(cols=2, spacing=dp(10))
-            
-            self.btn_start = LiquidButton(text="START BOT")
-            self.btn_start.bind(on_release=lambda x: App.get_running_app().run_task('start'))
-            
-            self.btn_stop = LiquidButton(text="STOP BOT", bg_color=[1,0.3,0.3,1])
-            self.btn_stop.bind(on_release=lambda x: App.get_running_app().run_task('stop'))
-            
-            self.btn_reset = LiquidButton(text="RESET BOT", bg_color=[0.5,0.2,0.8,1])
-            self.btn_reset.bind(on_release=lambda x: App.get_running_app().run_task('reset'))
-            
-            self.btn_factory = LiquidButton(text="FACTORY RESET", bg_color=[1,0.2,0.2,1])
-            self.btn_factory.bind(on_release=lambda x: App.get_running_app().confirm_factory_reset())
-            
-            self.btn_grid.add_widget(self.btn_start)
-            self.btn_grid.add_widget(self.btn_stop)
-            self.btn_grid.add_widget(self.btn_reset)
-            self.btn_grid.add_widget(self.btn_factory)
-            
-            self.btn_deploy = LiquidButton(text="FULL DEPLOYMENT", size_hint_y=None, height=dp(55), bg_color=[0.2,0.8,0.4,1])
-            self.btn_deploy.bind(on_release=lambda x: App.get_running_app().run_task('deploy'))
-            
-            controls.add_widget(self.btn_grid)
-            controls.add_widget(self.btn_deploy)
-            
-            self.main.add_widget(self.card)
-            self.main.add_widget(self.console_card)
-            self.main.add_widget(controls)
-            self.add_widget(self.main)
-        except Exception as e:
-            _write_crash_log(f"Error initializing DashboardScreen: {e}")
-
-    def update_log(self, text):
-        self.console.text += text
-        if len(self.console.text) > 5000: self.console.text = self.console.text[-5000:]
-        self.console.cursor = (0, len(self.console.text))
-
-class SettingsScreen(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.main = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
-        self.lbl_title = Label(text="CONFIGURATION", font_size='24sp', bold=True, size_hint_y=None, height=dp(50))
-        self.main.add_widget(self.lbl_title)
-        self.scroll = ScrollView()
-        self.content = BoxLayout(orientation='vertical', spacing=dp(15), size_hint_y=None)
-        self.content.bind(minimum_height=self.content.setter('height'))
-        
-        theme_box = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
-        self.lbl_theme = Label(text="Theme", halign='left', size_hint_x=0.6)
-        self.btn_theme_toggle = LiquidButton(text="Dark", size_hint_x=0.4, bg_color=[0.4, 0.4, 0.4, 0.5])
-        self.btn_theme_toggle.bind(on_release=self.toggle_theme)
-        theme_box.add_widget(self.lbl_theme)
-        theme_box.add_widget(self.btn_theme_toggle)
-        
-        lang_box = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
-        self.lbl_lang = Label(text="Language", halign='left', size_hint_x=0.6)
-        self.btn_lang_cycle = LiquidButton(text="English", size_hint_x=0.4, bg_color=[0.4, 0.4, 0.4, 0.5])
-        self.btn_lang_cycle.bind(on_release=self.cycle_lang)
-        lang_box.add_widget(self.lbl_lang)
-        lang_box.add_widget(self.btn_lang_cycle)
-        self.content.add_widget(theme_box)
-        self.content.add_widget(lang_box)
-        self.env_container = BoxLayout(orientation='vertical', spacing=dp(10), size_hint_y=None)
-        self.env_container.bind(minimum_height=self.env_container.setter('height'))
-        self.content.add_widget(self.env_container)
-        self.scroll.add_widget(self.content)
-        self.main.add_widget(self.scroll)
-        self.btn_save = LiquidButton(text="SAVE CHANGES", size_hint_y=None, height=dp(55), bg_color=[0.2,0.8,0.4,1])
-        self.btn_save.bind(on_release=self.save_all)
-        self.main.add_widget(self.btn_save)
-        self.add_widget(self.main)
-        self.on_pre_enter = self.load_ui_data
-
-    def load_ui_data(self, *args):
-        app = App.get_running_app()
-        self.btn_theme_toggle.text = app.settings.data["theme"]
-        self.btn_lang_cycle.text = app.settings.data["language"]
-        self.refresh_env_list()
-
-    def toggle_theme(self, instance):
-        app = App.get_running_app()
-        new_t = "Light" if instance.text == "Dark" else "Dark"
-        instance.text = new_t
-        app.settings.data["theme"] = new_t
-        app.apply_theme()
-
-    def cycle_lang(self, instance):
-        app = App.get_running_app()
-        langs = list(TRANSLATIONS.keys())
-        idx = (langs.index(instance.text) + 1) % len(langs)
-        new_l = langs[idx]
-        instance.text = new_l
-        app.settings.data["language"] = new_l
-        app.refresh_language()
-
-    def refresh_env_list(self):
-        self.env_container.clear_widgets()
-        self.env_inputs = {}
-        app = App.get_running_app()
-        t = DARK_THEME if app.settings.data["theme"] == "Dark" else LIGHT_THEME
-        if os.path.exists(".env"):
-            with open(".env", "r") as f:
-                for line in f:
-                    if "=" in line and not line.startswith("#"):
-                        k, v = line.strip().split("=", 1)
-                        is_sensitive = any(word in k.upper() for word in ["KEY", "TOKEN", "SECRET", "PASS"])
-                        box = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(70))
-                        l = Label(text=k, font_size='11sp', halign='left', size_hint_x=1, color=t["text_sec"])
-                        l.bind(size=l.setter('text_size'))
-                        i = TextInput(text="" if is_sensitive else v, hint_text="Enter value...", multiline=False, password=is_sensitive, background_color=t["input_bg"], foreground_color=t["text"], cursor_color=t["text"])
-                        box.add_widget(l); box.add_widget(i)
-                        self.env_container.add_widget(box)
-                        self.env_inputs[k] = i
-
-    def save_all(self, instance):
-        app = App.get_running_app()
-        if app.settings.data.get("deployed", False):
-            app.dash.btn_start.disabled = False
-            app.dash.btn_start.opacity = 1
-            app.show_toast(app.get_text("toast_saved"))
-            app.switch_tab('dash')
-        else: app.show_toast("Saved. Run Deployment first.")
-        app.settings.save()
-        if self.env_inputs:
-            lines = [f"{k}={v.text}\n" for k,v in self.env_inputs.items()]
-            with open(".env", "w") as f: f.writelines(lines)
-
-# --- MAIN APP ---
-class BelindaApp(App):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.is_running = True
-
-    def show_error_popup(self, title, message):
-        """Show a Kivy Popup with error details — visible on ALL platforms."""
-        try:
-            content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
-            
-            # Error message (scrollable)
-            scroll = ScrollView(size_hint_y=0.7)
-            error_label = Label(
-                text=str(message),
-                font_size='12sp',
-                color=(1, 0.3, 0.3, 1),
-                size_hint_y=None,
-                text_size=(dp(280), None),
-                halign='left',
-                valign='top'
-            )
-            error_label.bind(texture_size=error_label.setter('size'))
-            scroll.add_widget(error_label)
-            content.add_widget(scroll)
-            
-            # Close button
-            btn_close = Button(
-                text="CLOSE",
-                size_hint_y=None,
-                height=dp(45),
-                background_color=(0.8, 0.2, 0.2, 1)
-            )
-            content.add_widget(btn_close)
-            
-            popup = Popup(
-                title=f"⚠ {title}",
-                content=content,
-                size_hint=(0.9, 0.7),
-                auto_dismiss=False
-            )
-            btn_close.bind(on_release=popup.dismiss)
-            popup.open()
-        except Exception as e:
-            _write_crash_log(f"show_error_popup itself failed: {e}")
-
-    def build(self):
-        try:
-            self.settings = SettingsManager()
-            self.root = FloatLayout()
-            self.bg = LiquidBackground()
-            self.root.add_widget(self.bg)
-            
-            # Use FadeTransition for smooth appearance
-            self.sm = ScreenManager(transition=FadeTransition(duration=0.5))
-            
-            # Initialize all screens
-            self.splash = SplashScreen(name='splash')
-            self.setup = SetupScreen(name='setup')
-            self.dash = DashboardScreen(name='dash')
-            self.sett = SettingsScreen(name='sett')
-            
-            # Add to manager
-            self.sm.add_widget(self.splash)
-            self.sm.add_widget(self.setup)
-            self.sm.add_widget(self.dash)
-            self.sm.add_widget(self.sett)
-            
-            # Set INITIAL screen explicitly to splash
-            self.sm.current = 'splash'
-            
-            self.main_container = BoxLayout(orientation='vertical')
-            self.main_container.add_widget(self.sm)
-            self.nav = LiquidCard(size_hint_y=None, height=dp(65), radius=[dp(20), dp(20), 0, 0])
-            self.btn_nav_dash = Button(text="DASHBOARD", background_color=(0,0,0,0))
-            self.btn_nav_sett = Button(text="SETTINGS", background_color=(0,0,0,0))
-            self.btn_nav_dash.bind(on_release=lambda x: self.switch_tab('dash'))
-            self.btn_nav_sett.bind(on_release=lambda x: self.switch_tab('sett'))
-            self.nav.add_widget(self.btn_nav_dash); self.nav.add_widget(self.btn_nav_sett)
-            self.main_container.add_widget(self.nav)
-            self.root.add_widget(self.main_container)
-            self.nav.opacity = 0 
-            self.toast = Label(text="", opacity=0, size_hint=(None,None), size=(dp(200), dp(40)), pos_hint={'center_x': 0.5, 'y': 0.1})
-            self.root.add_widget(self.toast)
-            self.apply_theme(); self.refresh_language()
-            self.check_root_status()
-            
-            if platform == 'android' and request_permissions:
-                self.request_android_permissions()
-                
-            return self.root
-        except Exception as build_err:
-            _write_crash_log(f"FATAL ERROR in build(): {build_err}\n{traceback.format_exc()}")
-            # Show a visual crash screen instead of silently dying
-            crash_box = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(15))
-            crash_box.add_widget(Label(
-                text="⚠ BELINDA AI CRASH ⚠",
-                font_size='28sp',
-                color=(1, 0.2, 0.2, 1),
-                bold=True,
-                size_hint_y=0.15
-            ))
-            crash_box.add_widget(Label(
-                text=f"Version: {APP_VERSION}\n\nError:\n{str(build_err)}",
-                font_size='13sp',
-                color=(1, 1, 1, 0.9),
-                size_hint_y=0.6,
-                text_size=(dp(300), None),
-                halign='left',
-                valign='top'
-            ))
-            btn_report = Button(
-                text="TAP TO REPORT BUG ON GITHUB",
-                size_hint=(1, None),
-                height=dp(55),
-                background_color=(0.2, 0.6, 1, 1),
-                bold=True
-            )
-            btn_report.bind(on_release=lambda x: webbrowser.open(
-                f"https://github.com/Danta23/Belinda_AI/issues/new?title={urllib.parse.quote(f'[CRASH] v{APP_VERSION}')}&body={urllib.parse.quote(f'Error: {build_err}')}"
-            ))
-            crash_box.add_widget(btn_report)
-            return crash_box
-
-    def request_android_permissions(self):
-        if not request_permissions or not Permission:
-            _write_crash_log("Android permissions not available for request.")
-            return
-        try:
-            request_permissions([
-                Permission.READ_EXTERNAL_STORAGE,
-                Permission.WRITE_EXTERNAL_STORAGE,
-                Permission.POST_NOTIFICATIONS
-            ])
-        except Exception as e:
-            _write_crash_log(f"Permission request failed: {e}")
-
-    def on_pause(self):
-        # Return True to allow the app to be paused (backgrounded)
-        return True
-
-    def on_resume(self):
-        pass
-
-    def on_stop(self):
-        # App is closing. Stop internal updates but keep bot in background if intended.
-        self.is_running = False
-        _write_crash_log("System: App manager stopping. Background bot services remain active.")
-        # Note: We NO LONGER call run_task('stop') here to allow background running.
-        time.sleep(0.5)
+            subprocess.run(["termux-notification", "-t", title, "-c", message, "--id", "belinda_ai_msg"], capture_output=True)
+        except:
+            pass
 
     def check_root_status(self):
         self.is_rooted = False
@@ -920,162 +321,266 @@ class BelindaApp(App):
                 self.is_rooted = True
                 self.root_cmd = cmd
                 break
-        if self.is_rooted:
-            print(f"DEBUG: Root access detected via {self.root_cmd}")
-
-    def show_notification(self, title, message):
-        try:
-            subprocess.run(["termux-notification", "-t", title, "-c", message, "--id", "belinda_ai_msg"], capture_output=True)
-        except Exception as e:
-            print(f"Notification failed: {e}")
-            self.show_toast(message)
 
     def check_termux_and_api(self):
-        # 1. Check for Termux
         is_termux = os.path.isdir("/data/data/com.termux")
         if not is_termux:
-            self.show_toast("Termux not found! Opening Play Store...")
-            try:
-                subprocess.run(["am", "start", "-a", "android.intent.action.VIEW", "-d", "market://details?id=com.termux"], capture_output=True)
-            except:
-                webbrowser.open("https://play.google.com/store/apps/details?id=com.termux")
+            self.show_toast("Termux not found! Please install it.")
             return False
-            
-        # 2. Check for Termux-API
         is_api = False
         try:
             res = subprocess.run(["pm", "list", "packages", "com.termux.api"], capture_output=True, text=True)
             if "com.termux.api" in res.stdout: is_api = True
         except: pass
-        
         if not is_api:
-            self.show_toast("Termux:API missing! Opening GitHub...")
+            self.show_toast("Termux:API missing! Please install from GitHub")
             webbrowser.open("https://github.com/termux/termux-api/releases")
             return False
-            
-        self.show_notification("System Ready", "Termux and Termux:API are already installed and verified.")
+        self.show_notification("System Ready", "Termux API is available.")
         return True
 
-    def check_files_and_switch(self):
-        _write_crash_log(f"System: check_files_and_switch() - Path: {os.getcwd()}")
-        if os.path.exists("bridge.js"):
-            self.sm.current = 'dash'; self.nav.opacity = 1; self.nav.disabled = False
-            if not self.settings.data.get("deployed", False): self.dash.btn_start.disabled = True; self.dash.btn_start.opacity = 0.5
-        elif os.path.isdir("Belinda_AI"):
-            try:
-                # Prevent recursive chdir if already inside
-                if not os.path.abspath(os.getcwd()).endswith("Belinda_AI"):
-                    _write_crash_log("System: Entering Belinda_AI subdirectory...")
-                    os.chdir("Belinda_AI")
-                self.sm.current = 'dash'; self.nav.opacity = 1; self.nav.disabled = False
-                if not self.settings.data.get("deployed", False): self.dash.btn_start.disabled = True; self.dash.btn_start.opacity = 0.5
-            except: self.sm.current = 'setup'
-        else: self.sm.current = 'setup'; self.nav.opacity = 0; self.nav.disabled = True
+    def toggle_theme(self, widget):
+        self.settings.data["theme"] = widget.value
+        self.settings.save()
+        self.refresh_ui()
 
-    def perform_factory_reset(self):
-        import shutil
+    def change_lang(self, widget):
+        self.settings.data["language"] = widget.value
+        self.settings.save()
+        self.refresh_ui()
+
+    def refresh_env_list(self):
+        self.env_box.clear()
+        self.env_inputs = {}
+        t = DARK_THEME if self.settings.data["theme"] == "Dark" else LIGHT_THEME
+        
+        if not os.path.exists(".env"):
+            with open(".env", "w") as f:
+                f.write("GROQ_API_KEY=\nFLASK_PORT=3000\nBOT_NAME=Belinda_AI\n")
+                
+        if os.path.exists(".env"):
+            with open(".env", "r") as f:
+                for line in f:
+                    if "=" in line and not line.startswith("#"):
+                        k, v = line.strip().split("=", 1)
+                        is_sensitive = any(word in k.upper() for word in ["KEY", "TOKEN", "SECRET", "PASS"])
+                        box = toga.Box(style=Pack(direction=COLUMN, margin=5))
+                        box.add(toga.Label(k, style=Pack(font_size=10, color=t['text_sec'])))
+                        # PasswordInput dynamically if it's sensitive
+                        if is_sensitive:
+                            inp = toga.PasswordInput(value=v, style=Pack(margin_bottom=5))
+                            inp.placeholder = "Enter sensitive value..."
+                        else:
+                            inp = toga.TextInput(value=v, style=Pack(margin_bottom=5))
+                            inp.placeholder = "Enter value..."
+                        box.add(inp)
+                        self.env_box.add(box)
+                        self.env_inputs[k] = inp
+                        
+        self.settings_scroll.content = self.settings_content
+
+    def save_settings(self, widget):
+        if self.env_inputs:
+            lines = []
+            for k, w in self.env_inputs.items():
+                val = w.value
+                lines.append(f"{k}={val}\n")
+            with open(".env", "w") as f: f.writelines(lines)
+
+        if self.settings.data.get("deployed", False):
+            self.btn_start.enabled = True
+            self.show_toast(self.get_text("toast_saved"))
+            self.switch_view("dash")
+        else:
+            self.show_toast("Saved. Run Deployment first.")
+        self.settings.save()
+
+    def log_append(self, text):
+        self.console.value += text
+
+    def start_clone(self, widget):
+        self.btn_clone.enabled = False
+        self.btn_clone.text = self.get_text("status_cloning")
+        asyncio.create_task(self.do_clone_task())
+
+    async def update_clone_progress(self, percent):
+        self.btn_clone.text = f"{self.get_text('status_cloning')} ({percent}%)"
+
+    async def finish_clone(self, success, err=""):
+        self.btn_clone.enabled = True
+        self.btn_clone.text = self.get_text("btn_clone")
+        if success:
+            self.show_toast(self.get_text("toast_cloned"))
+            self.show_notification("Clone Successful", "Run Full Deployment next.")
+            self.check_files_and_switch()
+            self.switch_view('dash')
+        else:
+            self.btn_clone.text = f"Error: {err}"
+
+    async def do_clone_task(self):
+        if not self.check_termux_and_api(): return
+        repo_url = "https://github.com/Danta23/Belinda_AI.git"
+        target_dir = "Belinda_AI"
+
         try:
-            if os.path.isdir("Belinda_AI"): shutil.rmtree("Belinda_AI")
-            elif os.path.exists("bridge.js"):
+            git_path = shutil.which('git')
+            if git_path:
+                self.log_append("> Found git. Running direct clone...\n")
+                process = await asyncio.create_subprocess_exec(
+                    git_path, "clone", repo_url, target_dir,
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+                )
+                while True:
+                    line = await process.stdout.readline()
+                    if not line: break
+                    text = line.decode()
+                    self.log_append(text)
+                    if "%" in text:
+                        try:
+                            parts = text.split('%')[0].split()
+                            if parts:
+                                percent = int(parts[-1])
+                                await self.update_clone_progress(percent)
+                        except: pass
+                await process.wait()
+                if process.returncode == 0 and os.path.isdir(target_dir):
+                    await self.finish_clone(True)
+                    return
+
+            if os.path.exists('/system/bin/am'):
+                self.log_append("> Using Android Termux:API Intent...\n")
+                full_cmd = f"pkg install git -y && git clone {repo_url} {target_dir}"
+                am_cmd = [
+                    "am", "startservice", "--user", "0",
+                    "-n", "com.termux/.app.TermuxService",
+                    "-e", "com.termux.execute.background", "true",
+                    "-e", "com.termux.execute.command", full_cmd
+                ]
+                subprocess.run(am_cmd, capture_output=True)
+                for i in range(90):
+                    await self.update_clone_progress(int((i/90)*100))
+                    if os.path.isdir(target_dir) and os.path.exists(os.path.join(target_dir, "bridge.js")):
+                        self.log_append(">>> Folder detected! Termux clone SUCCESS.\n")
+                        await self.finish_clone(True)
+                        return
+                    await asyncio.sleep(1)
+
+            if self.root_cmd:
+                self.log_append("> Attempting forced clone via ROOT...\n")
+                subprocess.run(f"{self.root_cmd} 'pkg install git -y && git clone {repo_url} {target_dir}'", shell=True)
+                if os.path.isdir(target_dir):
+                    await self.finish_clone(True)
+                    return
+            
+            os.system(f"git clone {repo_url} {target_dir}")
+            if os.path.isdir(target_dir):
+                await self.finish_clone(True)
+                return
+
+            await self.finish_clone(False, "Clone Failed.")
+        except Exception as e:
+            await self.finish_clone(False, str(e))
+
+    async def run_cmd_async(self, cmd, task_name="command"):
+        self.log_append(f">>> Executing {cmd}...\n")
+        process = await asyncio.create_subprocess_shell(
+            f"bash {cmd}",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT
+        )
+        while True:
+            line = await process.stdout.readline()
+            if not line: break
+            self.log_append(line.decode())
+        await process.wait()
+        self.log_append(f">>> Task {task_name} finished with code {process.returncode}\n")
+        return process.returncode == 0
+
+    def handle_start(self, widget):
+        if not self.settings.data.get("deployed", False):
+            self.show_toast("Run Deployment first!")
+            return
+        cmd = 'start_termux.sh' if os.path.exists('start_termux.sh') else 'start.sh'
+        self.lbl_status_val.text = "WORKING..."
+        asyncio.create_task(self._monitor_cmd(cmd, "start", success_str="ONLINE"))
+
+    def handle_stop(self, widget):
+        cmd = 'stop_termux.sh' if os.path.exists('stop_termux.sh') else 'stop.sh'
+        self.lbl_status_val.text = "WORKING..."
+        asyncio.create_task(self._monitor_cmd(cmd, "stop", success_str="STOPPED"))
+
+    def handle_reset(self, widget):
+        cmd = 'reset_termux.sh' if os.path.exists('reset_termux.sh') else 'reset.sh'
+        self.lbl_status_val.text = "WORKING..."
+        asyncio.create_task(self._monitor_cmd(cmd, "reset", success_str="READY"))
+
+    async def _monitor_cmd(self, cmd, task_name, success_str):
+        ok = await self.run_cmd_async(cmd, task_name)
+        if ok: 
+            self.lbl_status_val.text = success_str
+            self.lbl_status_val.style.color = SUCCESS_GREEN
+        else:
+            self.lbl_status_val.text = "STOPPED"
+            self.lbl_status_val.style.color = DANGER_RED
+
+    def handle_deploy(self, widget):
+        self.lbl_status_val.text = "DEPLOYING..."
+        asyncio.create_task(self.deploy_task())
+
+    async def deploy_task(self):
+        self.log_append(">>> Starting Full Deployment...\n")
+        
+        # 1. Environment
+        self.log_append("installing dependencies...\n")
+        await asyncio.create_subprocess_shell("pkg install python nodejs-lts git -y", stdout=subprocess.DEVNULL)
+        await asyncio.create_subprocess_shell("python3 -m venv .venv")
+        
+        pip_cmd = ".venv/bin/pip" if os.name != 'nt' else ".venv\\Scripts\\pip"
+        
+        # 2. Python Packages
+        p1 = await asyncio.create_subprocess_shell(f"{pip_cmd} install -r requirements.txt", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+        while True:
+            line = await p1.stdout.readline()
+            if not line: break
+            self.log_append(line.decode())
+        
+        # 3. Node Packages
+        p2 = await asyncio.create_subprocess_shell("npm install", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+        while True:
+            line = await p2.stdout.readline()
+            if not line: break
+            self.log_append(line.decode())
+        
+        self.log_append("\n>>> Deployment Successful!\n")
+        self.settings.data["deployed"] = True
+        self.settings.save()
+        self.lbl_status_val.text = "READY"
+        self.lbl_status_val.style.color = ACCENT_BLUE
+        self.show_toast(self.get_text("toast_deploy_done"))
+        self.switch_view("sett")
+
+    async def factory_reset_task(self):
+        if await self.main_window.confirm_dialog(self.get_text("pop_title"), self.get_text("pop_desc")):
+            self.log_append(">>> Performing Factory Reset...\n")
+            try:
+                if os.path.isdir("Belinda_AI"): shutil.rmtree("Belinda_AI")
                 for item in [".venv", "node_modules", "auth_info", "bridge.js", ".env", "package.json"]:
                     if os.path.isdir(item): shutil.rmtree(item)
                     elif os.path.exists(item): os.remove(item)
-            self.settings.data["deployed"] = False; self.settings.save()
-            self.check_files_and_switch()
-            self.show_toast("Factory Reset Complete.")
-        except Exception as e: self.show_toast(f"Reset Error: {e}")
+                self.settings.data["deployed"] = False
+                self.settings.save()
+                self.check_files_and_switch()
+                self.show_toast("Factory Reset Complete.")
+            except Exception as e:
+                self.show_toast(f"Reset Error: {e}")
 
-    def confirm_factory_reset(self):
-        LiquidPopup(title_text=self.get_text("pop_title"), desc_text=self.get_text("pop_desc"), on_yes=self.perform_factory_reset).open()
+    def handle_factory(self, widget):
+        asyncio.create_task(self.factory_reset_task())
 
-    def get_text(self, key):
-        lang = self.settings.data["language"]
-        return TRANSLATIONS.get(lang, TRANSLATIONS["English"]).get(key, key)
 
-    def refresh_language(self):
-        self.setup.lbl_title.text = self.get_text("title_setup")
-        self.setup.lbl_desc.text = self.get_text("desc_setup")
-        self.setup.btn_clone.text = self.get_text("btn_clone")
-        self.dash.lbl_sys.text = self.get_text("sys_status")
-        self.dash.lbl_status.text = self.get_text("status_ready")
-        self.dash.btn_start.text = self.get_text("btn_start")
-        self.dash.btn_stop.text = self.get_text("btn_stop")
-        self.dash.btn_reset.text = self.get_text("btn_reset")
-        self.dash.btn_factory.text = self.get_text("btn_factory")
-        self.dash.btn_deploy.text = self.get_text("btn_deploy")
-        self.btn_nav_dash.text = self.get_text("nav_dash")
-        self.btn_nav_sett.text = self.get_text("nav_sett")
-        self.sett.lbl_theme.text = self.get_text("lbl_theme")
-        self.sett.lbl_lang.text = self.get_text("lbl_lang")
-        self.sett.btn_save.text = self.get_text("btn_save")
+def main():
+    return BelindaApp('Belinda AI', 'id.studio234.belinda.ai')
 
-    def apply_theme(self):
-        t = DARK_THEME if self.settings.data["theme"] == "Dark" else LIGHT_THEME
-        self.bg.bg_color.rgb = t["bg"]
-        self.dash.card.color_node.rgba = t["card"]; self.dash.card.line_color.rgba = t["border"]
-        self.dash.console_card.color_node.rgba = t["card"]; self.dash.console_card.line_color.rgba = t["border"]
-        self.dash.lbl_sys.color = t["text_sec"]; self.dash.lbl_status.color = [0.2, 0.8, 1, 1] if self.settings.data["theme"] == "Dark" else [0, 0.4, 0.7, 1]
-        self.setup.lbl_title.color = t["text"]; self.setup.lbl_desc.color = t["text_sec"]
-        self.sett.lbl_title.color = [0.2, 0.8, 1, 1] if self.settings.data["theme"] == "Dark" else [0, 0.4, 0.7, 1]
-        self.sett.lbl_theme.color = t["text"]; self.sett.lbl_lang.color = t["text"]
-        self.sett.btn_theme_toggle.color = t["text"]; self.sett.btn_lang_cycle.color = t["text"]
-        for box in self.sett.env_container.children:
-            if isinstance(box, BoxLayout):
-                for child in box.children:
-                    if isinstance(child, Label): child.color = t["text_sec"]
-                    elif isinstance(child, TextInput): child.background_color = t["input_bg"]; child.foreground_color = t["text"]; child.cursor_color = t["text"]
-        self.dash.console.background_color = t["input_bg"]; self.dash.console.foreground_color = t["console_text"]
-        self.nav.color_node.rgba = t["card"]; self.nav.line_color.rgba = t["border"]
-        self.btn_nav_dash.color = t["text"]; self.btn_nav_sett.color = t["text"]
-
-    def switch_tab(self, name): self.sm.current = name
-    def show_toast(self, text):
-        self.toast.text = text
-        anim = Animation(opacity=1, duration=0.2) + Animation(duration=2) + Animation(opacity=0, duration=0.2); anim.start(self.toast)
-
-    def run_task(self, task):
-        if task == 'start' and not self.settings.data.get("deployed", False): self.show_toast("Run Deployment first!"); return
-        self.dash.lbl_status.text = "WORKING..."
-        worker = TaskWorker(task, self.dash.update_log, self.on_task_done); worker.start()
-
-    def on_task_done(self, success):
-        if not self.is_running: return
-        app = App.get_running_app()
-        if not app: return
-        if self.dash.console.text.strip().endswith("Deployment Successful!"):
-            app.settings.data["deployed"] = True; app.settings.save()
-            Clock.schedule_once(lambda dt: self.safe_switch('sett'), 1); app.show_toast(app.get_text("toast_deploy_done"))
-        def update(dt):
-            if not self.is_running: return
-            self.dash.lbl_status.text = "ONLINE" if success else "STOPPED"
-            self.dash.lbl_status.color = [0, 1, 0, 1] if success else [1, 0, 0, 1]
-        Clock.schedule_once(update)
-
-    def safe_switch(self, name):
-        if self.is_running: self.switch_tab(name)
-
-# --- PROTECTED APP START ---
 if __name__ == '__main__':
     _write_crash_log("System: Main Entry Point Initiated")
-    try:
-        # Final safety: Ensure jnius is ready before logger calls
-        _write_crash_log("System: Bootstrap starting...")
-        
-        # Initialize Kivy App
-        app = BelindaApp()
-        _write_crash_log(f"System: App instance created (id={id(app)}). Running...")
-        
-        # Run the app
-        app.run()
-        
-        _write_crash_log("System: App execution finished normally.")
-    except Exception as launch_err:
-        _write_crash_log(f"FATAL LAUNCH ERROR: {launch_err}")
-        traceback.print_exc()
-        # Trigger the global handler manually if it didn't catch it
-        try:
-            global_exception_handler(type(launch_err), launch_err, launch_err.__traceback__)
-        except:
-            # Last resort print
-            print(f"FAILED TO HANDLER CRASH: {launch_err}")
-        sys.exit(1)
+    main().main_loop()

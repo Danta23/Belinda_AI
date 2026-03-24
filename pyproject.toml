@@ -28,5 +28,5 @@ requires = ["PyQt5", "qtawesome", "python-dotenv", "QtPy"]
 
 [tool.briefcase.app.belinda-ai.android]
 # Use Native Toga for Android (Fixed compatibility)
-app_module = "belinda_ai.android_app"
+app_module = "belinda_ai.app"
 requires = ["toga-android", "python-dotenv"]
