@@ -62,7 +62,7 @@ export BRIEFCASE_NO_PROMPT=1
 export BRIEFCASE_DEV=1
 
 echo ">>> Creating Android Project Template..."
-briefcase create android
+yes | briefcase create android
 
 echo ">>> Building Gradle App..."
 briefcase build android

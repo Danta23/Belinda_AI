@@ -17,7 +17,7 @@ from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
 # --- APP VERSION ---
-APP_VERSION = "1.4.7.2-7"
+APP_VERSION = "1.4.7.2-9"
 
 # --- EARLY CRASH LOG ---
 def _write_crash_log(msg):
@@ -179,6 +179,13 @@ class SettingsManager:
 
 class BelindaApp(toga.App):
     def startup(self):
+        # Force the working directory to the app's writable internal data folder
+        try:
+            os.makedirs(self.paths.data, exist_ok=True)
+            os.chdir(self.paths.data)
+        except Exception as e:
+            _write_crash_log(f"Dir Error: {e}")
+            
         self.settings = SettingsManager(self)
         self.main_window = toga.MainWindow(title="Belinda AI Manager", size=(400, 700))
         self.container = toga.Box(style=Pack(direction=COLUMN))
