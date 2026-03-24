@@ -34,7 +34,12 @@ pip install --upgrade pip setuptools wheel
 pip install briefcase toga python-dotenv
 
 echo "====================================================================="
-echo ">>> [3/5] STRUCTURING PROJECT FOR BEEWARE..."
+echo ">>> [3/5] REFRESHING VERSION INCREMENT & COUNTER..."
+echo "====================================================================="
+python3 update_version.py
+
+echo "====================================================================="
+echo ">>> [4/5] STRUCTURING PROJECT FOR BEEWARE..."
 echo "====================================================================="
 mkdir -p src/belinda_ai
 cp main.py src/belinda_ai/app.py

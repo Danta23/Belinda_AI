@@ -17,7 +17,7 @@ from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
 # --- APP VERSION ---
-APP_VERSION = "1.4.7.2-5"
+APP_VERSION = "1.4.7.2-7"
 
 # --- EARLY CRASH LOG ---
 def _write_crash_log(msg):
@@ -267,7 +267,9 @@ class BelindaApp(toga.App):
             setup.add(toga.Label(self.get_text("title_setup"), style=Pack(font_size=24, font_weight='bold', color=t['text'])))
             setup.add(toga.Label(self.get_text("desc_setup"), style=Pack(margin_top=20, color=t['text_sec'])))
             self.btn_clone = toga.Button(self.get_text("btn_clone"), on_press=self.start_clone, style=Pack(margin_top=40, font_size=16, background_color=ACCENT_BLUE, color="#FFFFFF"))
+            self.progress_clone = toga.ProgressBar(max=100, style=Pack(margin_top=10))
             setup.add(self.btn_clone)
+            setup.add(self.progress_clone)
             self.container.add(setup)
         elif view_name == "dash":
             self.container.add(self.status_box)
@@ -323,38 +325,8 @@ class BelindaApp(toga.App):
                 break
 
     def check_termux_and_api(self):
-        # Native Linux/Windows fallback (Termux is not needed)
-        import shutil
-        if not shutil.which("pm"):
-            return True
-
-        is_termux = False
-        try:
-            res = subprocess.run(["pm", "list", "packages", "com.termux"], capture_output=True, text=True)
-            if "package:com.termux" in res.stdout: is_termux = True
-        except: pass
-        
-        # Fallback just in case
-        if not is_termux and os.path.isdir("/data/data/com.termux"):
-            is_termux = True
-
-        if not is_termux:
-            self.show_toast("Termux not found! Please install it.")
-            return False
-
-        is_api = False
-        try:
-            res = subprocess.run(["pm", "list", "packages", "com.termux.api"], capture_output=True, text=True)
-            if "package:com.termux.api" in res.stdout: is_api = True
-        except: pass
-        
-        if not is_api:
-            self.show_toast("Termux:API missing! Please install from GitHub")
-            try: webbrowser.open("https://github.com/termux/termux-api/releases")
-            except: pass
-            return False
-            
-        self.show_notification("System Ready", "Termux API is available.")
+        # We now support Termux-less operation via Native Python ZIP clones and Portable Node.js!
+        # Always return True so the user can proceed without Termux installed.
         return True
 
     def toggle_theme(self, widget):
@@ -436,66 +408,61 @@ class BelindaApp(toga.App):
             self.btn_clone.text = f"Error: {err}"
 
     async def do_clone_task(self):
-        if not self.check_termux_and_api(): return
-        repo_url = "https://github.com/Danta23/Belinda_AI.git"
+        import urllib.request
+        import zipfile
+        import io
+        import shutil
+        
         target_dir = "Belinda_AI"
-
+        repo_url = "https://github.com/Danta23/Belinda_AI/archive/refs/heads/main.zip"
+        
         try:
-            git_path = shutil.which('git')
-            if git_path:
-                self.log_append("> Found git. Running direct clone...\n")
-                process = await asyncio.create_subprocess_exec(
-                    git_path, "clone", repo_url, target_dir,
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-                )
-                while True:
-                    line = await process.stdout.readline()
-                    if not line: break
-                    text = line.decode()
-                    self.log_append(text)
-                    if "%" in text:
-                        try:
-                            parts = text.split('%')[0].split()
-                            if parts:
-                                percent = int(parts[-1])
-                                await self.update_clone_progress(percent)
-                        except: pass
-                await process.wait()
-                if process.returncode == 0 and os.path.isdir(target_dir):
-                    await self.finish_clone(True)
-                    return
-
-            if os.path.exists('/system/bin/am'):
-                self.log_append("> Using Android Termux:API Intent...\n")
-                full_cmd = f"pkg install git -y && git clone {repo_url} {target_dir}"
-                am_cmd = [
-                    "am", "startservice", "--user", "0",
-                    "-n", "com.termux/.app.TermuxService",
-                    "-e", "com.termux.execute.background", "true",
-                    "-e", "com.termux.execute.command", full_cmd
-                ]
-                subprocess.run(am_cmd, capture_output=True)
-                for i in range(90):
-                    await self.update_clone_progress(int((i/90)*100))
-                    if os.path.isdir(target_dir) and os.path.exists(os.path.join(target_dir, "bridge.js")):
-                        self.log_append(">>> Folder detected! Termux clone SUCCESS.\n")
-                        await self.finish_clone(True)
-                        return
-                    await asyncio.sleep(1)
-
-            if self.root_cmd:
-                self.log_append("> Attempting forced clone via ROOT...\n")
-                subprocess.run(f"{self.root_cmd} 'pkg install git -y && git clone {repo_url} {target_dir}'", shell=True)
-                if os.path.isdir(target_dir):
-                    await self.finish_clone(True)
-                    return
+            self.log_append("> Termux-less Native Python Download Started...\n")
             
-            os.system(f"git clone {repo_url} {target_dir}")
+            # Streaming download with urllib, wrapped in to_thread to prevent UI freeze (ANR)
+            req = await asyncio.to_thread(urllib.request.urlopen, repo_url)
+            total_size = int(req.info().get('Content-Length', '5000000'))
+            
+            downloaded = 0
+            chunk_size = 16384
+            zip_buffer = io.BytesIO()
+            
+            while True:
+                # Read chunks on a background thread
+                chunk = await asyncio.to_thread(req.read, chunk_size)
+                if not chunk: break
+                zip_buffer.write(chunk)
+                downloaded += len(chunk)
+                percent = int((downloaded / total_size) * 100)
+                if percent > 100: percent = 100
+                self.progress_clone.value = percent
+                self.btn_clone.text = f"{self.get_text('status_cloning')} ({percent}%)"
+                
+                # Give UI a chance to render
+                await asyncio.sleep(0.005)
+                
+            self.log_append("> Download complete. Extracting Native ZIP...\n")
+            self.btn_clone.text = "Extracting files..."
+            await asyncio.sleep(0.1)
+            
+            # Extract in a background thread to prevent freeze
+            def extract_zip():
+                with zipfile.ZipFile(zip_buffer) as z:
+                    z.extractall(".")
+            await asyncio.to_thread(extract_zip)
+                
+            # Rename the extracted 'Belinda_AI-main' folder to 'Belinda_AI'
+            extracted_folder = "Belinda_AI-main"
+            if os.path.exists(extracted_folder):
+                if os.path.exists(target_dir): shutil.rmtree(target_dir)
+                os.rename(extracted_folder, target_dir)
+                
             if os.path.isdir(target_dir):
+                self.log_append(">>> Native ZIP clone SUCCESS! No Termux needed.\n")
                 await self.finish_clone(True)
-                return
-
-            await self.finish_clone(False, "Clone Failed.")
+            else:
+                await self.finish_clone(False, "Extracted folder not found.")
+                
         except Exception as e:
             await self.finish_clone(False, str(e))
 
@@ -546,30 +513,57 @@ class BelindaApp(toga.App):
         asyncio.create_task(self.deploy_task())
 
     async def deploy_task(self):
-        self.log_append(">>> Starting Full Deployment...\n")
+        self.log_append(">>> Starting Termux-Independent Deployment...\n")
         
-        # 1. Environment
-        self.log_append("installing dependencies...\n")
-        await asyncio.create_subprocess_shell("pkg install python nodejs-lts git -y", stdout=subprocess.DEVNULL)
-        await asyncio.create_subprocess_shell("python3 -m venv .venv")
+        # 1. Environment: Native pkg hook just in case they have Termux
+        if shutil.which("pkg"):
+            self.log_append("> Detected Termux layer. Installing via pkg...\n")
+            await asyncio.create_subprocess_shell("pkg install python nodejs-lts git -y", stdout=subprocess.DEVNULL)
         
-        pip_cmd = ".venv/bin/pip" if os.name != 'nt' else ".venv\\Scripts\\pip"
-        
-        # 2. Python Packages
-        p1 = await asyncio.create_subprocess_shell(f"{pip_cmd} install -r requirements.txt", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+        # 2. Native Python Packages (using App's own bundled Python)
+        self.log_append("\n>>> Installing Python Dependencies...\n")
+        pip_cmd = [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"]
+        p1 = await asyncio.create_subprocess_exec(*pip_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
         while True:
             line = await p1.stdout.readline()
             if not line: break
             self.log_append(line.decode())
+            
+        # 3. Handle Node.js missing natively on Android
+        if not shutil.which("node"):
+            self.log_append("\n>>> Node.js not found in PATH! Downloading Portable Android-ARM64 Node...\n")
+            node_url = "https://unofficial-builds.nodejs.org/download/release/v20.12.2/node-v20.12.2-android-arm64.tar.gz"
+            try:
+                import urllib.request, tarfile, io
+                
+                def download_and_extract_node():
+                    req = urllib.request.urlopen(node_url)
+                    file_data = req.read()
+                    with tarfile.open(fileobj=io.BytesIO(file_data), mode="r:gz") as tar:
+                        tar.extractall("portable_node")
+                
+                # Run the heavy 40MB download and extraction in a background thread to prevent UI freeze
+                await asyncio.to_thread(download_and_extract_node)
+                
+                node_bin = os.path.abspath("portable_node/node-v20.12.2-android-arm64/bin")
+                os.environ["PATH"] += os.pathsep + node_bin
+                self.log_append(f"> Portable Node.js installed securely at {node_bin}\n")
+            except Exception as e:
+                self.log_append(f"> Node.js download failed: {e}\n")
+
+        # 4. Node Packages
+        self.log_append("\n>>> Installing NPM Packages...\n")
+        npm_cmd = "npm.cmd" if os.name == 'nt' else "npm"
+        try:
+            p2 = await asyncio.create_subprocess_exec(npm_cmd, "install", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+            while True:
+                line = await p2.stdout.readline()
+                if not line: break
+                self.log_append(line.decode())
+        except Exception as e:
+            self.log_append(f"> NPM Setup (Termux independent) error: {e}\n")
         
-        # 3. Node Packages
-        p2 = await asyncio.create_subprocess_shell("npm install", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
-        while True:
-            line = await p2.stdout.readline()
-            if not line: break
-            self.log_append(line.decode())
-        
-        self.log_append("\n>>> Deployment Successful!\n")
+        self.log_append("\n>>> Native Deployment Successful!\n")
         self.settings.data["deployed"] = True
         self.settings.save()
         self.lbl_status_val.text = "READY"
