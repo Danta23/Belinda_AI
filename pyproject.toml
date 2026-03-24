@@ -1,7 +1,7 @@
 [tool.briefcase]
 project_name = "Belinda AI"
 bundle = "id.studio234"
-version = "1.4.7.2-9"
+version = "1.4.7.2-11"
 display_name = "Belinda AI"
 formal_name = "Belinda AI"
 description = "WhatsApp Bot Belinda AI"
@@ -29,4 +29,4 @@ requires = ["PyQt5", "qtawesome", "python-dotenv", "QtPy"]
 [tool.briefcase.app.belinda-ai.android]
 # Use Native Toga for Android (Fixed compatibility)
 app_module = "belinda_ai.app"
-requires = ["toga-android", "python-dotenv"]
+requires = ["toga-android", "python-dotenv", "pip"]
