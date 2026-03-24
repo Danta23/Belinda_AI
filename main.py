@@ -323,19 +323,37 @@ class BelindaApp(toga.App):
                 break
 
     def check_termux_and_api(self):
-        is_termux = os.path.isdir("/data/data/com.termux")
+        # Native Linux/Windows fallback (Termux is not needed)
+        import shutil
+        if not shutil.which("pm"):
+            return True
+
+        is_termux = False
+        try:
+            res = subprocess.run(["pm", "list", "packages", "com.termux"], capture_output=True, text=True)
+            if "package:com.termux" in res.stdout: is_termux = True
+        except: pass
+        
+        # Fallback just in case
+        if not is_termux and os.path.isdir("/data/data/com.termux"):
+            is_termux = True
+
         if not is_termux:
             self.show_toast("Termux not found! Please install it.")
             return False
+
         is_api = False
         try:
             res = subprocess.run(["pm", "list", "packages", "com.termux.api"], capture_output=True, text=True)
-            if "com.termux.api" in res.stdout: is_api = True
+            if "package:com.termux.api" in res.stdout: is_api = True
         except: pass
+        
         if not is_api:
             self.show_toast("Termux:API missing! Please install from GitHub")
-            webbrowser.open("https://github.com/termux/termux-api/releases")
+            try: webbrowser.open("https://github.com/termux/termux-api/releases")
+            except: pass
             return False
+            
         self.show_notification("System Ready", "Termux API is available.")
         return True
 
