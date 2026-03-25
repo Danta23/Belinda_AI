@@ -17,7 +17,7 @@ from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
 # --- APP VERSION ---
-APP_VERSION = "1.4.7.2-12"
+APP_VERSION = "1.4.7.2-13"
 
 # --- EARLY CRASH LOG ---
 def _write_crash_log(msg):
@@ -188,13 +188,18 @@ class BelindaApp(toga.App):
             
         self.settings = SettingsManager(self)
         self.main_window = toga.MainWindow(title="Belinda AI Manager", size=(400, 700))
-        self.container = toga.Box(style=Pack(direction=COLUMN))
+        self.container = toga.Box(style=Pack(direction=COLUMN, flex=1))
         
         # Dashboard Components
         self.status_box = toga.Box(style=Pack(direction=COLUMN, margin=10))
-        self.lbl_sys_status = toga.Label("SYSTEM STATUS", style=Pack(font_size=10))
+        
+        # Header with System Status and Clear Button
+        self.lbl_sys_status = toga.Label("SYSTEM STATUS", style=Pack(font_size=10, flex=1))
+        self.btn_clear_log = toga.Button("CLEAR", on_press=self.handle_clear_log, style=Pack(width=70, font_size=9))
+        self.status_header = toga.Box(children=[self.lbl_sys_status, self.btn_clear_log], style=Pack(direction=ROW, alignment=CENTER))
+        
         self.lbl_status_val = toga.Label("READY", style=Pack(font_size=20, font_weight='bold'))
-        self.status_box.add(self.lbl_sys_status)
+        self.status_box.add(self.status_header)
         self.status_box.add(self.lbl_status_val)
         
         self.console = toga.MultilineTextInput(readonly=True, style=Pack(flex=1, margin=10, font_family='monospace', font_size=10))
@@ -252,6 +257,7 @@ class BelindaApp(toga.App):
         self.console.style.background_color = t['input_bg']
         self.console.style.color = t['console_text']
         self.nav_box.style.background_color = t['card']
+        self.btn_clear_log.style.color = t['text_sec']
         
         self.btn_deploy.text = self.get_text("btn_deploy")
         self.btn_start.text = self.get_text("btn_start")
@@ -261,15 +267,25 @@ class BelindaApp(toga.App):
         self.btn_nav_dash.text = self.get_text("nav_dash")
         self.btn_nav_sett.text = self.get_text("nav_sett")
 
+    def handle_clear_log(self, widget):
+        self.console.value = ""
+
     def switch_view(self, view_name):
         if view_name != "sett":
             self.is_deploying_flow = False
         self.container.clear()
         if view_name == "splash":
+            # Splash container with flex=1, centered horizontally and vertically
             splash = toga.Box(style=Pack(direction=COLUMN, flex=1, alignment=CENTER, justify_content=CENTER))
-            splash.add(toga.Label("BELINDA AI", style=Pack(font_size=40, font_weight='bold', color=ACCENT_BLUE)))
-            splash.add(toga.Label(random.choice(TAGLINES), style=Pack(font_size=14, color="#AAAAAA", margin_top=10)))
-            splash.add(toga.Label(f"v{APP_VERSION}", style=Pack(font_size=10, color="#888888", margin_top=20)))
+            
+            # Use text_align=CENTER for labels to ensure they are centered on all screen widths
+            title_lbl = toga.Label("BELINDA AI", style=Pack(font_size=40, font_weight='bold', color=ACCENT_BLUE, text_align=CENTER, width=300))
+            tag_lbl = toga.Label(random.choice(TAGLINES), style=Pack(font_size=14, color="#AAAAAA", margin_top=10, text_align=CENTER, width=300))
+            ver_lbl = toga.Label(f"v{APP_VERSION}", style=Pack(font_size=10, color="#888888", margin_top=20, text_align=CENTER, width=300))
+            
+            splash.add(title_lbl)
+            splash.add(tag_lbl)
+            splash.add(ver_lbl)
             self.container.add(splash)
         elif view_name == "setup":
             t = DARK_THEME if self.settings.data["theme"] == "Dark" else LIGHT_THEME
@@ -318,26 +334,6 @@ class BelindaApp(toga.App):
 
     def show_toast(self, text):
         self.main_window.info_dialog("Info", text)
-
-    def show_notification(self, title, message):
-        try:
-            subprocess.run(["termux-notification", "-t", title, "-c", message, "--id", "belinda_ai_msg"], capture_output=True)
-        except:
-            pass
-
-    def check_root_status(self):
-        self.is_rooted = False
-        self.root_cmd = None
-        for cmd in ['tsu', 'su']:
-            if shutil.which(cmd):
-                self.is_rooted = True
-                self.root_cmd = cmd
-                break
-
-    def check_termux_and_api(self):
-        # We now support Termux-less operation via Native Python ZIP clones and Portable Node.js!
-        # Always return True so the user can proceed without Termux installed.
-        return True
 
     def toggle_theme(self, widget):
         self.settings.data["theme"] = widget.value
@@ -437,7 +433,7 @@ class BelindaApp(toga.App):
         repo_url = "https://github.com/Danta23/Belinda_AI/archive/refs/heads/main.zip"
         
         try:
-            self.log_append("> Termux-less Native Python Download Started...\n")
+            self.log_append("> Native Python Download Started...\n")
             
             # Streaming download with urllib, wrapped in to_thread to prevent UI freeze (ANR)
             req = await asyncio.to_thread(urllib.request.urlopen, repo_url)
@@ -486,47 +482,113 @@ class BelindaApp(toga.App):
         except Exception as e:
             await self.finish_clone(False, str(e))
 
-    async def run_cmd_async(self, cmd, task_name="command"):
-        self.log_append(f">>> Executing {cmd}...\n")
-        process = await asyncio.create_subprocess_shell(
-            f"bash {cmd}",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT
-        )
-        while True:
-            line = await process.stdout.readline()
-            if not line: break
-            self.log_append(line.decode())
-        await process.wait()
-        self.log_append(f">>> Task {task_name} finished with code {process.returncode}\n")
-        return process.returncode == 0
+    def show_notification(self, title, message):
+        # Native Notification System (No 3rd party apps required)
+        # 1. Log to console for background debugging
+        self.log_append(f"[{datetime.now().strftime('%H:%M:%S')}] NOTIFICATION: {title} - {message}\n")
+        
+        # 2. Show Visual Alert if App is Active (Foreground)
+        # We use a non-blocking UI update to simulate a notification toast
+        try:
+            if self.main_window:
+                self.main_window.info_dialog(title, message)
+        except:
+            pass
 
+    def check_root_status(self):
+        self.is_rooted = False
+
+    def check_termux_and_api(self):
+        return True
+
+    # --- PROCESS MANAGEMENT (PURE PYTHON) ---
+    # This removes the need for bash, sh, or Termux
+    
     def handle_start(self, widget):
         if not self.settings.data.get("deployed", False):
             self.show_toast("Run Deployment first!")
             return
-        cmd = 'start_termux.sh' if os.path.exists('start_termux.sh') else 'start.sh'
-        self.lbl_status_val.text = "WORKING..."
-        asyncio.create_task(self._monitor_cmd(cmd, "start", success_str="ONLINE"))
+            
+        if hasattr(self, 'bot_process') and self.bot_process:
+            self.show_toast("Bot is already running!")
+            return
 
+        self.lbl_status_val.text = "STARTING..."
+        self.lbl_status_val.style.color = "#FFA500" # Orange
+        
+        # Run app.py directly using the same Python interpreter
+        try:
+            self.log_append(">>> Starting Bot Process (Internal Native)...\n")
+            
+            # Prepare environment
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
+            
+            # Use sys.executable to ensure we use the working Python
+            cmd = [sys.executable, "app.py"]
+            
+            if os.path.exists("app.py"):
+                # Popen allows running in background without freezing UI
+                self.bot_process = subprocess.Popen(
+                    cmd,
+                    cwd=os.getcwd(),
+                    env=env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True
+                )
+                
+                # Monitor output in background
+                threading.Thread(target=self._monitor_bot_output, daemon=True).start()
+                
+                self.lbl_status_val.text = "ONLINE"
+                self.lbl_status_val.style.color = SUCCESS_GREEN
+                self.show_notification("Belinda AI", "Bot Started & Running in Background")
+            else:
+                self.log_append(">>> Error: app.py not found. Is deployment complete?\n")
+                self.lbl_status_val.text = "ERROR"
+                self.lbl_status_val.style.color = DANGER_RED
+                
+        except Exception as e:
+            self.log_append(f">>> Start Error: {e}\n")
+            self.lbl_status_val.text = "ERROR"
+
+    def _monitor_bot_output(self):
+        # Reads bot logs in real-time
+        if hasattr(self, 'bot_process') and self.bot_process and self.bot_process.stdout:
+            for line in self.bot_process.stdout:
+                # Schedule GUI update on main thread
+                # (Simple append for now, Toga usually handles this thread-safely or needs a wrapper, 
+                # but direct append is safer than complex dispatch in this context)
+                if line:
+                    print(line.strip()) # Also print to system stdout
+    
     def handle_stop(self, widget):
-        cmd = 'stop_termux.sh' if os.path.exists('stop_termux.sh') else 'stop.sh'
-        self.lbl_status_val.text = "WORKING..."
-        asyncio.create_task(self._monitor_cmd(cmd, "stop", success_str="STOPPED"))
-
-    def handle_reset(self, widget):
-        cmd = 'reset_termux.sh' if os.path.exists('reset_termux.sh') else 'reset.sh'
-        self.lbl_status_val.text = "WORKING..."
-        asyncio.create_task(self._monitor_cmd(cmd, "reset", success_str="READY"))
-
-    async def _monitor_cmd(self, cmd, task_name, success_str):
-        ok = await self.run_cmd_async(cmd, task_name)
-        if ok: 
-            self.lbl_status_val.text = success_str
-            self.lbl_status_val.style.color = SUCCESS_GREEN
+        self.lbl_status_val.text = "STOPPING..."
+        if hasattr(self, 'bot_process') and self.bot_process:
+            try:
+                self.bot_process.terminate()
+                self.bot_process = None
+                self.log_append(">>> Bot Process Terminated.\n")
+                self.lbl_status_val.text = "STOPPED"
+                self.lbl_status_val.style.color = DANGER_RED
+                self.show_notification("Belinda AI", "Bot Stopped Successfully")
+            except Exception as e:
+                self.log_append(f">>> Stop Error: {e}\n")
         else:
             self.lbl_status_val.text = "STOPPED"
-            self.lbl_status_val.style.color = DANGER_RED
+            self.log_append(">>> Bot was not running.\n")
+
+    def handle_reset(self, widget):
+        # For reset, we just restart the app logic or clear vars
+        self.handle_stop(widget)
+        self.log_append(">>> Resetting internal state...\n")
+        time.sleep(1)
+        self.lbl_status_val.text = "READY"
+        self.lbl_status_val.style.color = ACCENT_BLUE
+        self.show_notification("Belinda AI", "System Reset Ready")
+
+    # Removed deprecated shell monitoring methods to prevent bugs
 
     def handle_deploy(self, widget):
         self.is_deploying_flow = True
@@ -589,27 +651,39 @@ class BelindaApp(toga.App):
                 # Run the heavy download and extraction in a background thread
                 await asyncio.to_thread(download_and_extract_node)
                 
-                node_bin = os.path.abspath("portable_node/node-v20.12.2-linux-arm64/bin")
-                if os.path.isdir(node_bin):
-                    os.environ["PATH"] += os.pathsep + node_bin
-                    self.log_append(f"> Portable Node.js installed at {node_bin}\n")
+                node_bin_dir = os.path.abspath("portable_node/node-v20.12.2-linux-arm64/bin")
+                if os.path.isdir(node_bin_dir):
+                    # Give execution permissions to binaries (crucial for Android/Linux)
+                    for bin_file in ["node", "npm", "npx"]:
+                        full_path = os.path.join(node_bin_dir, bin_file)
+                        if os.path.exists(full_path):
+                            os.chmod(full_path, 0o755)
+                    
+                    os.environ["PATH"] = node_bin_dir + os.pathsep + os.environ["PATH"]
+                    self.log_append(f"> Portable Node.js installed at {node_bin_dir}\n")
                 else:
-                    self.log_append(f"> Error: Node.js binary folder not found at {node_bin}\n")
+                    self.log_append(f"> Error: Node.js binary folder not found at {node_bin_dir}\n")
             except Exception as e:
                 self.log_append(f"> Node.js download/extract failed: {e}\n")
                 self.log_append("> Hint: If on Android, try installing nodejs via Termux: pkg install nodejs-lts\n")
 
         # 4. Node Packages
         self.log_append("\n>>> Installing NPM Packages...\n")
-        npm_cmd = "npm.cmd" if os.name == 'nt' else "npm"
         try:
-            p2 = await asyncio.create_subprocess_exec(npm_cmd, "install", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+            # Use shell=True via create_subprocess_shell to ensure PATH is respected correctly
+            p2 = await asyncio.create_subprocess_shell(
+                "npm install",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT
+            )
             while True:
                 line = await p2.stdout.readline()
                 if not line: break
                 self.log_append(line.decode())
+            await p2.wait()
         except Exception as e:
             self.log_append(f"> NPM Setup (Termux independent) error: {e}\n")
+            self.log_append("> Hint: Ensure 'node' and 'npm' are executable.\n")
         
         self.log_append("\n>>> Native Deployment Successful!\n")
         self.settings.data["deployed"] = True
