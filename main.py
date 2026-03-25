@@ -17,7 +17,7 @@ from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
 # --- APP_VERSION ---
-APP_VERSION = "1.4.7.2-Arch"
+APP_VERSION = "1.4.7.3-arch1-1"
 
 
 # --- EARLY CRASH LOG ---
@@ -235,6 +235,13 @@ class BelindaApp(toga.App):
         self.lang_sel = toga.Selection(items=list(TRANSLATIONS.keys()), on_change=self.change_lang)
         self.env_box = toga.Box(style=Pack(direction=COLUMN, margin_top=20))
         self.btn_save_sett = toga.Button("SAVE CHANGES", on_press=self.save_settings, style=Pack(margin_top=20, background_color=SUCCESS_GREEN))
+        
+        # Deployment Progress Components (initially hidden)
+        self.deploy_progress_box = toga.Box(style=Pack(direction=COLUMN, padding=20, alignment=CENTER))
+        self.deploy_status_label = toga.Label("Starting deployment...", style=Pack(text_align=CENTER, font_size=12))
+        self.deploy_progress = toga.ProgressBar(max=100, style=Pack(width=300, padding_top=10))
+        self.deploy_progress_box.add(self.deploy_status_label)
+        self.deploy_progress_box.add(self.deploy_progress)
         
         self.refresh_ui()
         self.is_deploying_flow = False
@@ -620,6 +627,7 @@ class BelindaApp(toga.App):
                 )
 
     def handle_start(self, widget):
+        self.log_append("\n--- USER ACTION: START BOT ---\n")
         if not self.settings.data.get("deployed", False):
             self.show_toast("Run Deployment first!")
             return
@@ -690,6 +698,7 @@ class BelindaApp(toga.App):
         return True
     
     def handle_stop(self, widget):
+        self.log_append("\n--- USER ACTION: STOP BOT ---\n")
         self.lbl_status_val.text = "STOPPING..."
         if hasattr(self, 'bot_process') and self.bot_process:
             try:
@@ -706,6 +715,7 @@ class BelindaApp(toga.App):
             self.log_append(">>> Bot was not running.\n")
 
     def handle_reset(self, widget):
+        self.log_append("\n--- USER ACTION: RESET BOT ---\n")
         # For reset, we just restart the app logic or clear vars
         self.handle_stop(widget)
         self.log_append(">>> Resetting internal state...\n")
@@ -717,120 +727,122 @@ class BelindaApp(toga.App):
     # Removed deprecated shell monitoring methods to prevent bugs
 
     def handle_deploy(self, widget):
-        self.is_deploying_flow = True
-        self.switch_view("sett")
+        # This is the correct way to handle the deployment view
+        self.status_box.style.visibility = 'hidden'
+        self.btn_box.style.visibility = 'hidden'
+        self.deploy_progress_box.style.visibility = 'visible'
+        self.container.refresh()
+        asyncio.create_task(self.deploy_task())
+
+    async def update_deploy_progress(self, percent, message):
+        if percent > 100: percent = 100
+        self.deploy_progress.value = percent
+        self.deploy_status_label.text = f"{message} ({int(percent)}%)"
+        # Explicitly log to console for debugging
+        self.log_append(f"PROGRESS: {int(percent)}% - {message}\n")
+        await asyncio.sleep(0.01)
 
     async def deploy_task(self):
-        # This is the core of the "Belinda_AI" engine
-        import urllib.request
-        import tarfile
-        import io
-        import stat
-
+        import urllib.request, tarfile, io, stat
+        
         PROOT_URL = "https://github.com/proot-me/proot/releases/download/v5.3.0/proot-v5.3.0-aarch64-static"
         ARCH_URL = "http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
-        PROOT_BIN = "proot"
-        ARCH_ROOT = "arch_linux"
+        PROOT_BIN, ARCH_ROOT = "proot", "arch_linux"
 
-        self.log_append(">>> Initializing Belinda_AI (Arch Linux Engine)...\n")
-        
         try:
-            # --- Phase 1: Setup PRoot (The Virtual Engine) ---
+            await self.update_deploy_progress(0, "Starting Belinda_AI Engine Setup")
+
+            # --- Phase 1: Setup PRoot (5%) ---
             if not os.path.exists(PROOT_BIN):
-                self.log_append("> Downloading PRoot Engine...\n")
+                self.log_append(f"LOG: Downloading PRoot Engine...\n")
+                await self.update_deploy_progress(2, "Downloading PRoot")
                 await asyncio.to_thread(urllib.request.urlretrieve, PROOT_URL, PROOT_BIN)
-                # Set executable permissions
                 os.chmod(PROOT_BIN, stat.S_IRWXU)
-            else:
-                self.log_append("> PRoot Engine already exists.\n")
-
-            # --- Phase 2: Setup Arch Linux Root Filesystem (The OS) ---
+                self.log_append(f"LOG: PRoot Engine downloaded.\n")
+            
+            # --- Phase 2: Setup Arch Linux Rootfs (10% -> 70%) ---
             if not os.path.isdir(ARCH_ROOT):
-                self.log_append(f"> Downloading Arch Linux ARM (~200MB)... Please be patient.\n")
+                await self.update_deploy_progress(10, "Downloading Arch Linux (~200MB)")
+                self.log_append(f"LOG: Downloading Arch Linux rootfs. This may take a while...\n")
                 
-                def download_and_extract():
-                    with urllib.request.urlopen(ARCH_URL) as response:
-                        with tarfile.open(fileobj=io.BytesIO(response.read()), mode="r:gz") as tar:
-                            tar.extractall(ARCH_ROOT)
+                req = urllib.request.Request(ARCH_URL, headers={'User-Agent': 'Mozilla/5.0'})
+                buffer = io.BytesIO()
+                def download_stream():
+                    with urllib.request.urlopen(req) as response:
+                        total_size = int(response.getheader('Content-Length', 200000000))
+                        downloaded = 0
+                        while True:
+                            chunk = response.read(8192)
+                            if not chunk: break
+                            buffer.write(chunk)
+                            downloaded += len(chunk)
+                            progress = 10 + (downloaded / total_size) * 50
+                            self.add_background_task(self.update_deploy_progress(progress, "Downloading Arch..."))
+                await asyncio.to_thread(download_stream)
                 
-                await asyncio.to_thread(download_and_extract)
-                self.log_append("> Arch Linux System Extracted.\n")
+                await self.update_deploy_progress(65, "Extracting Arch Linux...")
+                self.log_append(f"LOG: Extracting Arch Linux rootfs...\n")
+                buffer.seek(0)
+                await asyncio.to_thread(tarfile.open(fileobj=buffer, mode="r:gz").extractall, ARCH_ROOT)
                 
-                # --- Phase 2a: Configure Arch Environment ---
-                # Fix DNS for pacman
-                resolv_path = os.path.join(ARCH_ROOT, "etc", "resolv.conf")
-                with open(resolv_path, "w") as f:
-                    f.write("nameserver 8.8.8.8\nnameserver 8.8.4.4\n")
+                await self.update_deploy_progress(70, "Configuring Environment")
+                self.log_append(f"LOG: Configuring DNS and Pacman...\n")
+                with open(os.path.join(ARCH_ROOT, "etc/resolv.conf"), "w") as f: f.write("nameserver 8.8.8.8\n")
+                conf_path = os.path.join(ARCH_ROOT, "etc/pacman.conf")
+                with open(conf_path, "r") as f: content = f.read()
+                with open(conf_path, "w") as f: f.write(content.replace("SigLevel    = Required DatabaseOptional", "SigLevel = Never"))
 
-                # Disable pacman signature checks for simplicity and reliability
-                pacman_conf_path = os.path.join(ARCH_ROOT, "etc", "pacman.conf")
-                with open(pacman_conf_path, "r") as f: content = f.read()
-                content = content.replace("SigLevel    = Required DatabaseOptional", "SigLevel = Never")
-                with open(pacman_conf_path, "w") as f: f.write(content)
-            else:
-                 self.log_append("> Arch Linux environment already exists.\n")
-
-            # --- Phase 3: Install Dependencies via Pacman ---
-            self.log_append("\n>>> [pacman] Initializing and Installing Dependencies...\n")
-            # Update keyring and install core packages
+            # --- Phase 3: Pacman & System Dependencies (70% -> 85%) ---
+            await self.update_deploy_progress(70, "Installing System Packages...")
+            self.log_append("\nLOG: Initializing pacman and installing core packages (python, nodejs, etc)...\n")
             install_cmd = "pacman-key --init && pacman-key --populate archlinuxarm && pacman -Syu --noconfirm python python-pip nodejs npm git make gcc"
             proc = await self.run_arch_container(install_cmd)
             while True:
                 line = await proc.stdout.readline()
                 if not line: break
-                self.log_append(f"[pacman] {line.decode()}")
+                self.log_append(f"[pacman] {line.decode()}") # Stream pacman output
             await proc.wait()
 
-            # --- Phase 4: Install Python Requirements (Inside Arch) ---
-            self.log_append("\n>>> [pip] Installing Python Libraries...\n")
+            # --- Phase 4: Python Requirements (85% -> 95%) ---
+            await self.update_deploy_progress(85, "Installing Python Libraries...")
+            self.log_append("\nLOG: Installing python libraries from requirements.txt via pip...\n")
             pip_cmd = "pip install -r requirements.txt --break-system-packages"
             proc = await self.run_arch_container(pip_cmd)
             while True:
                 line = await proc.stdout.readline()
                 if not line: break
-                self.log_append(f"[pip] {line.decode()}")
+                self.log_append(f"[pip] {line.decode()}") # Stream pip output
             await proc.wait()
 
-            # --- Phase 5: Install NPM Packages (Inside Arch) ---
-            self.log_append("\n>>> [npm] Installing Node.js Packages...\n")
+            # --- Phase 5: NPM Packages (95% -> 100%) ---
+            await self.update_deploy_progress(95, "Installing Node.js Packages...")
+            self.log_append("\nLOG: Installing node.js packages from package.json via npm...\n")
             npm_cmd = "npm install"
             proc = await self.run_arch_container(npm_cmd)
             while True:
                 line = await proc.stdout.readline()
                 if not line: break
-                self.log_append(f"[npm] {line.decode()}")
+                self.log_append(f"[npm] {line.decode()}") # Stream npm output
             await proc.wait()
 
-            # --- Deployment Complete ---
-            self.log_append("\n>>> Belinda_AI Ready! Deployment Successful.\n")
+            await self.update_deploy_progress(100, "Deployment Successful!")
+            self.log_append("\nLOG: Belinda_AI Engine setup is complete.\n")
             self.settings.data["deployed"] = True
             self.settings.save()
             self.lbl_status_val.text = "READY"
             self.lbl_status_val.style.color = ACCENT_BLUE
             self.btn_start.enabled = True
             self.show_toast("Deployment Complete. Ready to Start Bot.")
-
-        except PermissionError:
-            self.log_append("\n>>> FATAL: ANDROID SECURITY BLOCK <<<\n")
-            self.log_append("The PRoot engine was blocked by Android's security policy (W^X).\n")
-            self.log_append("Solution: \n1. Use a ROOTED device and grant SU access.\n2. On non-root, this feature cannot run on Android 10+.\n")
         except Exception as e:
-            self.log_append(f"> Deployment Error: {traceback.format_exc()}\n")
+            self.log_append(f"> DEPLOYMENT FAILED: {traceback.format_exc()}\n")
             self.lbl_status_val.text = "DEPLOY FAILED"
             self.lbl_status_val.style.color = DANGER_RED
-        if await self.main_window.confirm_dialog(self.get_text("pop_title"), self.get_text("pop_desc")):
-            self.log_append(">>> Performing Factory Reset...\n")
-            try:
-                if os.path.isdir("Belinda_AI"): shutil.rmtree("Belinda_AI")
-                for item in [".venv", "node_modules", "auth_info", "bridge.js", ".env", "package.json"]:
-                    if os.path.isdir(item): shutil.rmtree(item)
-                    elif os.path.exists(item): os.remove(item)
-                self.settings.data["deployed"] = False
-                self.settings.save()
-                self.check_files_and_switch()
-                self.show_toast("Factory Reset Complete.")
-            except Exception as e:
-                self.show_toast(f"Reset Error: {e}")
+        finally:
+            # ALWAYS restore UI visibility
+            self.status_box.style.visibility = "visible"
+            self.btn_box.style.visibility = "visible"
+            self.deploy_progress_box.style.visibility = "hidden"
+            self.container.refresh()
 
     def handle_factory(self, widget):
         asyncio.create_task(self.factory_reset_task())
