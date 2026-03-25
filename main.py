@@ -17,7 +17,7 @@ from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
 # --- APP VERSION ---
-APP_VERSION = "1.4.7.2-13"
+APP_VERSION = "1.4.7.2-15"
 
 # --- EARLY CRASH LOG ---
 def _write_crash_log(msg):
@@ -237,6 +237,7 @@ class BelindaApp(toga.App):
         
         self.refresh_ui()
         self.is_deploying_flow = False
+        self.on_exit = self.handle_app_exit # Register exit handler
         self.switch_view("splash")
         self.main_window.content = self.container
         self.main_window.show()
@@ -259,6 +260,10 @@ class BelindaApp(toga.App):
         self.nav_box.style.background_color = t['card']
         self.btn_clear_log.style.color = t['text_sec']
         
+        # Settings labels color update
+        self.lbl_sett_title.style.color = t['text']
+        self.settings_content.style.background_color = t['bg']
+        
         self.btn_deploy.text = self.get_text("btn_deploy")
         self.btn_start.text = self.get_text("btn_start")
         self.btn_stop.text = self.get_text("btn_stop")
@@ -274,6 +279,8 @@ class BelindaApp(toga.App):
         if view_name != "sett":
             self.is_deploying_flow = False
         self.container.clear()
+        t = DARK_THEME if self.settings.data["theme"] == "Dark" else LIGHT_THEME
+        
         if view_name == "splash":
             # Splash container with flex=1, centered horizontally and vertically
             splash = toga.Box(style=Pack(direction=COLUMN, flex=1, alignment=CENTER, justify_content=CENTER))
@@ -288,7 +295,6 @@ class BelindaApp(toga.App):
             splash.add(ver_lbl)
             self.container.add(splash)
         elif view_name == "setup":
-            t = DARK_THEME if self.settings.data["theme"] == "Dark" else LIGHT_THEME
             setup = toga.Box(style=Pack(direction=COLUMN, margin=30))
             setup.add(toga.Label(self.get_text("title_setup"), style=Pack(font_size=24, font_weight='bold', color=t['text'])))
             setup.add(toga.Label(self.get_text("desc_setup"), style=Pack(margin_top=20, color=t['text_sec'])))
@@ -303,9 +309,18 @@ class BelindaApp(toga.App):
             self.container.add(self.btn_box)
             self.container.add(self.nav_box)
         elif view_name == "sett":
+            self.settings_content.clear()
             self.settings_content.add(self.lbl_sett_title)
-            self.settings_content.add(toga.Box(children=[toga.Label("Language", style=Pack(flex=1)), self.lang_sel], style=Pack(direction=ROW, margin=5)))
-            self.settings_content.add(toga.Box(children=[toga.Label("Theme", style=Pack(flex=1)), self.theme_sel], style=Pack(direction=ROW, margin=5)))
+            
+            # Helper to create themed rows
+            def create_sett_row(label_text, widget):
+                return toga.Box(children=[
+                    toga.Label(label_text, style=Pack(flex=1, color=t['text'])),
+                    widget
+                ], style=Pack(direction=ROW, margin=5))
+
+            self.settings_content.add(create_sett_row("Language", self.lang_sel))
+            self.settings_content.add(create_sett_row("Theme", self.theme_sel))
             self.settings_content.add(self.env_box)
             self.settings_content.add(self.btn_save_sett)
             self.refresh_env_list()
@@ -350,28 +365,53 @@ class BelindaApp(toga.App):
         self.env_inputs = {}
         t = DARK_THEME if self.settings.data["theme"] == "Dark" else LIGHT_THEME
         
-        if not os.path.exists(".env"):
-            with open(".env", "w") as f:
-                f.write("GROQ_API_KEY=\nFLASK_PORT=3000\nBOT_NAME=Belinda_AI\n")
-                
+        # Default template structure with keys and their default values
+        template = [
+            ("--- Flask Backend Settings ---", None),
+            ("GROQ_API_KEY", ""),
+            ("FLASK_PORT", "8000"),
+            ("--- Bridge Settings ---", None),
+            ("PYTHON_URL", "http://localhost:8000"),
+            ("SESSION_NAME", "auth_info"),
+            ("--- Connection Tuning ---", None),
+            ("BRIDGE_HOST", "127.0.0.1"),
+            ("BRIDGE_PORT", "9000")
+        ]
+
+        # Load existing values from .env if it exists
+        current_values = {}
         if os.path.exists(".env"):
-            with open(".env", "r") as f:
-                for line in f:
-                    if "=" in line and not line.startswith("#"):
-                        k, v = line.strip().split("=", 1)
-                        is_sensitive = any(word in k.upper() for word in ["KEY", "TOKEN", "SECRET", "PASS"])
-                        box = toga.Box(style=Pack(direction=COLUMN, margin=5))
-                        box.add(toga.Label(k, style=Pack(font_size=10, color=t['text_sec'])))
-                        # PasswordInput dynamically if it's sensitive
-                        if is_sensitive:
-                            inp = toga.PasswordInput(value=v, style=Pack(margin_bottom=5))
-                            inp.placeholder = "Enter sensitive value..."
-                        else:
-                            inp = toga.TextInput(value=v, style=Pack(margin_bottom=5))
-                            inp.placeholder = "Enter value..."
-                        box.add(inp)
-                        self.env_box.add(box)
-                        self.env_inputs[k] = inp
+            try:
+                with open(".env", "r") as f:
+                    for line in f:
+                        if "=" in line and not line.startswith("#"):
+                            k, v = line.strip().split("=", 1)
+                            current_values[k.strip()] = v.strip()
+            except: pass
+
+        for key, default_val in template:
+            if default_val is None:
+                # This is a header
+                header_lbl = toga.Label(key, style=Pack(font_size=12, font_weight='bold', color=ACCENT_BLUE, margin_top=15, margin_bottom=5))
+                self.env_box.add(header_lbl)
+            else:
+                # This is an input field
+                val = current_values.get(key, default_val)
+                is_sensitive = any(word in key.upper() for word in ["KEY", "TOKEN", "SECRET", "PASS"])
+                
+                row_box = toga.Box(style=Pack(direction=COLUMN, margin=5))
+                row_box.add(toga.Label(key, style=Pack(font_size=10, color=t['text_sec'])))
+                
+                if is_sensitive:
+                    inp = toga.PasswordInput(value=val, style=Pack(margin_bottom=5))
+                    inp.placeholder = f"Enter {key}..."
+                else:
+                    inp = toga.TextInput(value=val, style=Pack(margin_bottom=5))
+                    inp.placeholder = f"Enter {key}..."
+                
+                row_box.add(inp)
+                self.env_box.add(row_box)
+                self.env_inputs[key] = inp
                         
         self.settings_scroll.content = self.settings_content
 
@@ -554,14 +594,26 @@ class BelindaApp(toga.App):
             self.lbl_status_val.text = "ERROR"
 
     def _monitor_bot_output(self):
-        # Reads bot logs in real-time
+        # Reads bot logs in real-time and appends to the UI console
         if hasattr(self, 'bot_process') and self.bot_process and self.bot_process.stdout:
-            for line in self.bot_process.stdout:
-                # Schedule GUI update on main thread
-                # (Simple append for now, Toga usually handles this thread-safely or needs a wrapper, 
-                # but direct append is safer than complex dispatch in this context)
-                if line:
-                    print(line.strip()) # Also print to system stdout
+            try:
+                for line in self.bot_process.stdout:
+                    if line:
+                        # Schedule UI update on main thread for stability
+                        self.add_background_task(self._async_log_append(line))
+            except Exception as e:
+                self.add_background_task(self._async_log_append(f">>> Log Monitor Error: {e}\n"))
+
+    async def _async_log_append(self, text):
+        self.log_append(text)
+
+    def handle_app_exit(self, widget):
+        # Cleanup process when app closes
+        if hasattr(self, 'bot_process') and self.bot_process:
+            try:
+                self.bot_process.terminate()
+            except: pass
+        return True
     
     def handle_stop(self, widget):
         self.lbl_status_val.text = "STOPPING..."
@@ -670,17 +722,41 @@ class BelindaApp(toga.App):
         # 4. Node Packages
         self.log_append("\n>>> Installing NPM Packages...\n")
         try:
-            # Use shell=True via create_subprocess_shell to ensure PATH is respected correctly
-            p2 = await asyncio.create_subprocess_shell(
-                "npm install",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT
-            )
-            while True:
-                line = await p2.stdout.readline()
-                if not line: break
-                self.log_append(line.decode())
-            await p2.wait()
+            # On Android, the 'npm' shell script often fails with Permission Denied
+            # due to shebang issues. We call the node binary directly with npm-cli.js.
+            node_bin_dir = os.path.abspath("portable_node/node-v20.12.2-linux-arm64/bin")
+            node_exe = os.path.join(node_bin_dir, "node")
+            npm_cli = os.path.abspath("portable_node/node-v20.12.2-linux-arm64/lib/node_modules/npm/bin/npm-cli.js")
+            
+            if os.path.exists(node_exe) and os.path.exists(npm_cli):
+                self.log_append(f"> Using direct node-to-npm bridge...\n")
+                # Give execution permission to node binary again just in case
+                os.chmod(node_exe, 0o755)
+                
+                cmd = f'"{node_exe}" "{npm_cli}" install'
+                p2 = await asyncio.create_subprocess_shell(
+                    cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
+                )
+                while True:
+                    line = await p2.stdout.readline()
+                    if not line: break
+                    self.log_append(line.decode())
+                await p2.wait()
+            else:
+                # Fallback to system npm if portable fails
+                self.log_append("> Portable NPM components missing, trying system npm...\n")
+                p2 = await asyncio.create_subprocess_shell(
+                    "npm install",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
+                )
+                while True:
+                    line = await p2.stdout.readline()
+                    if not line: break
+                    self.log_append(line.decode())
+                await p2.wait()
         except Exception as e:
             self.log_append(f"> NPM Setup (Termux independent) error: {e}\n")
             self.log_append("> Hint: Ensure 'node' and 'npm' are executable.\n")
