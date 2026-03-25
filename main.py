@@ -17,7 +17,7 @@ from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
 # --- APP VERSION ---
-APP_VERSION = "1.4.7.2-15"
+APP_VERSION = "1.4.7.2-16"
 
 # --- EARLY CRASH LOG ---
 def _write_crash_log(msg):
@@ -329,6 +329,15 @@ class BelindaApp(toga.App):
 
     async def delayed_startup(self):
         await asyncio.sleep(2.0)
+        # 1. Pop up dialog to allow notifications
+        if await self.main_window.question_dialog("Permissions", "Allow Belinda AI to send system notifications and alerts?"):
+            self.show_notification("Permissions", "Notification access granted.")
+        
+        # 2. Check for Administrative (Root) access
+        self.check_root_status()
+        if self.is_rooted:
+            self.log_append(">>> Administrative Access (Root) detected.\n")
+            
         self.check_files_and_switch()
 
     def check_files_and_switch(self):
@@ -536,7 +545,11 @@ class BelindaApp(toga.App):
             pass
 
     def check_root_status(self):
+        # Check for 'su' which is the Android/Linux equivalent of sudo/administration
         self.is_rooted = False
+        self.su_bin = shutil.which("su")
+        if self.su_bin:
+            self.is_rooted = True
 
     def check_termux_and_api(self):
         return True
@@ -722,31 +735,42 @@ class BelindaApp(toga.App):
         # 4. Node Packages
         self.log_append("\n>>> Installing NPM Packages...\n")
         try:
-            # On Android, the 'npm' shell script often fails with Permission Denied
-            # due to shebang issues. We call the node binary directly with npm-cli.js.
             node_bin_dir = os.path.abspath("portable_node/node-v20.12.2-linux-arm64/bin")
             node_exe = os.path.join(node_bin_dir, "node")
             npm_cli = os.path.abspath("portable_node/node-v20.12.2-linux-arm64/lib/node_modules/npm/bin/npm-cli.js")
             
             if os.path.exists(node_exe) and os.path.exists(npm_cli):
-                self.log_append(f"> Using direct node-to-npm bridge...\n")
-                # Give execution permission to node binary again just in case
+                self.log_append(f"> Attempting execution of NPM...\n")
                 os.chmod(node_exe, 0o755)
+
+                # Base command
+                base_cmd = f'"{node_exe}" "{npm_cli}" install'
                 
-                cmd = f'"{node_exe}" "{npm_cli}" install'
-                p2 = await asyncio.create_subprocess_shell(
-                    cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT
-                )
+                # Use Administration (SU) if available to bypass permission denied
+                if self.is_rooted:
+                    self.log_append("> Using Administrative (SU) privileges to bypass Android blocks...\n")
+                    # On Android, we must pass the command as a string to su -c
+                    p2 = await asyncio.create_subprocess_shell(
+                        f"su -c '{base_cmd}'",
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.STDOUT
+                    )
+                else:
+                    # Direct execution attempt
+                    p2 = await asyncio.create_subprocess_exec(
+                        node_exe, npm_cli, "install",
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.STDOUT
+                    )
+
                 while True:
                     line = await p2.stdout.readline()
                     if not line: break
                     self.log_append(line.decode())
                 await p2.wait()
             else:
-                # Fallback to system npm if portable fails
-                self.log_append("> Portable NPM components missing, trying system npm...\n")
+                # Fallback to system npm
+                self.log_append("> Portable Node components missing, trying system npm...\n")
                 p2 = await asyncio.create_subprocess_shell(
                     "npm install",
                     stdout=asyncio.subprocess.PIPE,
@@ -758,8 +782,7 @@ class BelindaApp(toga.App):
                     self.log_append(line.decode())
                 await p2.wait()
         except Exception as e:
-            self.log_append(f"> NPM Setup (Termux independent) error: {e}\n")
-            self.log_append("> Hint: Ensure 'node' and 'npm' are executable.\n")
+            self.log_append(f"> NPM Setup error: {e}\n")
         
         self.log_append("\n>>> Native Deployment Successful!\n")
         self.settings.data["deployed"] = True
