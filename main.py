@@ -16,8 +16,9 @@ import toga
 from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
-# --- APP VERSION ---
-APP_VERSION = "1.4.7.2-16"
+# --- APP_VERSION ---
+APP_VERSION = "1.4.7.2-Arch"
+
 
 # --- EARLY CRASH LOG ---
 def _write_crash_log(msg):
@@ -554,57 +555,117 @@ class BelindaApp(toga.App):
     def check_termux_and_api(self):
         return True
 
-    # --- PROCESS MANAGEMENT (PURE PYTHON) ---
-    # This removes the need for bash, sh, or Termux
-    
+    # --- ARCH LINUX CONTAINER LOGIC ---
+    def get_arch_cmd(self, cmd_str):
+        # Constructs the PRoot command to run a command inside Arch Linux
+        base_path = os.path.abspath(os.getcwd())
+        proot_bin = os.path.join(base_path, "proot")
+        arch_root = os.path.join(base_path, "arch_linux")
+        
+        # PRoot arguments
+        # -0: Force root user
+        # -r: Rootfs path
+        # -b: Bind mounts (dev, proc, sys, and project dir)
+        # -w: Working directory
+        proot_args = [
+            proot_bin,
+            "-0",
+            "-r", arch_root,
+            "-b", "/dev",
+            "-b", "/proc",
+            "-b", "/sys",
+            "-b", f"{base_path}:/root/project",
+            "-w", "/root/project",
+            "/bin/bash", "-c", cmd_str
+        ]
+        
+        # If rooted, wrap in SU to bypass Android 16 W^X
+        if self.is_rooted:
+            # Join args for shell execution
+            flat_cmd = " ".join([f"'{a}'" for a in proot_args])
+            return ["su", "-c", flat_cmd]
+        
+        return proot_args
+
+    async def run_arch_container(self, cmd, background=False):
+        # Helper to run commands inside the container
+        full_cmd = self.get_arch_cmd(cmd)
+        
+        if background:
+            # For long running processes (Start Bot)
+            return subprocess.Popen(
+                full_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=os.getcwd(),
+                env=os.environ.copy()
+            )
+        else:
+            # For one-off commands (Deployment)
+            if self.is_rooted:
+                # Use shell for SU
+                flat_cmd = " ".join(full_cmd) if isinstance(full_cmd, list) else full_cmd
+                return await asyncio.create_subprocess_shell(
+                    flat_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
+                )
+            else:
+                # Direct execution
+                return await asyncio.create_subprocess_exec(
+                    *full_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
+                )
+
     def handle_start(self, widget):
         if not self.settings.data.get("deployed", False):
             self.show_toast("Run Deployment first!")
             return
             
-        if hasattr(self, 'bot_process') and self.bot_process:
+        if hasattr(self, 'bot_process') and self.bot_process and self.bot_process.poll() is None:
             self.show_toast("Bot is already running!")
             return
 
         self.lbl_status_val.text = "STARTING..."
         self.lbl_status_val.style.color = "#FFA500" # Orange
         
-        # Run app.py directly using the same Python interpreter
+        # Run app.py INSIDE the Arch Linux Container
         try:
-            self.log_append(">>> Starting Bot Process (Internal Native)...\n")
+            # Check if Belinda_AI is ready
+            if not os.path.exists("proot") or not os.path.isdir("arch_linux"):
+                self.log_append(">>> Belinda_AI components not found. Please run Full Deployment.\n")
+                self.lbl_status_val.text = "DEPLOY FIRST"
+                return
+
+            self.log_append(">>> Starting Bot Process (Inside Belinda_AI/Arch)...\n")
             
-            # Prepare environment
-            env = os.environ.copy()
-            env["PYTHONUNBUFFERED"] = "1"
+            # The command to run python from within the Arch environment
+            cmd = "python /root/project/app.py"
+            cmd_list = self.get_arch_cmd(cmd)
             
-            # Use sys.executable to ensure we use the working Python
-            cmd = [sys.executable, "app.py"]
+            # Use Popen for non-blocking background execution
+            self.bot_process = subprocess.Popen(
+                cmd_list,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=os.getcwd(),
+                env=os.environ.copy()
+            )
             
-            if os.path.exists("app.py"):
-                # Popen allows running in background without freezing UI
-                self.bot_process = subprocess.Popen(
-                    cmd,
-                    cwd=os.getcwd(),
-                    env=env,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True
-                )
-                
-                # Monitor output in background
-                threading.Thread(target=self._monitor_bot_output, daemon=True).start()
-                
-                self.lbl_status_val.text = "ONLINE"
-                self.lbl_status_val.style.color = SUCCESS_GREEN
-                self.show_notification("Belinda AI", "Bot Started & Running in Background")
-            else:
-                self.log_append(">>> Error: app.py not found. Is deployment complete?\n")
-                self.lbl_status_val.text = "ERROR"
-                self.lbl_status_val.style.color = DANGER_RED
+            # Monitor output in background thread
+            threading.Thread(target=self._monitor_bot_output, daemon=True).start()
+            
+            self.lbl_status_val.text = "ONLINE"
+            self.lbl_status_val.style.color = SUCCESS_GREEN
+            self.show_notification("Belinda AI", "Bot Started & Running in Virtual Environment")
                 
         except Exception as e:
-            self.log_append(f">>> Start Error: {e}\n")
+            self.log_append(f">>> Start Error: {traceback.format_exc()}\n")
             self.lbl_status_val.text = "ERROR"
+            self.lbl_status_val.style.color = DANGER_RED
 
     def _monitor_bot_output(self):
         # Reads bot logs in real-time and appends to the UI console
@@ -660,139 +721,103 @@ class BelindaApp(toga.App):
         self.switch_view("sett")
 
     async def deploy_task(self):
-        self.log_append(">>> Starting Termux-Independent Deployment...\n")
+        # This is the core of the "Belinda_AI" engine
+        import urllib.request
+        import tarfile
+        import io
+        import stat
+
+        PROOT_URL = "https://github.com/proot-me/proot/releases/download/v5.3.0/proot-v5.3.0-aarch64-static"
+        ARCH_URL = "http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
+        PROOT_BIN = "proot"
+        ARCH_ROOT = "arch_linux"
+
+        self.log_append(">>> Initializing Belinda_AI (Arch Linux Engine)...\n")
         
-        # 1. Environment: Native pkg hook just in case they have Termux
-        if shutil.which("pkg"):
-            self.log_append("> Detected Termux layer. Installing via pkg...\n")
-            await asyncio.create_subprocess_shell("pkg install python nodejs-lts git -y", stdout=subprocess.DEVNULL)
-        
-        # 2. Native Python Packages (using App's own bundled Python)
-        self.log_append("\n>>> Installing Python Dependencies...\n")
         try:
-            py_bin = shutil.which("python3") or shutil.which("python")
-            if py_bin:
-                self.log_append(f"> Using external python: {py_bin}\n")
-                pip_cmd = [py_bin, "-m", "pip", "install", "-r", "requirements.txt"]
-                p1 = await asyncio.create_subprocess_exec(*pip_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
-                while True:
-                    line = await p1.stdout.readline()
-                    if not line: break
-                    self.log_append(line.decode())
+            # --- Phase 1: Setup PRoot (The Virtual Engine) ---
+            if not os.path.exists(PROOT_BIN):
+                self.log_append("> Downloading PRoot Engine...\n")
+                await asyncio.to_thread(urllib.request.urlretrieve, PROOT_URL, PROOT_BIN)
+                # Set executable permissions
+                os.chmod(PROOT_BIN, stat.S_IRWXU)
             else:
-                self.log_append("> No external python CLI found. Attempting embedded PIP install...\n")
-                try:
-                    import pip
-                    site_pkgs = os.path.join(self.paths.data, "site-packages")
-                    if site_pkgs not in sys.path: sys.path.append(site_pkgs)
-                    def run_pip():
-                        try: pip.main(["install", "-r", "requirements.txt", "--target", site_pkgs])
-                        except: pass
-                    # Await in thread so we don't freeze UI
-                    await asyncio.to_thread(run_pip)
-                    self.log_append("> Embedded pip execution completed.\n")
-                except ImportError:
-                    self.log_append("> Pip module not bundled inside the APK. Skipping purely native python installs.\n")
-                except Exception as e:
-                    self.log_append(f"> Embedded pip error: {e}\n")
-        except Exception as e:
-            self.log_append(f"> Python dependency install failed: {e}\n")
-            
-        # 3. Handle Node.js missing natively on Android
-        if not shutil.which("node"):
-            self.log_append("\n>>> Node.js not found in PATH! Downloading Official Linux-ARM64 Node...\n")
-            # Using official distribution as fallback (Note: might require glibc-compatible layer on Android)
-            node_url = "https://nodejs.org/dist/v20.12.2/node-v20.12.2-linux-arm64.tar.xz"
-            try:
-                import urllib.request, tarfile, io
-                
-                def download_and_extract_node():
-                    req = urllib.request.urlopen(node_url)
-                    file_data = req.read()
-                    # Open as .tar.xz (mode 'r:xz')
-                    with tarfile.open(fileobj=io.BytesIO(file_data), mode="r:xz") as tar:
-                        tar.extractall("portable_node")
-                
-                # Run the heavy download and extraction in a background thread
-                await asyncio.to_thread(download_and_extract_node)
-                
-                node_bin_dir = os.path.abspath("portable_node/node-v20.12.2-linux-arm64/bin")
-                if os.path.isdir(node_bin_dir):
-                    # Give execution permissions to binaries (crucial for Android/Linux)
-                    for bin_file in ["node", "npm", "npx"]:
-                        full_path = os.path.join(node_bin_dir, bin_file)
-                        if os.path.exists(full_path):
-                            os.chmod(full_path, 0o755)
-                    
-                    os.environ["PATH"] = node_bin_dir + os.pathsep + os.environ["PATH"]
-                    self.log_append(f"> Portable Node.js installed at {node_bin_dir}\n")
-                else:
-                    self.log_append(f"> Error: Node.js binary folder not found at {node_bin_dir}\n")
-            except Exception as e:
-                self.log_append(f"> Node.js download/extract failed: {e}\n")
-                self.log_append("> Hint: If on Android, try installing nodejs via Termux: pkg install nodejs-lts\n")
+                self.log_append("> PRoot Engine already exists.\n")
 
-        # 4. Node Packages
-        self.log_append("\n>>> Installing NPM Packages...\n")
-        try:
-            node_bin_dir = os.path.abspath("portable_node/node-v20.12.2-linux-arm64/bin")
-            node_exe = os.path.join(node_bin_dir, "node")
-            npm_cli = os.path.abspath("portable_node/node-v20.12.2-linux-arm64/lib/node_modules/npm/bin/npm-cli.js")
-            
-            if os.path.exists(node_exe) and os.path.exists(npm_cli):
-                self.log_append(f"> Attempting execution of NPM...\n")
-                os.chmod(node_exe, 0o755)
-
-                # Base command
-                base_cmd = f'"{node_exe}" "{npm_cli}" install'
+            # --- Phase 2: Setup Arch Linux Root Filesystem (The OS) ---
+            if not os.path.isdir(ARCH_ROOT):
+                self.log_append(f"> Downloading Arch Linux ARM (~200MB)... Please be patient.\n")
                 
-                # Use Administration (SU) if available to bypass permission denied
-                if self.is_rooted:
-                    self.log_append("> Using Administrative (SU) privileges to bypass Android blocks...\n")
-                    # On Android, we must pass the command as a string to su -c
-                    p2 = await asyncio.create_subprocess_shell(
-                        f"su -c '{base_cmd}'",
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.STDOUT
-                    )
-                else:
-                    # Direct execution attempt
-                    p2 = await asyncio.create_subprocess_exec(
-                        node_exe, npm_cli, "install",
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.STDOUT
-                    )
+                def download_and_extract():
+                    with urllib.request.urlopen(ARCH_URL) as response:
+                        with tarfile.open(fileobj=io.BytesIO(response.read()), mode="r:gz") as tar:
+                            tar.extractall(ARCH_ROOT)
+                
+                await asyncio.to_thread(download_and_extract)
+                self.log_append("> Arch Linux System Extracted.\n")
+                
+                # --- Phase 2a: Configure Arch Environment ---
+                # Fix DNS for pacman
+                resolv_path = os.path.join(ARCH_ROOT, "etc", "resolv.conf")
+                with open(resolv_path, "w") as f:
+                    f.write("nameserver 8.8.8.8\nnameserver 8.8.4.4\n")
 
-                while True:
-                    line = await p2.stdout.readline()
-                    if not line: break
-                    self.log_append(line.decode())
-                await p2.wait()
+                # Disable pacman signature checks for simplicity and reliability
+                pacman_conf_path = os.path.join(ARCH_ROOT, "etc", "pacman.conf")
+                with open(pacman_conf_path, "r") as f: content = f.read()
+                content = content.replace("SigLevel    = Required DatabaseOptional", "SigLevel = Never")
+                with open(pacman_conf_path, "w") as f: f.write(content)
             else:
-                # Fallback to system npm
-                self.log_append("> Portable Node components missing, trying system npm...\n")
-                p2 = await asyncio.create_subprocess_shell(
-                    "npm install",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT
-                )
-                while True:
-                    line = await p2.stdout.readline()
-                    if not line: break
-                    self.log_append(line.decode())
-                await p2.wait()
-        except Exception as e:
-            self.log_append(f"> NPM Setup error: {e}\n")
-        
-        self.log_append("\n>>> Native Deployment Successful!\n")
-        self.settings.data["deployed"] = True
-        self.settings.save()
-        self.lbl_status_val.text = "READY"
-        self.lbl_status_val.style.color = ACCENT_BLUE
-        self.btn_start.enabled = True
-        self.show_toast(self.get_text("toast_deploy_done"))
+                 self.log_append("> Arch Linux environment already exists.\n")
 
-    async def factory_reset_task(self):
+            # --- Phase 3: Install Dependencies via Pacman ---
+            self.log_append("\n>>> [pacman] Initializing and Installing Dependencies...\n")
+            # Update keyring and install core packages
+            install_cmd = "pacman-key --init && pacman-key --populate archlinuxarm && pacman -Syu --noconfirm python python-pip nodejs npm git make gcc"
+            proc = await self.run_arch_container(install_cmd)
+            while True:
+                line = await proc.stdout.readline()
+                if not line: break
+                self.log_append(f"[pacman] {line.decode()}")
+            await proc.wait()
+
+            # --- Phase 4: Install Python Requirements (Inside Arch) ---
+            self.log_append("\n>>> [pip] Installing Python Libraries...\n")
+            pip_cmd = "pip install -r requirements.txt --break-system-packages"
+            proc = await self.run_arch_container(pip_cmd)
+            while True:
+                line = await proc.stdout.readline()
+                if not line: break
+                self.log_append(f"[pip] {line.decode()}")
+            await proc.wait()
+
+            # --- Phase 5: Install NPM Packages (Inside Arch) ---
+            self.log_append("\n>>> [npm] Installing Node.js Packages...\n")
+            npm_cmd = "npm install"
+            proc = await self.run_arch_container(npm_cmd)
+            while True:
+                line = await proc.stdout.readline()
+                if not line: break
+                self.log_append(f"[npm] {line.decode()}")
+            await proc.wait()
+
+            # --- Deployment Complete ---
+            self.log_append("\n>>> Belinda_AI Ready! Deployment Successful.\n")
+            self.settings.data["deployed"] = True
+            self.settings.save()
+            self.lbl_status_val.text = "READY"
+            self.lbl_status_val.style.color = ACCENT_BLUE
+            self.btn_start.enabled = True
+            self.show_toast("Deployment Complete. Ready to Start Bot.")
+
+        except PermissionError:
+            self.log_append("\n>>> FATAL: ANDROID SECURITY BLOCK <<<\n")
+            self.log_append("The PRoot engine was blocked by Android's security policy (W^X).\n")
+            self.log_append("Solution: \n1. Use a ROOTED device and grant SU access.\n2. On non-root, this feature cannot run on Android 10+.\n")
+        except Exception as e:
+            self.log_append(f"> Deployment Error: {traceback.format_exc()}\n")
+            self.lbl_status_val.text = "DEPLOY FAILED"
+            self.lbl_status_val.style.color = DANGER_RED
         if await self.main_window.confirm_dialog(self.get_text("pop_title"), self.get_text("pop_desc")):
             self.log_append(">>> Performing Factory Reset...\n")
             try:
