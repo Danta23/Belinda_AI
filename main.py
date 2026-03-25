@@ -17,7 +17,7 @@ from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
 # --- APP VERSION ---
-APP_VERSION = "1.4.7.2-11"
+APP_VERSION = "1.4.7.2-12"
 
 # --- EARLY CRASH LOG ---
 def _write_crash_log(msg):
@@ -262,6 +262,8 @@ class BelindaApp(toga.App):
         self.btn_nav_sett.text = self.get_text("nav_sett")
 
     def switch_view(self, view_name):
+        if view_name != "sett":
+            self.is_deploying_flow = False
         self.container.clear()
         if view_name == "splash":
             splash = toga.Box(style=Pack(direction=COLUMN, flex=1, alignment=CENTER, justify_content=CENTER))
@@ -378,26 +380,30 @@ class BelindaApp(toga.App):
         self.settings_scroll.content = self.settings_content
 
     def save_settings(self, widget):
-        if self.env_inputs:
-            lines = []
-            for k, w in self.env_inputs.items():
-                val = w.value
-                lines.append(f"{k}={val}\n")
-            with open(".env", "w") as f: f.writelines(lines)
-
-        if getattr(self, "is_deploying_flow", False):
-            self.is_deploying_flow = False
-            self.lbl_status_val.text = "DEPLOYING..."
-            asyncio.create_task(self.deploy_task())
-            self.switch_view("dash")
-            self.show_toast("Config Saved. Starting Deployment...")
-        elif self.settings.data.get("deployed", False):
-            self.btn_start.enabled = True
-            self.show_toast(self.get_text("toast_saved"))
-            self.switch_view("dash")
-        else:
-            self.show_toast("Saved. Run Deployment first.")
-        self.settings.save()
+        try:
+            if self.env_inputs:
+                lines = []
+                for k, w in self.env_inputs.items():
+                    val = w.value
+                    lines.append(f"{k}={val}\n")
+                with open(".env", "w") as f: f.writelines(lines)
+    
+            if getattr(self, "is_deploying_flow", False):
+                self.is_deploying_flow = False
+                self.lbl_status_val.text = "DEPLOYING..."
+                asyncio.create_task(self.deploy_task())
+                self.switch_view("dash")
+                self.show_toast("Config Saved. Starting Deployment...")
+            elif self.settings.data.get("deployed", False):
+                self.btn_start.enabled = True
+                self.show_toast(self.get_text("toast_saved"))
+                self.switch_view("dash")
+            else:
+                self.show_toast("Saved. Run Deployment first.")
+            self.settings.save()
+        except Exception as e:
+            self.show_toast(f"Error saving: {e}")
+            _write_crash_log(f"Save Settings Error: {e}")
 
     def log_append(self, text):
         self.console.value += text
@@ -536,53 +542,62 @@ class BelindaApp(toga.App):
         
         # 2. Native Python Packages (using App's own bundled Python)
         self.log_append("\n>>> Installing Python Dependencies...\n")
-        py_bin = shutil.which("python3") or shutil.which("python")
-        if py_bin:
-            self.log_append(f"> Using external python: {py_bin}\n")
-            pip_cmd = [py_bin, "-m", "pip", "install", "-r", "requirements.txt"]
-            p1 = await asyncio.create_subprocess_exec(*pip_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
-            while True:
-                line = await p1.stdout.readline()
-                if not line: break
-                self.log_append(line.decode())
-        else:
-            self.log_append("> No external python CLI found. Attempting embedded PIP install...\n")
-            try:
-                import pip
-                site_pkgs = os.path.join(self.paths.data, "site-packages")
-                if site_pkgs not in sys.path: sys.path.append(site_pkgs)
-                def run_pip():
-                    try: pip.main(["install", "-r", "requirements.txt", "--target", site_pkgs])
-                    except: pass
-                # Await in thread so we don't freeze UI
-                await asyncio.to_thread(run_pip)
-                self.log_append("> Embedded pip execution completed.\n")
-            except ImportError:
-                self.log_append("> Pip module not bundled inside the APK. Skipping purely native python installs.\n")
-            except Exception as e:
-                self.log_append(f"> Embedded pip error: {e}\n")
+        try:
+            py_bin = shutil.which("python3") or shutil.which("python")
+            if py_bin:
+                self.log_append(f"> Using external python: {py_bin}\n")
+                pip_cmd = [py_bin, "-m", "pip", "install", "-r", "requirements.txt"]
+                p1 = await asyncio.create_subprocess_exec(*pip_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+                while True:
+                    line = await p1.stdout.readline()
+                    if not line: break
+                    self.log_append(line.decode())
+            else:
+                self.log_append("> No external python CLI found. Attempting embedded PIP install...\n")
+                try:
+                    import pip
+                    site_pkgs = os.path.join(self.paths.data, "site-packages")
+                    if site_pkgs not in sys.path: sys.path.append(site_pkgs)
+                    def run_pip():
+                        try: pip.main(["install", "-r", "requirements.txt", "--target", site_pkgs])
+                        except: pass
+                    # Await in thread so we don't freeze UI
+                    await asyncio.to_thread(run_pip)
+                    self.log_append("> Embedded pip execution completed.\n")
+                except ImportError:
+                    self.log_append("> Pip module not bundled inside the APK. Skipping purely native python installs.\n")
+                except Exception as e:
+                    self.log_append(f"> Embedded pip error: {e}\n")
+        except Exception as e:
+            self.log_append(f"> Python dependency install failed: {e}\n")
             
         # 3. Handle Node.js missing natively on Android
         if not shutil.which("node"):
-            self.log_append("\n>>> Node.js not found in PATH! Downloading Portable Android-ARM64 Node...\n")
-            node_url = "https://unofficial-builds.nodejs.org/download/release/v20.12.2/node-v20.12.2-android-arm64.tar.gz"
+            self.log_append("\n>>> Node.js not found in PATH! Downloading Official Linux-ARM64 Node...\n")
+            # Using official distribution as fallback (Note: might require glibc-compatible layer on Android)
+            node_url = "https://nodejs.org/dist/v20.12.2/node-v20.12.2-linux-arm64.tar.xz"
             try:
                 import urllib.request, tarfile, io
                 
                 def download_and_extract_node():
                     req = urllib.request.urlopen(node_url)
                     file_data = req.read()
-                    with tarfile.open(fileobj=io.BytesIO(file_data), mode="r:gz") as tar:
+                    # Open as .tar.xz (mode 'r:xz')
+                    with tarfile.open(fileobj=io.BytesIO(file_data), mode="r:xz") as tar:
                         tar.extractall("portable_node")
                 
-                # Run the heavy 40MB download and extraction in a background thread to prevent UI freeze
+                # Run the heavy download and extraction in a background thread
                 await asyncio.to_thread(download_and_extract_node)
                 
-                node_bin = os.path.abspath("portable_node/node-v20.12.2-android-arm64/bin")
-                os.environ["PATH"] += os.pathsep + node_bin
-                self.log_append(f"> Portable Node.js installed securely at {node_bin}\n")
+                node_bin = os.path.abspath("portable_node/node-v20.12.2-linux-arm64/bin")
+                if os.path.isdir(node_bin):
+                    os.environ["PATH"] += os.pathsep + node_bin
+                    self.log_append(f"> Portable Node.js installed at {node_bin}\n")
+                else:
+                    self.log_append(f"> Error: Node.js binary folder not found at {node_bin}\n")
             except Exception as e:
-                self.log_append(f"> Node.js download failed: {e}\n")
+                self.log_append(f"> Node.js download/extract failed: {e}\n")
+                self.log_append("> Hint: If on Android, try installing nodejs via Termux: pkg install nodejs-lts\n")
 
         # 4. Node Packages
         self.log_append("\n>>> Installing NPM Packages...\n")
