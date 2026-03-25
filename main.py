@@ -17,7 +17,7 @@ from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
 # --- APP_VERSION ---
-APP_VERSION = "1.4.7.3-arch1-1"
+APP_VERSION = "1.4.7.3-arch1-2"
 
 
 # --- EARLY CRASH LOG ---
@@ -762,28 +762,46 @@ class BelindaApp(toga.App):
             
             # --- Phase 2: Setup Arch Linux Rootfs (10% -> 70%) ---
             if not os.path.isdir(ARCH_ROOT):
-                await self.update_deploy_progress(10, "Downloading Arch Linux (~200MB)")
-                self.log_append(f"LOG: Downloading Arch Linux rootfs. This may take a while...\n")
+                await self.update_deploy_progress(10, "Preparing download...")
+                self.log_append(f"LOG: Downloading Arch Linux rootfs to disk. Please wait...\n")
                 
+                output_file = "arch_rootfs.tar.gz"
                 req = urllib.request.Request(ARCH_URL, headers={'User-Agent': 'Mozilla/5.0'})
-                buffer = io.BytesIO()
-                def download_stream():
-                    with urllib.request.urlopen(req) as response:
-                        total_size = int(response.getheader('Content-Length', 200000000))
+                
+                def download_to_file():
+                    with urllib.request.urlopen(req, timeout=30) as response:
+                        total_size = int(response.getheader('Content-Length', 250000000))
                         downloaded = 0
-                        while True:
-                            chunk = response.read(8192)
-                            if not chunk: break
-                            buffer.write(chunk)
-                            downloaded += len(chunk)
-                            progress = 10 + (downloaded / total_size) * 50
-                            self.add_background_task(self.update_deploy_progress(progress, "Downloading Arch..."))
-                await asyncio.to_thread(download_stream)
+                        last_reported_percent = -1
+                        
+                        with open(output_file, 'wb') as f:
+                            while True:
+                                chunk = response.read(65536) # 64KB chunks
+                                if not chunk: break
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                
+                                # Throttle: Only update UI when percentage changes
+                                current_percent = int((downloaded / total_size) * 100)
+                                if current_percent > last_reported_percent:
+                                    progress = 10 + (current_percent * 0.5) # Map to 10%-60%
+                                    # Schedule UI update safely
+                                    self.add_background_task(self.update_deploy_progress(progress, f"Downloading Arch... {current_percent}%"))
+                                    last_reported_percent = current_percent
+                
+                await asyncio.to_thread(download_to_file)
+                self.log_append("> LOG: Download complete. Finalizing...\n")
                 
                 await self.update_deploy_progress(65, "Extracting Arch Linux...")
-                self.log_append(f"LOG: Extracting Arch Linux rootfs...\n")
-                buffer.seek(0)
-                await asyncio.to_thread(tarfile.open(fileobj=buffer, mode="r:gz").extractall, ARCH_ROOT)
+                self.log_append(f"LOG: Extracting rootfs (this takes time)... \n")
+                
+                def extract_file():
+                    with tarfile.open(output_file, mode="r:gz") as tar:
+                        tar.extractall(ARCH_ROOT)
+                    if os.path.exists(output_file): os.remove(output_file) # Cleanup
+                
+                await asyncio.to_thread(extract_file)
+                self.log_append("> LOG: Extraction complete.\n")
                 
                 await self.update_deploy_progress(70, "Configuring Environment")
                 self.log_append(f"LOG: Configuring DNS and Pacman...\n")
