@@ -17,7 +17,7 @@ from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
 # --- APP_VERSION ---
-APP_VERSION = "1.4.7.3-arch1-3"
+APP_VERSION = "1.4.7.3-arch1-4"
 
 
 # --- EARLY CRASH LOG ---
@@ -564,18 +564,17 @@ class BelindaApp(toga.App):
 
     # --- ARCH LINUX CONTAINER LOGIC ---
     def get_arch_cmd(self, cmd_str):
+        import shlex
         # Constructs the PRoot command to run a command inside Arch Linux
         base_path = os.path.abspath(os.getcwd())
-        proot_bin = os.path.join(base_path, "proot")
         arch_root = os.path.join(base_path, "arch_linux")
         
+        # On Android 10+, we often need to run proot from a different location if rooted
+        # to bypass W^X restrictions in the app data folder.
+        proot_exec_path = os.path.join(base_path, "proot")
+        
         # PRoot arguments
-        # -0: Force root user
-        # -r: Rootfs path
-        # -b: Bind mounts (dev, proc, sys, and project dir)
-        # -w: Working directory
         proot_args = [
-            proot_bin,
             "-0",
             "-r", arch_root,
             "-b", "/dev",
@@ -586,45 +585,61 @@ class BelindaApp(toga.App):
             "/bin/bash", "-c", cmd_str
         ]
         
-        # If rooted, wrap in SU to bypass Android 16 W^X
+        # If rooted, we use a bypass strategy
         if self.is_rooted:
-            # Join args for shell execution
-            flat_cmd = " ".join([f"'{a}'" for a in proot_args])
-            return ["su", "-c", flat_cmd]
+            self.log_append("> LOG: Using Root bypass for execution...\n")
+            # Move proot to /data/local/tmp where execution is allowed for root
+            tmp_proot = "/data/local/tmp/belinda_proot"
+            # Command to copy, chmod, and run
+            setup_proot = f"cp {shlex.quote(proot_exec_path)} {tmp_proot} && chmod 755 {tmp_proot}"
+            
+            # Format arguments for shell
+            quoted_args = " ".join([shlex.quote(a) for a in proot_args])
+            full_cmd_str = f"{setup_proot} && {tmp_proot} {quoted_args}"
+            
+            return ["su", "-c", full_cmd_str]
         
-        return proot_args
+        # Non-rooted execution
+        return [proot_exec_path] + proot_args
 
     async def run_arch_container(self, cmd, background=False):
         # Helper to run commands inside the container
         full_cmd = self.get_arch_cmd(cmd)
         
-        if background:
-            # For long running processes (Start Bot)
-            return subprocess.Popen(
-                full_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                cwd=os.getcwd(),
-                env=os.environ.copy()
-            )
-        else:
-            # For one-off commands (Deployment)
-            if self.is_rooted:
-                # Use shell for SU
-                flat_cmd = " ".join(full_cmd) if isinstance(full_cmd, list) else full_cmd
-                return await asyncio.create_subprocess_shell(
-                    flat_cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT
+        try:
+            if background:
+                # For long running processes
+                return subprocess.Popen(
+                    full_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    cwd=os.getcwd(),
+                    env=os.environ.copy()
                 )
             else:
-                # Direct execution
-                return await asyncio.create_subprocess_exec(
-                    *full_cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT
-                )
+                # For one-off commands (Deployment)
+                # If the command starts with 'su', we must use shell=True via subprocess_shell
+                if full_cmd[0] == "su":
+                    flat_cmd = " ".join(full_cmd) if isinstance(full_cmd, list) else full_cmd
+                    return await asyncio.create_subprocess_shell(
+                        flat_cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.STDOUT
+                    )
+                else:
+                    # Direct execution attempt
+                    return await asyncio.create_subprocess_exec(
+                        *full_cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.STDOUT
+                    )
+        except PermissionError:
+            self.log_append("\n>>> ERROR: ANDROID SECURITY BLOCK <<<\n")
+            self.log_append("Android 16 blocked execution of the virtual engine.\n")
+            self.log_append("Reason: W^X Security Policy (Non-Rooted devices).\n")
+            self.log_append("Fix: \n1. Root your device and Grant Permission.\n2. Or use the Termux version of Belinda AI.\n")
+            raise Exception("Security block: Root required for this engine.")
 
     def handle_start(self, widget):
         self.log_append("\n--- USER ACTION: START BOT ---\n")
