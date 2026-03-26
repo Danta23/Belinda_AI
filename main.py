@@ -17,7 +17,7 @@ from toga.style import Pack
 from toga.style.pack import COLUMN, ROW, CENTER, LEFT, RIGHT
 
 # --- APP_VERSION ---
-APP_VERSION = "1.4.7.3-arch1-2"
+APP_VERSION = "1.4.7.3-arch1-3"
 
 
 # --- EARLY CRASH LOG ---
@@ -797,7 +797,13 @@ class BelindaApp(toga.App):
                 
                 def extract_file():
                     with tarfile.open(output_file, mode="r:gz") as tar:
-                        tar.extractall(ARCH_ROOT)
+                        # Use filter='fully_trusted' to allow absolute symlinks in rootfs
+                        # This is required for Python 3.12+ security changes
+                        try:
+                            tar.extractall(ARCH_ROOT, filter='fully_trusted')
+                        except TypeError:
+                            # Fallback for older Python versions that don't support the filter argument
+                            tar.extractall(ARCH_ROOT)
                     if os.path.exists(output_file): os.remove(output_file) # Cleanup
                 
                 await asyncio.to_thread(extract_file)

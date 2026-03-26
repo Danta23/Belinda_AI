@@ -1,7 +1,7 @@
 [tool.briefcase]
 project_name = "Belinda AI"
 bundle = "id.studio234"
-version = "1.4.7.3.post2"
+version = "1.4.7.3.post3"
 display_name = "Belinda AI"
 formal_name = "Belinda AI"
 description = "WhatsApp Bot Belinda AI"
