@@ -1,6 +1,9 @@
 #!/usr/bin/fish
 
 # start.fish - Start Belinda_AI using Fish Shell
+# Ensure no system-level GROQ_API_KEY overrides our .env
+set -e GROQ_API_KEY
+
 set -x PYTHON_URL "http://127.0.0.1:8000"
 
 echo (set_color cyan)"🚀 Starting Flask server..."(set_color normal)

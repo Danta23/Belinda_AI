@@ -1,6 +1,9 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # start_termux.sh - Start Belinda_AI on Android (Termux)
+# Ensure no system-level GROQ_API_KEY overrides our .env
+unset GROQ_API_KEY
+
 echo "🚀 Starting Flask server..."
 # Termux usually uses 'python' for Python 3
 python app.py &

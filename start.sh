@@ -2,6 +2,9 @@
 
 ENV_FILE=${1:-.env}
 
+# Ensure no system-level GROQ_API_KEY overrides our .env
+unset GROQ_API_KEY
+
 # Load environment variables
 export $(grep -v '^#' "$ENV_FILE" | xargs)
 

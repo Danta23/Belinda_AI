@@ -1,6 +1,9 @@
 # start.ps1 - Start Belinda_AI with dependency checks
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Ensure no system-level GROQ_API_KEY overrides our .env
+if (Test-Path Env:GROQ_API_KEY) { Remove-Item Env:GROQ_API_KEY }
+
 Write-Host "Action: Detecting Environment..." -ForegroundColor Yellow
 $PythonPath = "python"
 if (Test-Path ".venv\Scripts\python.exe") {

@@ -1,6 +1,9 @@
 #!/bin/bash
 
 # start_mac.sh - Start Belinda_AI on macOS
+# Ensure no system-level GROQ_API_KEY overrides our .env
+unset GROQ_API_KEY
+
 # Starting Flask server
 if [ -d ".venv" ]; then
     source .venv/bin/activate
