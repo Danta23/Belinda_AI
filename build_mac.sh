@@ -5,7 +5,7 @@
 APP_NAME="Belinda-AI-Installer"
 ENTRY_POINT="installer/app.py"
 # Set the base output directory as requested by the user
-BASE_OUTPUT_DIR="C:/Users/herda/Documents/My Projects/Belinda_AI_App"
+BASE_OUTPUT_DIR="/Users/danta/Documents/Projects/Belinda_AI_App"
 DIST_DIR="$BASE_OUTPUT_DIR"
 MAC_DIST_DIR="$DIST_DIR/macos"
 FINAL_DMG_NAME="Belinda-AI-Installer.dmg"
@@ -36,12 +36,12 @@ rm -rf build "$MAC_DIST_DIR" "$APP_NAME.spec"
 mkdir -p "$MAC_DIST_DIR"
 
 echo "--- Running PyInstaller to create .app bundle ---"
-pyinstaller --noconfirm --windowed 
-    --name "$APP_NAME" 
-    --add-data "installer/styles.py:." 
-    --add-data "installer/settings_manager.py:." 
-    --add-data "installer/translations.py:." 
-    --distpath "$MAC_DIST_DIR" 
+pyinstaller --noconfirm --windowed \
+    --name "$APP_NAME" \
+    --add-data "installer/styles.py:." \
+    --add-data "installer/settings_manager.py:." \
+    --add-data "installer/translations.py:." \
+    --distpath "$MAC_DIST_DIR" \
     "$ENTRY_POINT"
 
 # Check if PyInstaller was successful
@@ -51,9 +51,9 @@ if [ ! -d "$MAC_DIST_DIR/$APP_NAME.app" ]; then
 fi
 
 echo "--- Creating .dmg disk image ---"
-hdiutil create -volname "$APP_NAME" 
-    -srcfolder "$MAC_DIST_DIR/$APP_NAME.app" 
-    -ov -format UDZO 
+hdiutil create -volname "$APP_NAME" \
+    -srcfolder "$MAC_DIST_DIR/$APP_NAME.app" \
+    -ov -format UDZO \
     "$MAC_DIST_DIR/$FINAL_DMG_NAME"
 
 echo "--- Cleaning up intermediate files ---"
@@ -62,4 +62,3 @@ rm -rf "$MAC_DIST_DIR/$APP_NAME.app" # remove the .app bundle as it is now in th
 
 echo "--- Build complete! ---"
 echo "DMG available at: $MAC_DIST_DIR/$FINAL_DMG_NAME"
-
