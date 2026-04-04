@@ -886,7 +886,31 @@ class BelindaApp(toga.App):
     def handle_factory(self, widget):
         asyncio.create_task(self.factory_reset_task())
 
-
+    async def factory_reset_task(self):
+        title = self.get_text("pop_title")
+        desc = self.get_text("pop_desc")
+        if await self.main_window.question_dialog(title, desc):
+            if hasattr(self, 'bot_process') and self.bot_process:
+                try:
+                    self.bot_process.terminate()
+                except:
+                    pass
+            self.lbl_status_val.text = "RESETTING..."
+            try:
+                os.chdir(self.paths.data)
+            except:
+                pass
+            try:
+                import shutil
+                if os.path.exists("Belinda_AI"):
+                    shutil.rmtree("Belinda_AI", ignore_errors=True)
+            except:
+                pass
+            self.settings.data = {"language": "English", "theme": "Dark", "deployed": False}
+            self.settings.save()
+            self.show_toast("Factory reset complete. All data cleared.")
+            self.switch_view("setup")
+            self.console.value = ""
 def main():
     return BelindaApp('Belinda AI', 'id.studio234.belinda.ai')
 
