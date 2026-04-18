@@ -360,6 +360,8 @@ async function connectWA() {
                     return sock.sendMessage(sender, { text: "❌ Jumlah minimal 1 dan maksimal 1000." });
                 }
 
+                console.log(`🚀 [SPAM START] Sending ${num} messages to ${sender}...`);
+
                 // Execute spam with throttling to avoid being flagged/banned by WA
                 for (let i = 0; i < num; i++) {
                     try {
@@ -374,13 +376,46 @@ async function connectWA() {
                         }
                     } catch (e) {
                         console.error(`Spam error at index ${i}:`, e.message);
-                        // If we hit a rate limit, wait longer
                         if (e.message.includes('rate-overlimit') || e.message.includes('429')) {
                             await new Promise(resolve => setTimeout(resolve, 5000));
                         }
                     }
                 }
+                console.log(`✅ [SPAM FINISHED] Successfully sent ${num} messages to ${sender}.`);
                 return;
+            }
+
+            if (cmd === '!rand') {
+                if (!(await isAdmin())) return;
+                
+                // Stress test: BigInt calculation with 20-digit random numbers
+                const gen20Digit = () => Array.from({length: 20}, () => Math.floor(Math.random() * 10)).join('');
+                
+                const num1 = BigInt(gen20Digit());
+                const num2 = BigInt(gen20Digit());
+                const result = num1 * num2;
+
+                const response = `🔢 *BIGINT STRESS TEST*\n\n` +
+                                 `*Num 1:* ${num1}\n` +
+                                 `*Num 2:* ${num2}\n\n` +
+                                 `*Hasil Kali:* ${result}\n\n` +
+                                 `_Kalkulasi 20-digit sukses dijalankan._`;
+                
+                return sock.sendMessage(sender, { text: response });
+            }
+
+            if (cmd === '!halo') {
+                if (!(await isAdmin())) return;
+                const mentionJid = participant.split('@')[0];
+                return sock.sendMessage(sender, { 
+                    text: `Halo juga @${mentionJid} 👋`, 
+                    mentions: [participant] 
+                });
+            }
+
+            if (cmd === '!test') {
+                if (!(await isAdmin())) return;
+                return sock.sendMessage(sender, { text: "Masuk" });
             }
 
             if (cmd === '!log') {
