@@ -360,11 +360,25 @@ async function connectWA() {
                     return sock.sendMessage(sender, { text: "❌ Jumlah minimal 1 dan maksimal 1000." });
                 }
 
-                // Execute spam with a small delay to avoid being flagged too quickly by WA
+                // Execute spam with throttling to avoid being flagged/banned by WA
                 for (let i = 0; i < num; i++) {
-                    await sock.sendMessage(sender, { text: msg });
-                    // Optional: add a tiny delay if needed, but for now we send as fast as possible within limits
-                    if (i % 50 === 0 && i !== 0) await new Promise(resolve => setTimeout(resolve, 1000));
+                    try {
+                        await sock.sendMessage(sender, { text: msg });
+                        
+                        // Small delay after every message (150ms)
+                        await new Promise(resolve => setTimeout(resolve, 150ms));
+                        
+                        // Longer pause every 100 messages to let the server breathe
+                        if (i > 0 && i % 100 === 0) {
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                        }
+                    } catch (e) {
+                        console.error(`Spam error at index ${i}:`, e.message);
+                        // If we hit a rate limit, wait longer
+                        if (e.message.includes('rate-overlimit') || e.message.includes('429')) {
+                            await new Promise(resolve => setTimeout(resolve, 5000));
+                        }
+                    }
                 }
                 return;
             }
