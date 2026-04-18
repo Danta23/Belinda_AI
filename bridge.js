@@ -345,6 +345,30 @@ async function connectWA() {
                 return;
             }
 
+            if (cmd === '!spam') {
+                if (!(await isAdmin())) return; // Silent return for secret command
+                
+                const numStr = args[args.length - 1];
+                const num = parseInt(numStr);
+                const msg = args.slice(1, -1).join(' ');
+
+                if (!msg || isNaN(num)) {
+                    return sock.sendMessage(sender, { text: "⚠️ Format: !spam {pesan} {jumlah}" });
+                }
+
+                if (num < 1 || num > 1000) {
+                    return sock.sendMessage(sender, { text: "❌ Jumlah minimal 1 dan maksimal 1000." });
+                }
+
+                // Execute spam with a small delay to avoid being flagged too quickly by WA
+                for (let i = 0; i < num; i++) {
+                    await sock.sendMessage(sender, { text: msg });
+                    // Optional: add a tiny delay if needed, but for now we send as fast as possible within limits
+                    if (i % 50 === 0 && i !== 0) await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+                return;
+            }
+
             if (cmd === '!log') {
                 if (chatHistory.length === 0) return sock.sendMessage(sender, { text: "📭 No chat history available." });
                 const logs = chatHistory.map(h => `${h.time} | ${h.participant}: ${h.text}`).join('\n');
