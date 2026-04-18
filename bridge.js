@@ -366,7 +366,7 @@ async function connectWA() {
                         await sock.sendMessage(sender, { text: msg });
                         
                         // Small delay after every message (150ms)
-                        await new Promise(resolve => setTimeout(resolve, 150ms));
+                        await new Promise(resolve => setTimeout(resolve, 150));
                         
                         // Longer pause every 100 messages to let the server breathe
                         if (i > 0 && i % 100 === 0) {
