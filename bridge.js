@@ -273,19 +273,6 @@ async function connectWA() {
                 return;
             }
 
-            if (cmd === '!cuaca') {
-                const city = args.slice(1).join(' ');
-                if (!city) return sock.sendMessage(sender, { text: "⚠️ Format: !cuaca {nama_kota}" });
-
-                try {
-                    const res = await axios.post(`${pythonUrl}/weather`, { msg: city });
-                    await sock.sendMessage(sender, { text: res.data });
-                } catch (e) {
-                    await sock.sendMessage(sender, { text: `❌ Error: ${e.message}` });
-                }
-                return;
-            }
-
             if (cmd === '!add') {
                 if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
                 if (!args[1]) return sock.sendMessage(sender, { text: "⚠️ Format: !add {nomor} (Contoh: !add 628xxx atau !add 1234xxx)" });
@@ -405,7 +392,6 @@ async function connectWA() {
             }
 
             if (cmd === '!halo') {
-                if (!(await isAdmin())) return;
                 const mentionJid = participant.split('@')[0];
                 return sock.sendMessage(sender, { 
                     text: `Halo juga @${mentionJid} 👋`, 
@@ -414,8 +400,38 @@ async function connectWA() {
             }
 
             if (cmd === '!test') {
-                if (!(await isAdmin())) return;
                 return sock.sendMessage(sender, { text: "Masuk" });
+            }
+
+            if (cmd === '!game') {
+                const gameName = args.slice(1).join(' ');
+                if (!gameName) return sock.sendMessage(sender, { text: "⚠️ Format: !game {nama_game}\nContoh: !game RPG Adventure atau !game Tebak Kata" });
+
+                const prompt = `Saya ingin bermain game text-based berjudul "${gameName}". ` +
+                               `Bertindaklah sebagai Game Master yang seru. Berikan deskripsi awal dan pilihan aksi untuk saya. ` +
+                               `Gunakan bahasa Indonesia yang santai.`;
+                
+                try {
+                    const res = await axios.post(`${pythonUrl}/chat`, { sender, msg: prompt });
+                    await sock.sendMessage(sender, { text: `🎮 *GAME START: ${gameName.toUpperCase()}*\n\n${res.data}` });
+                } catch (e) {
+                    await sock.sendMessage(sender, { text: `❌ Gagal memulai game: ${e.message}` });
+                }
+                return;
+            }
+
+            if (cmd === '!cari') {
+                const query = args.slice(1).join(' ');
+                if (!query) return sock.sendMessage(sender, { text: "⚠️ Format: !cari {apa_yang_dicari}" });
+
+                const { key } = await sock.sendMessage(sender, { text: "🔍 Sedang mencari informasi di Google..." });
+                try {
+                    const res = await axios.post(`${pythonUrl}/search`, { msg: query });
+                    await sock.sendMessage(sender, { text: res.data, edit: key });
+                } catch (e) {
+                    await sock.sendMessage(sender, { text: `❌ Gagal mencari: ${e.message}`, edit: key });
+                }
+                return;
             }
 
             if (cmd === '!log') {
@@ -709,63 +725,6 @@ async function connectWA() {
                 return;
             }
 
-            if (cmd === '!gen') {
-                const format = args[1];
-                const prompt = args.slice(2).join(' ');
-                if (!format || !prompt) return sock.sendMessage(sender, { text: "⚠️ Format: !gen {type:ext} {prompt}\nContoh: !gen scr:py bot auto chat" });
-
-                const { key } = await sock.sendMessage(sender, { text: `⏳ Generating/Searching ${format}... Please wait.` });
-
-                try {
-                    const res = await axios.post(`${pythonUrl}/gen`, { sender, format, msg: prompt });
-
-                    if (typeof res.data === 'string') {
-                        await sock.sendMessage(sender, { text: res.data, edit: key });
-                    } else if (res.data.type === 'document') {
-                        const fileName = res.data.path;
-                        let mimetype = 'application/octet-stream';
-
-                        if (format.startsWith('doc:')) {
-                            const docFmt = format.split(':')[1];
-                            mimetype = 'application/vnd.openxmlformats-officedocument.' + (docFmt === 'ppt' ? 'presentationml.presentation' : docFmt === 'word' ? 'wordprocessingml.document' : 'spreadsheetml.sheet');
-                        } else if (format.startsWith('scr:')) {
-                            const ext = format.split(':')[1];
-                            const mimeMap = {
-                                'py': 'text/x-python',
-                                'lua': 'text/x-lua',
-                                'js': 'application/javascript',
-                                'ts': 'application/typescript',
-                                'cpp': 'text/x-c++src',
-                                'c': 'text/x-csrc',
-                                'cs': 'text/x-csharp',
-                                'java': 'text/x-java',
-                                'go': 'text/x-go',
-                                'rs': 'text/x-rustsrc',
-                                'php': 'application/x-httpd-php',
-                                'rb': 'text/x-ruby',
-                                'sh': 'application/x-sh',
-                                'sql': 'text/x-sql'
-                            };
-                            mimetype = mimeMap[ext] || 'application/octet-stream';
-                        } else if (format.startsWith('3dm:')) {
-                            mimetype = 'application/octet-stream';
-                        }
-
-                        await sock.sendMessage(sender, {
-                            document: { url: `./${fileName}` },
-                            mimetype: mimetype,
-                            fileName: fileName,
-                            caption: `✅ Successfully generated/fetched ${format.toUpperCase()}`
-                        });
-                        await sock.sendMessage(sender, { text: `✅ File delivered!`, edit: key }).catch(() => { });
-                        fs.unlinkSync(fileName);
-                    }
-                } catch (e) {
-                    await sock.sendMessage(sender, { text: `❌ Error: ${e.message}`, edit: key });
-                }
-                return;
-            }
-
             if (cmd === '!quran') {
                 const query = args[1];
                 if (!query || !query.includes(':')) return sock.sendMessage(sender, { text: "⚠️ Format: !quran {surah}:{ayah} (Contoh: !quran 1:1)" });
@@ -902,34 +861,6 @@ async function connectWA() {
                 if (st.data.active) {
                     await sock.sendPresenceUpdate('composing', sender);
                     const res = await axios.post(`${pythonUrl}/chat`, { sender, msg: text });
-                    await sock.sendMessage(sender, { text: res.data });
-                }
-            } catch (e) { }
-        } else if (m.message && (m.message.audioMessage || (m.message.documentMessage && m.message.documentMessage.mimetype.startsWith('audio/')))) {
-            try {
-                const st = await axios.post(`${pythonUrl}/status`, { sender, action: "get" });
-                if (st.data.active) {
-                    await sock.sendPresenceUpdate('recording', sender);
-                    const { downloadMediaMessage } = require('baileys');
-                    const buffer = await downloadMediaMessage(m, 'buffer', {}, { logger: require('pino')({ level: 'silent' }) });
-                    if (buffer) {
-                        const FormData = require('form-data');
-                        const formData = new FormData();
-                        formData.append('sender', sender);
-                        formData.append('audio', buffer, 'voice_note.ogg');
-                        const res = await axios.post(`${pythonUrl}/voice`, formData, {
-                            headers: formData.getHeaders()
-                        });
-                        await sock.sendMessage(sender, { text: res.data });
-                    }
-                }
-            } catch (e) {
-                console.error("Audio processing error:", e.message);
-            }
-        }
-    });
-}
-connectWA();   const res = await axios.post(`${pythonUrl}/chat`, { sender, msg: text });
                     await sock.sendMessage(sender, { text: res.data });
                 }
             } catch (e) { }
