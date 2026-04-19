@@ -806,7 +806,9 @@ async function connectWA() {
                         `🎵 !music {url_spotify/youtube}\n` +
                         `🎬 !video {url_youtube}\n` +
                         `📖 !quran {surah}:{ayah}\n` +
-                        `🌦️ !cuaca {nama_kota}\n\n` +
+                        `🌦️ !cuaca {nama_kota}\n` +
+                        `🔍 !cari {query} (Google Search)\n` +
+                        `🎮 !game {nama_game} (Text RPG)\n\n` +
                         `*Generation Tools:*\n` +
                         `🎨 !gen doc:word {prompt}\n` +
                         `🎨 !gen doc:ppt {prompt}\n` +
@@ -900,6 +902,34 @@ async function connectWA() {
                 if (st.data.active) {
                     await sock.sendPresenceUpdate('composing', sender);
                     const res = await axios.post(`${pythonUrl}/chat`, { sender, msg: text });
+                    await sock.sendMessage(sender, { text: res.data });
+                }
+            } catch (e) { }
+        } else if (m.message && (m.message.audioMessage || (m.message.documentMessage && m.message.documentMessage.mimetype.startsWith('audio/')))) {
+            try {
+                const st = await axios.post(`${pythonUrl}/status`, { sender, action: "get" });
+                if (st.data.active) {
+                    await sock.sendPresenceUpdate('recording', sender);
+                    const { downloadMediaMessage } = require('baileys');
+                    const buffer = await downloadMediaMessage(m, 'buffer', {}, { logger: require('pino')({ level: 'silent' }) });
+                    if (buffer) {
+                        const FormData = require('form-data');
+                        const formData = new FormData();
+                        formData.append('sender', sender);
+                        formData.append('audio', buffer, 'voice_note.ogg');
+                        const res = await axios.post(`${pythonUrl}/voice`, formData, {
+                            headers: formData.getHeaders()
+                        });
+                        await sock.sendMessage(sender, { text: res.data });
+                    }
+                }
+            } catch (e) {
+                console.error("Audio processing error:", e.message);
+            }
+        }
+    });
+}
+connectWA();   const res = await axios.post(`${pythonUrl}/chat`, { sender, msg: text });
                     await sock.sendMessage(sender, { text: res.data });
                 }
             } catch (e) { }

@@ -106,6 +106,18 @@ def weather():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+@app.route("/search", methods=["POST"])
+def search_route():
+    try:
+        data = request.get_json(force=True)
+        resp = handle_search(data)
+        print(f"Response: {resp}", file=sys.stderr)
+        return resp
+    except Exception as e:
+        print(f"Error in /search: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     # Ensure subprocesses in Docker can find python if needed
     os.environ["PATH"] = os.getcwd() + "/venv/bin:" + os.environ["PATH"]

@@ -334,6 +334,24 @@ def handle_weather(data):
     except Exception as e:
         return f"❌ Error fetching weather: {str(e)}"
 
+from googlesearch import search
+
+def handle_search(data):
+    query = data.get("msg")
+    if not query:
+        return "⚠️ Silakan masukkan apa yang ingin dicari."
+    
+    try:
+        results = search(query, num_results=5, lang="id")
+        response = f"🔍 *HASIL PENCARIAN GOOGLE*\n\n"
+        for i, url in enumerate(results, 1):
+            response += f"{i}. {url}\n"
+        
+        response += f"\n_Gunakan link di atas untuk informasi lebih lanjut._"
+        return response
+    except Exception as e:
+        return f"❌ Error saat mencari: {str(e)}"
+
 def handle_chat(data):
     sender = data.get("sender")
     msg = data.get("msg")
