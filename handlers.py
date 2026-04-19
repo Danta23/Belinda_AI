@@ -334,7 +334,7 @@ def handle_weather(data):
     except Exception as e:
         return f"❌ Error fetching weather: {str(e)}"
 
-from googlesearch import search
+from duckduckgo_search import DDGS
 
 def handle_search(data):
     query = data.get("msg")
@@ -342,27 +342,31 @@ def handle_search(data):
         return "⚠️ Silakan masukkan apa yang ingin dicari."
     
     try:
-        # Convert generator to list to check if empty
-        results = list(search(query, num_results=5, lang="id"))
+        results = []
+        with DDGS() as ddgs:
+            # Menggunakan text search dari DuckDuckGo
+            for r in ddgs.text(query, region='id-id', safesearch='off', timelimit='y', max_results=5):
+                results.append(r)
         
         if not results:
-            # Fallback: Provide direct search link if library fails
-            search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}"
-            return f"🔍 *HASIL PENCARIAN GOOGLE*\n\n" \
-                   f"Maaf, saya tidak bisa menampilkan ringkasan link secara langsung saat ini karena proteksi Google.\n\n" \
-                   f"Silakan klik link di bawah untuk hasil lengkapnya:\n" \
+            search_url = f"https://duckduckgo.com/?q={urllib.parse.quote(query)}"
+            return f"🔍 *HASIL PENCARIAN DUCKDUCKGO*\n\n" \
+                   f"Maaf, saya tidak menemukan hasil langsung.\n\n" \
+                   f"Coba cari di sini:\n" \
                    f"🔗 {search_url}"
 
-        response = f"🔍 *HASIL PENCARIAN GOOGLE*\n\n"
-        for i, url in enumerate(results, 1):
-            response += f"{i}. {url}\n"
+        response = f"🔍 *HASIL PENCARIAN DUCKDUCKGO*\n\n"
+        for i, res in enumerate(results, 1):
+            title = res.get('title', 'No Title')
+            link = res.get('href', '#')
+            snippet = res.get('body', '')
+            response += f"*{i}. {title}*\n🔗 {link}\n_{snippet}_\n\n"
         
-        response += f"\n_Gunakan link di atas untuk informasi lebih lanjut._"
+        response += f"_Pencarian via DuckDuckGo Search._"
         return response
     except Exception as e:
-        # If error occurs, also provide the direct link as fallback
-        search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}"
-        return f"❌ Terjadi kendala saat mencari secara otomatis: {str(e)}\n\n" \
+        search_url = f"https://duckduckgo.com/?q={urllib.parse.quote(query)}"
+        return f"❌ Gagal mencari otomatis: {str(e)}\n\n" \
                f"Tapi kamu tetap bisa mencarinya di sini:\n" \
                f"🔗 {search_url}"
 
