@@ -431,16 +431,28 @@ async function connectWA() {
                 }
 
                 if (gameType === 'tebakkata') {
-                    const words = ['belinda', 'whatsapp', 'robot', 'pintar', 'studio', 'danta', 'indonesia', 'komputer', 'internet', 'koding'];
-                    const word = words[Math.floor(Math.random() * words.length)];
+                    const wordList = [
+                        { w: 'belinda', h: 'Nama asisten AI Studio 234.' },
+                        { w: 'whatsapp', h: 'Aplikasi chat hijau tempat kita berada sekarang.' },
+                        { w: 'robot', h: 'Mesin elektronik yang bisa mengerjakan tugas manusia.' },
+                        { w: 'indonesia', h: 'Negara dengan bendera merah putih.' },
+                        { w: 'internet', h: 'Jaringan dunia yang menghubungkan semua orang.' },
+                        { w: 'koding', h: 'Kegiatan menulis instruksi untuk komputer.' },
+                        { w: 'komputer', h: 'Alat elektronik yang punya monitor, CPU, dan keyboard.' },
+                        { w: 'danta', h: 'Nama pencipta bot Belinda AI.' }
+                    ];
+                    const picked = wordList[Math.floor(Math.random() * wordList.length)];
                     gameData[sender] = { 
                         type: 'tebakkata', 
-                        word: word, 
+                        word: picked.w, 
+                        hint: picked.h,
                         guessed: [], 
                         lives: 6 
                     };
-                    const display = word.split('').map(l => '_').join(' ');
-                    return sock.sendMessage(sender, { text: `🎮 *GAME: TEBAK KATA*\n\nKata: ${display}\nNyawa: ❤️ ${gameData[sender].lives}\n\n_Ketik satu huruf untuk menebak!_` });
+                    const display = picked.w.split('').map(l => '_').join(' ');
+                    return sock.sendMessage(sender, { 
+                        text: `🎮 *GAME: TEBAK KATA*\n\nKata: ${display}\nNyawa: ❤️ ${gameData[sender].lives}\n\n*Petunjuk:* ${picked.h}\n\n_Ketik satu huruf untuk menebak!_` 
+                    });
                 }
 
                 if (gameType === 'math') {
@@ -1156,7 +1168,7 @@ async function connectWA() {
                         return sock.sendMessage(sender, { text: `💀 *KALAH!* Kamu kehabisan nyawa.\n\nKata yang benar adalah: *${game.word.toUpperCase()}*` });
                     }
                     const display = game.word.split('').map(l => game.guessed.includes(l) ? l.toUpperCase() : '_').join(' ');
-                    return sock.sendMessage(sender, { text: `❌ *Salah!*\n\nKata: ${display}\nNyawa: ❤️ ${game.lives}` });
+                    return sock.sendMessage(sender, { text: `❌ *Salah!*\n\nKata: ${display}\nNyawa: ❤️ ${game.lives}\n*Petunjuk:* ${game.hint}` });
                 }
             }
 
