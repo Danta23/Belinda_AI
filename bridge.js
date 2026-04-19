@@ -52,6 +52,7 @@ const bridgeHost = process.env.BRIDGE_HOST || '127.0.0.1';
 const bridgePort = process.env.BRIDGE_PORT || '9000';
 
 let quizData = {};
+let gameData = {};
 let nextRequests = {};
 
 function normalizeText(str) {
