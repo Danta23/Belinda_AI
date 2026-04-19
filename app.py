@@ -2,7 +2,7 @@ import os
 import traceback
 import sys
 from flask import Flask, request, jsonify
-from handlers import handle_status, handle_chat, handle_shell, handle_gen, handle_weather, handle_voice
+from handlers import handle_status, handle_chat, handle_shell, handle_gen, handle_weather, handle_voice, handle_search
 from dotenv import load_dotenv  # support .env
 
 # Load variabel dari file .env
