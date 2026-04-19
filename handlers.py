@@ -342,7 +342,17 @@ def handle_search(data):
         return "⚠️ Silakan masukkan apa yang ingin dicari."
     
     try:
-        results = search(query, num_results=5, lang="id")
+        # Convert generator to list to check if empty
+        results = list(search(query, num_results=5, lang="id"))
+        
+        if not results:
+            # Fallback: Provide direct search link if library fails
+            search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}"
+            return f"🔍 *HASIL PENCARIAN GOOGLE*\n\n" \
+                   f"Maaf, saya tidak bisa menampilkan ringkasan link secara langsung saat ini karena proteksi Google.\n\n" \
+                   f"Silakan klik link di bawah untuk hasil lengkapnya:\n" \
+                   f"🔗 {search_url}"
+
         response = f"🔍 *HASIL PENCARIAN GOOGLE*\n\n"
         for i, url in enumerate(results, 1):
             response += f"{i}. {url}\n"
@@ -350,7 +360,11 @@ def handle_search(data):
         response += f"\n_Gunakan link di atas untuk informasi lebih lanjut._"
         return response
     except Exception as e:
-        return f"❌ Error saat mencari: {str(e)}"
+        # If error occurs, also provide the direct link as fallback
+        search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}"
+        return f"❌ Terjadi kendala saat mencari secara otomatis: {str(e)}\n\n" \
+               f"Tapi kamu tetap bisa mencarinya di sini:\n" \
+               f"🔗 {search_url}"
 
 def handle_chat(data):
     sender = data.get("sender")
