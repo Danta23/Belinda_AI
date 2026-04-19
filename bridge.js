@@ -404,20 +404,171 @@ async function connectWA() {
             }
 
             if (cmd === '!game') {
-                const gameName = args.slice(1).join(' ');
-                if (!gameName) return sock.sendMessage(sender, { text: "⚠️ Format: !game {nama_game}\nContoh: !game RPG Adventure atau !game Tebak Kata" });
-
-                const prompt = `Saya ingin bermain game text-based berjudul "${gameName}". ` +
-                               `Bertindaklah sebagai Game Master yang seru. Berikan deskripsi awal dan pilihan aksi untuk saya. ` +
-                               `Gunakan bahasa Indonesia yang santai.`;
+                const gameType = args[1]?.toLowerCase();
                 
-                try {
-                    const res = await axios.post(`${pythonUrl}/chat`, { sender, msg: prompt });
-                    await sock.sendMessage(sender, { text: `🎮 *GAME START: ${gameName.toUpperCase()}*\n\n${res.data}` });
-                } catch (e) {
-                    await sock.sendMessage(sender, { text: `❌ Gagal memulai game: ${e.message}` });
+                if (gameType === 'tebakangka') {
+                    const target = Math.floor(Math.random() * 100) + 1;
+                    gameData[sender] = { type: 'tebakangka', target, attempts: 0 };
+                    return sock.sendMessage(sender, { text: "🎮 *GAME: TEBAK ANGKA*\n\nAku sudah memilih angka antara *1 sampai 100*. Coba tebak!\n\n_Ketik angka langsung untuk menebak._" });
+                } 
+                
+                if (gameType === 'suit') {
+                    gameData[sender] = { type: 'suit' };
+                    return sock.sendMessage(sender, { text: "🎮 *GAME: SUIT*\n\nPilih salah satu:\n👊 *Batu*\n✋ *Kertas*\n✌️ *Gunting*\n\n_Ketik pilihannya langsung ya!_" });
                 }
-                return;
+
+                if (gameType === 'tictactoe') {
+                    gameData[sender] = { 
+                        type: 'tictactoe', 
+                        board: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+                        turn: 'user'
+                    };
+                    const renderBoard = (b) => `*${b[0]} | ${b[1]} | ${b[2]}*\n*${b[3]} | ${b[4]} | ${b[5]}*\n*${b[6]} | ${b[7]} | ${b[8]}*`;
+                    return sock.sendMessage(sender, { 
+                        text: `🎮 *GAME: TIC TAC TOE*\n\nKamu: *X* | Bot: *O*\n\n${renderBoard(gameData[sender].board)}\n\n_Ketik angka 1-9 untuk melangkah!_` 
+                    });
+                }
+
+                if (gameType === 'tebakkata') {
+                    const words = ['belinda', 'whatsapp', 'robot', 'pintar', 'studio', 'danta', 'indonesia', 'komputer', 'internet', 'koding'];
+                    const word = words[Math.floor(Math.random() * words.length)];
+                    gameData[sender] = { 
+                        type: 'tebakkata', 
+                        word: word, 
+                        guessed: [], 
+                        lives: 6 
+                    };
+                    const display = word.split('').map(l => '_').join(' ');
+                    return sock.sendMessage(sender, { text: `🎮 *GAME: TEBAK KATA*\n\nKata: ${display}\nNyawa: ❤️ ${gameData[sender].lives}\n\n_Ketik satu huruf untuk menebak!_` });
+                }
+
+                if (gameType === 'math') {
+                    const a = Math.floor(Math.random() * 50) + 1;
+                    const b = Math.floor(Math.random() * 50) + 1;
+                    const op = ['+', '-', '*'][Math.floor(Math.random() * 3)];
+                    let target = 0;
+                    if (op === '+') target = a + b;
+                    else if (op === '-') target = a - b;
+                    else target = a * b;
+
+                    gameData[sender] = { type: 'math', target };
+                    return sock.sendMessage(sender, { text: `🎮 *GAME: CEPAT TEPAT*\n\nBerapakah hasil dari:\n*${a} ${op} ${b} = ?*\n\n_Ketik jawabannya langsung!_` });
+                }
+
+                if (gameType === 'tebaktebakan') {
+                    const puzzles = [
+                        { q: "Makan apa yang tidak pernah kenyang?", a: "makan hati" },
+                        { q: "Huruf apa yang paling kedinginan?", a: "huruf b" }, // Karena berada di tengah-tengah AC
+                        { q: "Lemari apa yang bisa dimasukkan ke kantong?", a: "lemaribu" },
+                        { q: "Sapi, sapi apa yang bisa lari cepat?", a: "sapida motor" },
+                        { q: "Kenapa di komputer ada tulisan 'ENTER'?", a: "karena kalau 'ENTAR' programnya gak jalan-jalan" }
+                    ];
+                    const picked = puzzles[Math.floor(Math.random() * puzzles.length)];
+                    gameData[sender] = { type: 'tebaktebakan', answer: picked.a };
+                    return sock.sendMessage(sender, { text: `🎮 *GAME: TEBAK-TEBAKAN*\n\n*Pertanyaan:* ${picked.q}\n\n_Ketik jawabannya langsung ya!_` });
+                }
+
+                if (gameType === 'blackjack') {
+                    const drawCard = () => Math.floor(Math.random() * 10) + 1;
+                    const userCard1 = drawCard();
+                    const userCard2 = drawCard();
+                    const botCard1 = drawCard();
+                    
+                    gameData[sender] = { 
+                        type: 'blackjack', 
+                        userCards: [userCard1, userCard2], 
+                        botCards: [botCard1],
+                        userTotal: userCard1 + userCard2,
+                        botTotal: botCard1
+                    };
+
+                    const response = `🃏 *GAME: BLACKJACK*\n\n` +
+                                     `Kartu Kamu: *${gameData[sender].userCards.join(', ')}* (Total: ${gameData[sender].userTotal})\n` +
+                                     `Kartu Bot: *${gameData[sender].botCards.join(', ')}* (Total: ?)\n\n` +
+                                     `Ketik *'hit'* untuk ambil kartu, atau *'stand'* untuk berhenti.`;
+                    
+                    return sock.sendMessage(sender, { text: response });
+                }
+
+                if (gameType === 'mine') {
+                    const grid = Array(25).fill('🟦');
+                    const mines = [];
+                    while(mines.length < 5) {
+                        const r = Math.floor(Math.random() * 25);
+                        if(!mines.includes(r)) mines.push(r);
+                    }
+                    gameData[sender] = { type: 'mine', grid, mines, revealed: [], gameOver: false };
+                    const renderGrid = (g) => {
+                        let res = "";
+                        for(let i=0; i<5; i++) {
+                            res += g.slice(i*5, i*5+5).join(' ') + "\n";
+                        }
+                        return res;
+                    };
+                    return sock.sendMessage(sender, { text: `💣 *GAME: MINESWEEPER*\n\n${renderGrid(grid)}\nAda 5 ranjau tersembunyi! Ketik angka *1-25* untuk membuka kotak.` });
+                }
+
+                if (gameType === 'tod') {
+                    gameData[sender] = { type: 'tod' };
+                    return sock.sendMessage(sender, { text: `🎲 *GAME: TRUTH OR DARE*\n\nPilih salah satu:\n👉 Ketik *truth*\n👉 Ketik *dare*` });
+                }
+
+                if (gameType === 'siapaaku') {
+                    const list = [
+                        { q: "Aku adalah sebuah profesi. Aku bekerja di langit dan mengemudikan burung besi besar. Siapakah aku?", a: "pilot" },
+                        { q: "Aku adalah sebuah benda. Aku punya gigi tapi tidak bisa menggigit. Aku digunakan untuk merapikan rambut. Siapakah aku?", a: "sisir" },
+                        { q: "Aku adalah buah. Kulitku berduri, bauku menyengat, tapi rasaku sangat manis bagi pecintaku. Siapakah aku?", a: "durian" }
+                    ];
+                    const picked = list[Math.floor(Math.random() * list.length)];
+                    gameData[sender] = { type: 'siapaaku', answer: picked.a };
+                    return sock.sendMessage(sender, { text: `🧐 *GAME: SIAPA AKU?*\n\n*Petunjuk:* ${picked.q}\n\n_Ketik jawabannya langsung!_` });
+                }
+
+                if (gameType === 'catur') {
+                    gameData[sender] = { 
+                        type: 'catur', 
+                        board: [
+                            ['♜','♞','♝','♚'],
+                            ['.','.','.','.'],
+                            ['.','.','.','.'],
+                            ['♖','♘','♗','♔']
+                        ]
+                    };
+                    const render = (b) => b.map((r, i) => `${4-i} | ` + r.join(' ')).join('\n') + '\n    - - - -\n    a b c d';
+                    return sock.sendMessage(sender, { text: `♟️ *GAME: MINI CHESS (4x4)*\n\n${render(gameData[sender].board)}\n\nFormat Gerak: *asal tujuan* (Contoh: *a1 a2*)\n_Ketik langsung ya!_` });
+                }
+
+                if (gameType === 'solitaire') {
+                    const deck = [1,2,3,4,5,6,7,8,9,10];
+                    const cards = Array(9).fill(0).map(() => deck[Math.floor(Math.random() * deck.length)]);
+                    gameData[sender] = { type: 'solitaire', cards };
+                    return sock.sendMessage(sender, { text: `🃏 *GAME: MINI SOLITAIRE (Elevens)*\n\nKartu di meja:\n*${cards.join(' | ')}*\n\nPilih dua angka yang jumlahnya *11*!\nFormat: *angka1 angka2* (Contoh: *2 9*)` });
+                }
+
+                if (gameType === 'horor') {
+                    gameData[sender] = { type: 'horor', step: 1 };
+                    return sock.sendMessage(sender, { 
+                        text: `🏚️ *GAME: MALAM HOROR*\n\nKamu terbangun di depan sebuah rumah tua yang gelap. Pintu depan terbuka sedikit... Di sebelah kirimu ada jendela yang pecah.\n\nApa yang kamu lakukan?\n👉 Ketik *masuk* (lewat pintu)\n👉 Ketik *jendela* (lewat jendela)` 
+                    });
+                }
+
+                return sock.sendMessage(sender, { 
+                    text: "🎮 *DAFTAR GAME NON-AI*\n\n" +
+                          "1. !game tebakangka\n" +
+                          "2. !game suit\n" +
+                          "3. !game tictactoe\n" +
+                          "4. !game tebakkata\n" +
+                          "5. !game math\n" +
+                          "6. !game tebaktebakan\n" +
+                          "7. !game blackjack\n" +
+                          "8. !game mine\n" +
+                          "9. !game tod\n" +
+                          "10. !game siapaaku\n" +
+                          "11. !game catur\n" +
+                          "12. !game solitaire\n" +
+                          "13. !game horor\n\n" +
+                          "_Pilih game dengan mengetik !game {nama_game}_"
+                });
             }
 
             if (cmd === '!cari') {
@@ -767,7 +918,7 @@ async function connectWA() {
                         `📖 !quran {surah}:{ayah}\n` +
                         `🌦️ !cuaca {nama_kota}\n` +
                         `🔍 !cari {query} (Google Search)\n` +
-                        `🎮 !game {nama_game} (Text RPG)\n\n` +
+                        `🎮 !game (Daftar Game Teks)\n\n` +
                         `*Generation Tools:*\n` +
                         `🎨 !gen doc:word {prompt}\n` +
                         `🎨 !gen doc:ppt {prompt}\n` +
@@ -852,6 +1003,335 @@ async function connectWA() {
 
             // FALLBACK UNKNOWN COMMAND
             return sock.sendMessage(sender, { text: `❌ Perintah *${cmd}* tidak dikenali. Ketik !help untuk melihat daftar perintah.` });
+        }
+
+        // --- GAME LOGIC HANDLER (NON-AI) ---
+        if (gameData[sender] && !text.startsWith('!')) {
+            const game = gameData[sender];
+            if (game.type === 'tebakangka') {
+                const guess = parseInt(text);
+                if (!isNaN(guess)) {
+                    game.attempts++;
+                    if (guess === game.target) {
+                        const attempts = game.attempts;
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: `🎉 *SELAMAT!* Angka yang benar adalah *${game.target}*.\n\nKamu berhasil menebak dalam *${attempts}* percobaan.` });
+                    } else if (guess < game.target) {
+                        return sock.sendMessage(sender, { text: "📉 *Terlalu Rendah!* Coba lagi." });
+                    } else {
+                        return sock.sendMessage(sender, { text: "📈 *Terlalu Tinggi!* Coba lagi." });
+                    }
+                }
+            }
+        }
+
+        // --- GAME LOGIC HANDLER (NON-AI) ---
+        if (gameData[sender] && !text.startsWith('!')) {
+            const game = gameData[sender];
+            const input = text.toLowerCase().trim();
+
+            if (game.type === 'tebakangka') {
+                const guess = parseInt(input);
+                if (!isNaN(guess)) {
+                    game.attempts++;
+                    if (guess === game.target) {
+                        const attempts = game.attempts;
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: `🎉 *SELAMAT!* Angka yang benar adalah *${game.target}*.\n\nKamu berhasil menebak dalam *${attempts}* percobaan.` });
+                    } else if (guess < game.target) {
+                        return sock.sendMessage(sender, { text: "📉 *Terlalu Rendah!* Coba lagi." });
+                    } else {
+                        return sock.sendMessage(sender, { text: "📈 *Terlalu Tinggi!* Coba lagi." });
+                    }
+                }
+            }
+
+            if (game.type === 'suit') {
+                const options = ['batu', 'gunting', 'kertas'];
+                if (options.includes(input)) {
+                    const botChoice = options[Math.floor(Math.random() * options.length)];
+                    let result = "";
+                    let emoji = { 'batu': '👊', 'gunting': '✌️', 'kertas': '✋' };
+
+                    if (input === botChoice) {
+                        result = "🤝 *SERI!* Kita sama-sama pilih hal yang sama.";
+                    } else if (
+                        (input === 'batu' && botChoice === 'gunting') ||
+                        (input === 'gunting' && botChoice === 'kertas') ||
+                        (input === 'kertas' && botChoice === 'batu')
+                    ) {
+                        result = "🥳 *KAMU MENANG!*";
+                    } else {
+                        result = "😜 *AKU MENANG!*";
+                    }
+
+                    const response = `🎮 *HASIL SUIT*\n\n` +
+                                     `Kamu: ${emoji[input]} (${input.toUpperCase()})\n` +
+                                     `Aku: ${emoji[botChoice]} (${botChoice.toUpperCase()})\n\n` +
+                                     `${result}`;
+                    
+                    delete gameData[sender];
+                    return sock.sendMessage(sender, { text: response });
+                }
+            }
+
+            if (game.type === 'tictactoe') {
+                const pos = parseInt(input) - 1;
+                if (isNaN(pos) || pos < 0 || pos > 8 || game.board[pos] === 'X' || game.board[pos] === 'O') {
+                    return; // Ignore invalid move
+                }
+
+                // --- HELPER FUNCTIONS ---
+                const checkWin = (b) => {
+                    const winPatterns = [
+                        [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                        [0, 3, 6], [1, 4, 7], [2, 5, 8], // Cols
+                        [0, 4, 8], [2, 4, 6]             // Diagonals
+                    ];
+                    for (const [a, b_idx, c] of winPatterns) {
+                        if (b[a] !== (a+1).toString() && b[a] === b[b_idx] && b[a] === b[c]) return b[a];
+                    }
+                    return b.every(cell => cell === 'X' || cell === 'O') ? 'draw' : null;
+                };
+
+                const renderBoard = (b) => `*${b[0]} | ${b[1]} | ${b[2]}*\n*${b[3]} | ${b[4]} | ${b[5]}*\n*${b[6]} | ${b[7]} | ${b[8]}*`;
+
+                // 1. User Move
+                game.board[pos] = 'X';
+                let winner = checkWin(game.board);
+
+                if (winner) {
+                    const resultText = winner === 'draw' ? "🤝 *SERI!* Game berakhir tanpa pemenang." : "🥳 *KAMU MENANG!* Selamat!";
+                    const finalBoard = renderBoard(game.board);
+                    delete gameData[sender];
+                    return sock.sendMessage(sender, { text: `🎮 *TIC TAC TOE: FINISH*\n\n${finalBoard}\n\n${resultText}` });
+                }
+
+                // 2. Bot Move (Simple AI)
+                const emptyCells = game.board.filter(c => c !== 'X' && c !== 'O');
+                // Try to win, else block, else random
+                let botPos = -1;
+                // Strategy: just random for now to keep it simple, or smart? Let's do random for brevity.
+                const randomIndex = Math.floor(Math.random() * emptyCells.length);
+                botPos = parseInt(emptyCells[randomIndex]) - 1;
+
+                game.board[botPos] = 'O';
+                winner = checkWin(game.board);
+
+                if (winner) {
+                    const resultText = winner === 'draw' ? "🤝 *SERI!* Game berakhir tanpa pemenang." : "😜 *BOT MENANG!* Coba lagi ya.";
+                    const finalBoard = renderBoard(game.board);
+                    delete gameData[sender];
+                    return sock.sendMessage(sender, { text: `🎮 *TIC TAC TOE: FINISH*\n\n${finalBoard}\n\n${resultText}` });
+                }
+
+                return sock.sendMessage(sender, { 
+                    text: `🎮 *TIC TAC TOE*\n\nKamu: *X* | Bot: *O*\n\n${renderBoard(game.board)}\n\n_Giliranmu! Ketik 1-9._` 
+                });
+            }
+
+            if (game.type === 'tebakkata') {
+                const char = input[0];
+                if (!char) return;
+
+                if (game.guessed.includes(char)) {
+                    return sock.sendMessage(sender, { text: `⚠️ Huruf *${char.toUpperCase()}* sudah pernah ditebak!` });
+                }
+
+                game.guessed.push(char);
+                if (game.word.includes(char)) {
+                    // Correct guess
+                    const display = game.word.split('').map(l => game.guessed.includes(l) ? l.toUpperCase() : '_').join(' ');
+                    if (!display.includes('_')) {
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: `🥳 *MENANG!* Kamu berhasil menebak kata: *${game.word.toUpperCase()}*` });
+                    }
+                    return sock.sendMessage(sender, { text: `✅ *Benar!*\n\nKata: ${display}\nNyawa: ❤️ ${game.lives}` });
+                } else {
+                    // Wrong guess
+                    game.lives--;
+                    if (game.lives <= 0) {
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: `💀 *KALAH!* Kamu kehabisan nyawa.\n\nKata yang benar adalah: *${game.word.toUpperCase()}*` });
+                    }
+                    const display = game.word.split('').map(l => game.guessed.includes(l) ? l.toUpperCase() : '_').join(' ');
+                    return sock.sendMessage(sender, { text: `❌ *Salah!*\n\nKata: ${display}\nNyawa: ❤️ ${game.lives}` });
+                }
+            }
+
+            if (game.type === 'math') {
+                const ans = parseInt(input);
+                if (!isNaN(ans)) {
+                    if (ans === game.target) {
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: `🎉 *TEPAT!* Jawabanmu benar.` });
+                    } else {
+                        return sock.sendMessage(sender, { text: "❌ *Salah!* Coba hitung lagi." });
+                    }
+                }
+            }
+
+            if (game.type === 'tebaktebakan') {
+                if (input === game.answer) {
+                    delete gameData[sender];
+                    return sock.sendMessage(sender, { text: `🎉 *BENAR!* Kamu memang pintar.` });
+                } else {
+                    return sock.sendMessage(sender, { text: "❌ *Salah!* Ayo coba tebak lagi." });
+                }
+            }
+
+            if (game.type === 'blackjack') {
+                if (input === 'hit') {
+                    const newCard = Math.floor(Math.random() * 10) + 1;
+                    game.userCards.push(newCard);
+                    game.userTotal += newCard;
+
+                    if (game.userTotal > 21) {
+                        const finalTotal = game.userTotal;
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: `💥 *BUST!* Total kartu kamu ${finalTotal}. Kamu kalah.` });
+                    }
+
+                    return sock.sendMessage(sender, { text: `🃏 *BLACKJACK: HIT*\n\nKartu Kamu: *${game.userCards.join(', ')}* (Total: ${game.userTotal})\n\nKetik *'hit'* atau *'stand'*.` });
+                }
+
+                if (input === 'stand') {
+                    // Bot turn: draw until >= 17
+                    while (game.botTotal < 17) {
+                        const botCard = Math.floor(Math.random() * 10) + 1;
+                        game.botCards.push(botCard);
+                        game.botTotal += botCard;
+                    }
+
+                    let result = "";
+                    if (game.botTotal > 21 || game.userTotal > game.botTotal) {
+                        result = "🥳 *KAMU MENANG!*";
+                    } else if (game.userTotal < game.botTotal) {
+                        result = "😜 *BOT MENANG!*";
+                    } else {
+                        result = "🤝 *SERI!* Skor kita sama.";
+                    }
+
+                    const finalResponse = `🃏 *BLACKJACK: RESULT*\n\n` +
+                                          `Kartu Kamu: *${game.userCards.join(', ')}* (Total: ${game.userTotal})\n` +
+                                          `Kartu Bot: *${game.botCards.join(', ')}* (Total: ${game.botTotal})\n\n` +
+                                          `${result}`;
+                    
+                    delete gameData[sender];
+                    return sock.sendMessage(sender, { text: finalResponse });
+                }
+            }
+
+            if (game.type === 'mine') {
+                const pos = parseInt(input) - 1;
+                if(isNaN(pos) || pos < 0 || pos > 24 || game.revealed.includes(pos)) return;
+
+                const renderGrid = (g) => {
+                    let res = "";
+                    for(let i=0; i<5; i++) res += g.slice(i*5, i*5+5).join(' ') + "\n";
+                    return res;
+                };
+
+                if(game.mines.includes(pos)) {
+                    game.grid[pos] = '💣';
+                    const finalGrid = renderGrid(game.grid);
+                    delete gameData[sender];
+                    return sock.sendMessage(sender, { text: `💥 *BOOM!* Kamu menginjak ranjau.\n\n${finalGrid}\n*GAME OVER!*` });
+                } else {
+                    game.grid[pos] = '⬜';
+                    game.revealed.push(pos);
+                    if(game.revealed.length === 20) {
+                        const finalGrid = renderGrid(game.grid);
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: `🎉 *MENANG!* Kamu berhasil membersihkan semua lahan tanpa meledak.\n\n${finalGrid}` });
+                    }
+                    return sock.sendMessage(sender, { text: `✅ *AMAN!*\n\n${renderGrid(game.grid)}\nKetik angka lain (1-25).` });
+                }
+            }
+
+            if (game.type === 'siapaaku') {
+                if (input === game.answer) {
+                    delete gameData[sender];
+                    return sock.sendMessage(sender, { text: `🎉 *BENAR!* Jawaban yang tepat adalah *${input.toUpperCase()}*.` });
+                } else {
+                    return sock.sendMessage(sender, { text: "❌ *Salah!* Ayo coba tebak lagi." });
+                }
+            }
+
+            if (game.type === 'catur') {
+                const parts = input.split(' ');
+                if (parts.length === 2) {
+                    const parse = (p) => ({ r: 4 - parseInt(p[1]), c: p[0].charCodeAt(0) - 97 });
+                    const from = parse(parts[0]);
+                    const to = parse(parts[1]);
+
+                    if (from.r>=0 && from.r<4 && from.c>=0 && from.c<4 && to.r>=0 && to.r<4 && to.c>=0 && to.c<4) {
+                        const piece = game.board[from.r][from.c];
+                        if (piece === '.') return;
+                        
+                        game.board[to.r][to.c] = piece;
+                        game.board[from.r][from.c] = '.';
+                        
+                        const render = (b) => b.map((r, i) => `${4-i} | ` + r.join(' ')).join('\n') + '\n    - - - -\n    a b c d';
+                        return sock.sendMessage(sender, { text: `♟️ *BOARD UPDATE*\n\n${render(game.board)}\n\nLangkah selanjutnya?` });
+                    }
+                }
+            }
+
+            if (game.type === 'solitaire') {
+                const parts = input.split(' ').map(Number);
+                if (parts.length === 2 && parts[0] + parts[1] === 11) {
+                    game.cards = game.cards.filter(c => c !== parts[0] && c !== parts[1]);
+                    if (game.cards.length <= 1) {
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: "🎉 *MENANG!* Meja bersih." });
+                    }
+                    return sock.sendMessage(sender, { text: `✅ *COCOK!*\n\nKartu sisa: *${game.cards.join(' | ')}*\nLanjutkan!` });
+                } else {
+                    return sock.sendMessage(sender, { text: "❌ Jumlahnya bukan 11 atau format salah." });
+                }
+            }
+
+            if (game.type === 'horor') {
+                if (game.step === 1) {
+                    if (input === 'masuk') {
+                        game.step = 2;
+                        return sock.sendMessage(sender, { text: `🚪 Kamu masuk ke ruang tamu. Dingin sekali... Tiba-tiba pintu di belakangmu tertutup kencang! BRAKK!\n\nDi depanmu ada tangga ke *atas* dan pintu ke *dapur*.\n\nKe mana kamu pergi?\n👉 Ketik *atas* / *dapur*` });
+                    } else if (input === 'jendela') {
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: `🩸 *JUMPSCARE!*\n\nSaat kamu melompat lewat jendela, sesosok hantu tanpa kepala menarik kakimu ke bawah tanah! Kamu tewas.\n\n*GAME OVER!*` });
+                    }
+                } else if (game.step === 2) {
+                    if (input === 'atas') {
+                        game.step = 3;
+                        return sock.sendMessage(sender, { text: `👣 Kamu naik ke lantai dua. Ada satu kamar dengan cahaya lilin remang-remang. Kamu mendengar suara tangisan wanita...\n\nApa yang kamu lakukan?\n👉 Ketik *intip* (lihat ke dalam)\n👉 Ketik *lari* (turun kembali)` });
+                    } else if (input === 'dapur') {
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: `🔪 *JUMPSCARE!*\n\nKamu masuk ke dapur dan terpeleset genangan darah. Seorang jagal misterius muncul dari kegelapan dan menebas lehermu!\n\n*GAME OVER!*` });
+                    }
+                } else if (game.step === 3) {
+                    if (input === 'intip') {
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: `😱 *JUMPSCARE!*\n\nWanita itu menoleh ke arahmu... wajahnya hancur dan matanya melotot tepat di depan matamu! Kamu mati karena serangan jantung!\n\n*GAME OVER!*` });
+                    } else if (input === 'lari') {
+                        delete gameData[sender];
+                        return sock.sendMessage(sender, { text: `🌟 *SELAMAT!*\n\nKamu lari sekuat tenaga, melompat keluar dari balkon lantai dua dan mendarat di rumput. Kamu terus berlari sampai ke jalan raya dan berhasil selamat dari teror rumah itu!\n\n*YOU WIN!*` });
+                    }
+                }
+            }
+
+            if (game.type === 'tod') {
+                if (input === 'truth') {
+                    const truths = ["Apa ketakutan terbesar kamu?", "Siapa orang yang diam-diam kamu suka?", "Pernahkah kamu berbohong kepada teman terbaikmu?", "Apa hal paling memalukan yang pernah kamu lakukan?"];
+                    delete gameData[sender];
+                    return sock.sendMessage(sender, { text: `💡 *TRUTH:* ${truths[Math.floor(Math.random() * truths.length)]}` });
+                }
+                if (input === 'dare') {
+                    const dares = ["Kirim pesan 'Aku sayang kamu' ke orang ke-3 di daftar chat WA kamu.", "VN nyanyi lagu balonku tapi semua vokal jadi 'O'.", "Kirim screenshot histori pencarian browser kamu ke grup ini.", "Push up 10 kali lalu kirim fotonya ke grup."];
+                    delete gameData[sender];
+                    return sock.sendMessage(sender, { text: `🔥 *DARE:* ${dares[Math.floor(Math.random() * dares.length)]}` });
+                }
+            }
         }
 
         // RESPON AI
