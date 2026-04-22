@@ -1076,32 +1076,31 @@ async function connectWA() {
 
                 return sock.sendMessage(sender, {
                     text: asciiHelp + `🤖 *BELINDA AI HELP MENU*\n\n` +
-                        `*Quiz & Education:*\n` +
-                        `📝 !quiz [amount] [subject] [level]\n` +
-                        `⏭️ !next (min. 2 users)\n` +
-                        `🧹 !reset (Reset quiz data)\n\n` +
                         `*Main Features:*\n` +
-                        `🎵 !music {url_spotify/youtube}\n` +
-                        `🎬 !video {url_youtube}\n` +
+                        `🔍 !cari {query} (DuckDuckGo)\n` +
+                        `🖼️ !image {url} (Download Image)\n` +
+                        `🎵 !music {url} (Spotify/YT)\n` +
+                        `🎬 !video {url} (YouTube)\n` +
                         `📖 !quran {surah}:{ayah}\n` +
-                        `🌦️ !cuaca {nama_kota}\n` +
-                        `🔍 !cari {query} (Google Search)\n` +
-                        `🎮 !game (Daftar Game Teks)\n\n` +
+                        `🌦️ !cuaca {kota}\n` +
+                        `🎮 !game (17 Text Games)\n\n` +
+                        `*Social & Info:*\n` +
+                        `ℹ️ !info (AI Status)\n` +
+                        `📝 !log (Recent logs)\n\n` +
+                        `*Education (Quiz):*\n` +
+                        `📝 !quiz [amount] [mapel] [level]\n` +
+                        `⏭️ !next / 🧹 !reset\n\n` +
                         `*Generation Tools:*\n` +
-                        `🎨 !gen doc:word {prompt}\n` +
-                        `🎨 !gen doc:ppt {prompt}\n` +
-                        `🎨 !gen doc:excel {prompt}\n` +
+                        `🎨 !gen doc:{word|ppt|excel} {prompt}\n` +
                         `💻 !gen scr:{ext} {prompt}\n` +
                         `📦 !gen 3dm:{ext} {prompt}\n\n` +
-                        `*Admin & Utility:*\n` +
-                        `🤖 !bot (on/off) (Admin Only)\n` +
-                        `ℹ️ !info (Cek Status AI)\n` +
-                        `💻 !shell {command} (Admin Only)\n` +
-                        `➕ !add {nomor} (Admin Only)\n` +
-                        `👢 !kick {nomor} (Admin Only)\n` +
-                        `🔓 !open / 🔒 !close (Admin Only)\n` +
-                        `🧹 !zero (Clear chat history) (Admin Only)\n` +
-                        `📝 !log (All)\n`
+                        `*Admin Tools:*\n` +
+                        `🛡️ !anti {toxic|link|spam} {true|false}\n` +
+                        `🤖 !bot (on/off)\n` +
+                        `💻 !shell {command}\n` +
+                        `➕ !add / 👢 !kick {nomor}\n` +
+                        `🔓 !open / 🔒 !close\n` +
+                        `🧹 !zero (Clear context)\n`
                 });
             }
 

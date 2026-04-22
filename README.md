@@ -287,23 +287,24 @@ npm install
 | Command | Description | Access |
 | :--- | :--- | :--- |
 | `!help` | Display interactive menu | All |
+| `!info` | Check AI and Bot status | All |
 | `!bot` | Toggle AI Mode (Enable/Disable) | Admin |
+| `!anti {type}` | Setup Protection (toxic/link/spam) | Admin |
+| `!game` | Play 17 interactive text games | All |
+| `!cari {query}`| Search information on internet | All |
+| `!image {url}` | Download image from link | All |
 | `!quiz` | Start a trivia quiz | All |
-| `!next` | Next quiz question (min. 2 users) | All |
-| `!shell {cmd}` | Run Linux commands (real-time) | Admin |
 | `!music {url}` | Download Spotify/YouTube to VN | All |
 | `!video {url}` | Download YouTube Video (480p) | All |
-| `!gen doc:{fmt}`| AI Documents (ppt, word, excel) | All |
-| `!gen scr:{ext}`| Generate Script (py, lua, etc) | All |
-| `!gen 3dm:{ext}`| AI Generate/Search 3D Models | All |
-| `!cuaca {city}` | Real-time Weather Report | All |
 | `!quran {s:a}` | Get Ayah (e.g., !quran 1:1) | All |
-| `!kick {user}` | Remove member from group | Admin |
-| `!add {num}` | Add member (Global support) | Admin |
-| `!open` / `!close` | Group permission control | Admin |
-| `!zero` | Wipe chat history (Admin Only) | Admin |
+| `!gen doc:{fmt}`| AI Documents (ppt, word, excel) | All |
+| `!gen scr:{ext}`| Generate Script (py, js, etc) | All |
+| `!gen 3dm:{ext}`| AI Generate/Search 3D Models | All |
+| `!shell {cmd}` | Run Linux commands (real-time) | Admin |
+| `!kick` / `!add` | Member Management | Admin |
+| `!open` / `!close`| Group permission control | Admin |
+| `!zero` | Wipe chat context memory | Admin |
 | `!log` | View recent chat logs | All |
-| `!reset`| Reset quiz session data | All |
 
 ---
 
