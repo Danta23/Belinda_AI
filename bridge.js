@@ -7,12 +7,21 @@ const fs = require('fs');
 
 // --- KONFIGURASI ---
 const toxicWords = [
+    // --- INDONESIA ---
     'anjing', 'babi', 'monyet', 'kunyuk', 'asu', 'celeng', 'bajing', 'landak', 'garangan', 'anying', 'jing', 'kanjut', 'pantek', 'puki', 'pukas', 'toket', 'tobrut', 'tembolok', 'asoe', 'andjing',
     'goblok', 'tolol', 'bego', 'idiot', 'cacat', 'sinting', 'gila', 'autis', 'bloon', 'yatim', 'nigga', 'negro', 'beloon', 'dongo', 'dungu', 'geblek', 'dongok', 'coli', 'peli', 'janco', 'ongok',
     'peler', 'memek', 'kontol', 'jembut', 'itil', 'ngentot', 'ngewe', 'tempik', 'titit', 'pepek', 'cukimai', 'entot', 'kampang', 'menyodok', 'merodok', 'modar', 'monyong', 'sialan', 'taruk', 'gendut',
     'bangsat', 'keparat', 'brengsek', 'lonte', 'perek', 'jablay', 'bajingan', 'pelacur', 'pendoza', 'ewe', 'koit', 'kojor', 'memberaki', 'mengamput', 'mengancuk', 'mengayut', 'mengentot', 'kampret',
-    'taik', 'tai', 'bangke', 'bangkae', 'jancok', 'jancuk', 'ancuk', 'ancok', 'cok', 'cuk', 'bgst', 'fuck', 'shit', 'bitch', 'asshole', 'dick', 'pussy', 'cunt', 'motherfucker', 'bastard', 'abus',
-    'anj', 'ajg', 'anjg', 'mnyet', 'ppk', 'kntl', 'mmk', 'pukimak', 'telang', 'lasso', 'dodol', 'bengak', 'pilat', 'gathel', 'gegares', 'geladak', 'beal', 'gelayaran', 'mampus', 'bacot', 'cungur'
+    'taik', 'tai', 'bangke', 'bangkae', 'jancok', 'jancuk', 'ancuk', 'ancok', 'cok', 'cuk', 'bgst', 'anj', 'ajg', 'anjg', 'mnyet', 'ppk', 'kntl', 'mmk', 'pukimak', 'telang', 'lasso', 'dodol', 'bengak', 
+    'pilat', 'gathel', 'gegares', 'geladak', 'beal', 'gelayaran', 'mampus', 'bacot', 'cungur', 'palkon', 'pabu', 'picek', 'budek', 'budeg', 'bolot', 'kopok', 'pecun', 'perek', 'ayam', 'jamet', 'jablay',
+
+    // --- ENGLISH ---
+    'fuck', 'shit', 'bitch', 'asshole', 'dick', 'pussy', 'cunt', 'motherfucker', 'bastard', 'abus', 'faggot', 'fag', 'slut', 'whore', 'jerk', 'prick', 'bollocks', 'wanker', 'twat', 'piss', 'cock',
+    'nigger', 'negro', 'retard', 'dumbass', 'bullshit', 'cum', 'semen', 'porn', 'porno', 'ass', 'arse', 'hoe', 'skank', 'tit', 'tits',
+
+    // --- REGIONAL (JAWA, SUNDA, DLL) ---
+    'asu', 'raimu', 'matamu', 'ndasmu', 'dancok', 'jancok', 'cok', 'jangkrik', 'mbokmu', 'tempik', 'jembut', 'jembutmu', 'silit', 'silitmu', 'picek', 'kopok', 'mbelgedes', 'budeg', 'cocote', 'lambemu',
+    'anying', 'anyink', 'goblog', 'belegug', 'sia', 'sia mah', 'maneh', 'kebluk', 'modar', 'kokod', 'beungeut', 'gejul', 'boro'
 ];
 const pythonUrl = process.env.PYTHON_URL || 'http://127.0.0.1:8000';
 
