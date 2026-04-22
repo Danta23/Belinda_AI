@@ -55,6 +55,12 @@ let quizData = {};
 let gameData = {};
 let nextRequests = {};
 
+// --- ANTI-SYSTEM SETTINGS ---
+let antiSettings = {}; 
+// Struktur: { "jid": { toxic: true, link: false, spam: false } }
+let spamTracker = {};
+// Struktur: { "jid": { "user": { lastMsg: "", count: 0 } } }
+
 function normalizeText(str) {
     return str.toLowerCase()
         .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e')
@@ -231,12 +237,44 @@ async function connectWA() {
             return meta.participants.filter(p => p.admin).map(p => p.id).includes(participant);
         }
 
-        // --- ANTI-TOXIC ---
+        // --- ANTI-SYSTEM FILTERS ---
         if (isGroup && text) {
-            const cleanText = normalizeText(text);
-            const words = cleanText.split(/\s+/);
-            if (words.some(w => toxicWords.includes(w))) {
-                try { await sock.sendMessage(sender, { delete: m.key }); return; } catch (e) { }
+            if (!antiSettings[sender]) antiSettings[sender] = { toxic: true, link: false, spam: false };
+            const settings = antiSettings[sender];
+
+            // 1. ANTI-TOXIC
+            if (settings.toxic) {
+                const cleanText = normalizeText(text);
+                const words = cleanText.split(/\s+/);
+                if (words.some(w => toxicWords.includes(w))) {
+                    try { await sock.sendMessage(sender, { delete: m.key }); return; } catch (e) { }
+                }
+            }
+
+            // 2. ANTI-LINK
+            if (settings.link) {
+                const linkRegex = /https?:\/\/[^\s]+/gi;
+                const isMediaCommand = text.startsWith('!music') || text.startsWith('!video') || text.startsWith('!image');
+                if (linkRegex.test(text) && !isMediaCommand) {
+                    try { await sock.sendMessage(sender, { delete: m.key }); return; } catch (e) { }
+                }
+            }
+
+            // 3. ANTI-SPAM
+            if (settings.spam) {
+                if (!spamTracker[sender]) spamTracker[sender] = {};
+                if (!spamTracker[sender][participant]) spamTracker[sender][participant] = { lastMsg: "", count: 0 };
+                
+                const userSpam = spamTracker[sender][participant];
+                if (text === userSpam.lastMsg) {
+                    userSpam.count++;
+                    if (userSpam.count >= 3) { // Pesan ke-4 dan seterusnya yang sama akan dihapus
+                        try { await sock.sendMessage(sender, { delete: m.key }); return; } catch (e) { }
+                    }
+                } else {
+                    userSpam.lastMsg = text;
+                    userSpam.count = 0;
+                }
             }
         }
 
@@ -404,6 +442,51 @@ async function connectWA() {
                 return sock.sendMessage(sender, { text: "Masuk" });
             }
 
+            if (cmd === '!image') {
+                const url = args[1];
+                if (!url) return sock.sendMessage(sender, { text: "⚠️ Format: !image {url_gambar}" });
+
+                const { key } = await sock.sendMessage(sender, { text: "⏳ Sedang mengunduh gambar..." });
+                try {
+                    const response = await axios.get(url, { 
+                        responseType: 'arraybuffer',
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+                        }
+                    });
+
+                    const contentType = response.headers['content-type'];
+                    if (!contentType || !contentType.startsWith('image/')) {
+                        return sock.sendMessage(sender, { 
+                            text: "❌ Link tersebut bukan merupakan link gambar langsung (direct image link).\n\n*Tips:* Gunakan link yang berakhiran .jpg, .png, atau .webp", 
+                            edit: key 
+                        });
+                    }
+
+                    const buffer = Buffer.from(response.data); // Fixed: No 'utf-8' encoding for binary data
+                    await sock.sendMessage(sender, { image: buffer, caption: "✅ Gambar berhasil diunduh!" });
+                    await sock.sendMessage(sender, { text: "✅ Selesai!", edit: key });
+                } catch (e) {
+                    await sock.sendMessage(sender, { text: `❌ Gagal mengambil gambar: ${e.message}`, edit: key });
+                }
+                return;
+            }
+
+            if (cmd === '!anti') {
+                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
+                const type = args[1]?.toLowerCase();
+                const bool = args[2]?.toLowerCase();
+
+                if (!['toxic', 'link', 'spam'].includes(type) || !['true', 'false'].includes(bool)) {
+                    return sock.sendMessage(sender, { text: "⚠️ Format: !anti {toxic/link/spam} {true/false}" });
+                }
+
+                if (!antiSettings[sender]) antiSettings[sender] = { toxic: true, link: false, spam: false };
+                antiSettings[sender][type] = (bool === 'true');
+
+                return sock.sendMessage(sender, { text: `✅ *ANTI-${type.toUpperCase()}* telah diatur menjadi: *${bool.toUpperCase()}*` });
+            }
+
             if (cmd === '!game') {
                 const gameType = args[1]?.toLowerCase();
                 
@@ -471,13 +554,17 @@ async function connectWA() {
                 if (gameType === 'tebaktebakan') {
                     const puzzles = [
                         { q: "Makan apa yang tidak pernah kenyang?", a: "makan hati" },
-                        { q: "Huruf apa yang paling kedinginan?", a: "huruf b" }, // Karena berada di tengah-tengah AC
+                        { q: "Huruf apa yang paling kedinginan?", a: "huruf b" },
                         { q: "Lemari apa yang bisa dimasukkan ke kantong?", a: "lemaribu" },
                         { q: "Sapi, sapi apa yang bisa lari cepat?", a: "sapida motor" },
                         { q: "Kenapa di komputer ada tulisan 'ENTER'?", a: "karena kalau 'ENTAR' programnya gak jalan-jalan" }
                     ];
                     const picked = puzzles[Math.floor(Math.random() * puzzles.length)];
-                    gameData[sender] = { type: 'tebaktebakan', answer: picked.a };
+                    gameData[sender] = { 
+                        type: 'tebaktebakan', 
+                        answer: picked.a.toLowerCase(),
+                        wrongAttempts: 0 
+                    };
                     return sock.sendMessage(sender, { text: `🎮 *GAME: TEBAK-TEBAKAN*\n\n*Pertanyaan:* ${picked.q}\n\n_Ketik jawabannya langsung ya!_` });
                 }
 
@@ -1257,7 +1344,16 @@ async function connectWA() {
                     delete gameData[sender];
                     return sock.sendMessage(sender, { text: `🎉 *BENAR!* Kamu memang pintar.` });
                 } else {
-                    return sock.sendMessage(sender, { text: "❌ *Salah!* Ayo coba tebak lagi." });
+                    game.wrongAttempts++;
+                    let response = "❌ *Salah!* Ayo coba tebak lagi.";
+                    
+                    if (game.wrongAttempts >= 3) {
+                        const ans = game.answer;
+                        const hint = ans[0] + ans.slice(1, -1).replace(/[a-z0-9]/g, '_') + ans[ans.length - 1];
+                        response += `\n\n💡 *HINT:* ${hint.toUpperCase()}`;
+                    }
+                    
+                    return sock.sendMessage(sender, { text: response });
                 }
             }
 
