@@ -546,7 +546,21 @@ async function connectWA() {
                     const words = ['teknologi', 'matahari', 'pahlawan', 'sejarah', 'galaksi', 'samudera', 'belajar', 'seniman'];
                     const picked = words[Math.floor(Math.random() * words.length)];
                     gameData[sender] = { type: 'hangman', word: picked, guessed: [], lives: 6 };
-                    return sock.sendMessage(sender, { text: `😵 *GAME: HANGMAN*\n\nKata: ${picked.split('').map(() => '_').join(' ')}\nNyawa: ❤️ 6\n\n_Ketik satu huruf untuk menebak!_` });
+                    
+                    const hangmanArt = [
+                        "  +---+\n  |   |\n      |\n      |\n      |\n      |\n=========", // 6 lives
+                        "  +---+\n  |   |\n  O   |\n      |\n      |\n      |\n=========", // 5 lives
+                        "  +---+\n  |   |\n  O   |\n  |   |\n      |\n      |\n=========", // 4 lives
+                        "  +---+\n  |   |\n  O   |\n /|   |\n      |\n      |\n=========", // 3 lives
+                        "  +---+\n  |   |\n  O   |\n /|\\  |\n      |\n      |\n=========", // 2 lives
+                        "  +---+\n  |   |\n  O   |\n /|\\  |\n /    |\n      |\n=========", // 1 life
+                        "  +---+\n  |   |\n  O   |\n /|\\  |\n / \\  |\n      |\n========="  // 0 lives
+                    ];
+
+                    const display = picked.split('').map(() => '_').join(' ');
+                    return sock.sendMessage(sender, { 
+                        text: `😵 *GAME: HANGMAN*\n\n\`\`\`\n${hangmanArt[0]}\n\`\`\`\n\nKata: ${display}\nNyawa: ❤️ 6\n\n_Ketik satu huruf untuk menebak!_` 
+                    });
                 }
 
                 if (gameType === 'susunkata') {
@@ -598,39 +612,44 @@ async function connectWA() {
                     });
                 }
 
-                if (gameType === 'bom') {
-                    const wires = ['merah', 'biru', 'kuning', 'hijau'];
-                    const bomb = wires[Math.floor(Math.random() * wires.length)];
-                    gameData[sender] = { type: 'bom', correct: bomb };
-                    return sock.sendMessage(sender, { text: `💣 *GAME: JINAKKAN BOM*\n\nBom akan meledak dalam 10 detik! Potong satu kabel yang benar:\n🔴 Merah\n🔵 Biru\n🟡 Kuning\n🟢 Hijau\n\n_Ketik nama warna kabelnya!_` });
-                }
-
                 if (gameType === 'tebakoutput') {
                     gameData[sender] = { type: 'tebakoutput', state: 'choose_lang', score: 0 };
                     return sock.sendMessage(sender, { text: `💻 *GAME: TEBAK OUTPUT*\n\nPilih bahasa pemrograman:\n1. *Python*\n2. *C++*\n\n_Ketik nama bahasanya untuk memulai!_` });
                 }
 
-                return sock.sendMessage(sender, { 
-                    text: "🎮 *DAFTAR GAME TEKS*\n\n" +
-                          "1. !game tebakangka\n" +
-                          "2. !game suit\n" +
-                          "3. !game tictactoe\n" +
-                          "4. !game tebakkata\n" +
-                          "5. !game math\n" +
-                          "6. !game tebaktebakan\n" +
-                          "7. !game blackjack\n" +
-                          "8. !game mine\n" +
-                          "9. !game tod\n" +
-                          "10. !game siapaaku\n" +
-                          "11. !game hangman\n" +
-                          "12. !game solitaire\n" +
-                          "13. !game horor\n" +
-                          "14. !game susunkata\n" +
-                          "15. !game emojiquiz\n" +
-                          "16. !game bom\n" +
-                          "17. !game tebakoutput\n\n" +
-                          "_Pilih game dengan mengetik !game {nama_game}_"
-                });
+                const gameHeader = 
+                    "╭────────────────╮\n" +
+                    "│  🕹️ GAME CENTER  │\n" +
+                    "╰────────────────╯\n";
+
+                const gameBody = 
+                    `🧠 *LOGIC & BRAIN*\n` +
+                    `├ 🔢 !game tebakangka\n` +
+                    `├ 🧮 !game math\n` +
+                    `├ 🧐 !game siapaaku\n` +
+                    `├ 🧩 !game susunkata\n` +
+                    `└ 💻 !game tebakoutput\n\n` +
+
+                    `🎮 *CASUAL FUN*\n` +
+                    `├ 👊 !game suit\n` +
+                    `├ ❌ !game tictactoe\n` +
+                    `├ 🔡 !game tebakkata\n` +
+                    `├ 😵 !game hangman\n` +
+                    `└ 🎭 !game emojiquiz\n\n` +
+
+                    `🎰 *STRATEGY & LUCK*\n` +
+                    `├ 🃏 !game blackjack\n` +
+                    `├ 💣 !game mine\n` +
+                    `├ 🃏 !game solitaire\n` +
+                    `└ 🧨 !game bom\n\n` +
+
+                    `🎭 *INTERACTIVE*\n` +
+                    `├ 🎲 !game tod\n` +
+                    `├ 🤔 !game tebaktebakan\n` +
+                    `└ 🏚️ !game horor\n\n` +
+                    `_Ketik perintah di atas untuk bermain!_`;
+
+                return sock.sendMessage(sender, { text: "```\n" + gameHeader + "```\n" + gameBody });
             }
 
             if (cmd === '!cari') {
@@ -1328,6 +1347,16 @@ async function connectWA() {
                     return sock.sendMessage(sender, { text: `⚠️ Huruf *${char.toUpperCase()}* sudah pernah ditebak!` });
                 }
 
+                const hangmanArt = [
+                    "  +---+\n  |   |\n      |\n      |\n      |\n      |\n=========", // 6 lives
+                    "  +---+\n  |   |\n  O   |\n      |\n      |\n      |\n=========", // 5 lives
+                    "  +---+\n  |   |\n  O   |\n  |   |\n      |\n      |\n=========", // 4 lives
+                    "  +---+\n  |   |\n  O   |\n /|   |\n      |\n      |\n=========", // 3 lives
+                    "  +---+\n  |   |\n  O   |\n /|\\  |\n      |\n      |\n=========", // 2 lives
+                    "  +---+\n  |   |\n  O   |\n /|\\  |\n /    |\n      |\n=========", // 1 life
+                    "  +---+\n  |   |\n  O   |\n /|\\  |\n / \\  |\n      |\n========="  // 0 lives
+                ];
+
                 game.guessed.push(char);
                 if (game.word.includes(char)) {
                     const display = game.word.split('').map(l => game.guessed.includes(l) ? l.toUpperCase() : '_').join(' ');
@@ -1335,15 +1364,17 @@ async function connectWA() {
                         delete gameData[sender];
                         return sock.sendMessage(sender, { text: `🥳 *MENANG!* Kamu berhasil menebak kata: *${game.word.toUpperCase()}*` });
                     }
-                    return sock.sendMessage(sender, { text: `✅ *Benar!*\n\nKata: ${display}\nNyawa: ❤️ ${game.lives}` });
+                    const artIndex = 6 - game.lives;
+                    return sock.sendMessage(sender, { text: `✅ *Benar!*\n\n\`\`\`\n${hangmanArt[artIndex]}\n\`\`\`\n\nKata: ${display}\nNyawa: ❤️ ${game.lives}` });
                 } else {
                     game.lives--;
+                    const artIndex = 6 - game.lives;
                     if (game.lives <= 0) {
                         delete gameData[sender];
-                        return sock.sendMessage(sender, { text: `💀 *KALAH!* Kamu digantung.\n\nKata yang benar adalah: *${game.word.toUpperCase()}*` });
+                        return sock.sendMessage(sender, { text: `💀 *KALAH!* Kamu digantung.\n\n\`\`\`\n${hangmanArt[6]}\n\`\`\`\n\nKata yang benar adalah: *${game.word.toUpperCase()}*` });
                     }
                     const display = game.word.split('').map(l => game.guessed.includes(l) ? l.toUpperCase() : '_').join(' ');
-                    return sock.sendMessage(sender, { text: `❌ *Salah!*\n\nKata: ${display}\nNyawa: ❤️ ${game.lives}` });
+                    return sock.sendMessage(sender, { text: `❌ *Salah!*\n\n\`\`\`\n${hangmanArt[artIndex]}\n\`\`\`\n\nKata: ${display}\nNyawa: ❤️ ${game.lives}` });
                 }
             }
 
