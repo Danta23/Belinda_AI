@@ -741,7 +741,11 @@ async function connectWA() {
 
                 if (gameType === 'woodber') {
                     const nums = Array(12).fill(0).map(() => Math.floor(Math.random() * 9) + 1);
-                    gameData[sender] = { type: 'woodber', nums };
+                    gameData[sender] = { 
+                        type: 'woodber', 
+                        nums,
+                        wrongAttempts: 0
+                    };
                     return sock.sendMessage(sender, { text: `🔢 *GAME: WOODBER*\n\nAngka di meja:\n*${nums.join(' | ')}*\n\nPilih dua angka yang *sama* atau berjumlah *10*!\nFormat: *pos1 pos2* (Contoh: *1 5*)` });
                 }
 
@@ -1647,6 +1651,18 @@ async function connectWA() {
 
             if (game.type === 'woodber') {
                 const parts = input.split(' ').map(n => parseInt(n) - 1);
+                
+                // Helper to check if any moves are left
+                const hasMoves = (nums) => {
+                    const active = nums.map((v, i) => ({v, i})).filter(x => x.v !== '✅');
+                    for (let i = 0; i < active.length; i++) {
+                        for (let j = i + 1; j < active.length; j++) {
+                            if (active[i].v === active[j].v || active[i].v + active[j].v === 10) return {p1: active[i].i + 1, p2: active[j].i + 1};
+                        }
+                    }
+                    return null;
+                };
+
                 if (parts.length === 2) {
                     const p1 = parts[0], p2 = parts[1];
                     if (p1 >= 0 && p1 < game.nums.length && p2 >= 0 && p2 < game.nums.length && p1 !== p2) {
@@ -1654,14 +1670,32 @@ async function connectWA() {
                         if (n1 === n2 || n1 + n2 === 10) {
                             game.nums[p1] = '✅';
                             game.nums[p2] = '✅';
+                            game.wrongAttempts = 0; // Reset on success
                             
                             if (game.nums.every(n => n === '✅')) {
                                 delete gameData[sender];
                                 return sock.sendMessage(sender, { text: "🎉 *MENANG!* Semua angka berhasil dicocokkan." });
                             }
+
+                            const nextMove = hasMoves(game.nums);
+                            if (!nextMove) {
+                                const remaining = game.nums.filter(n => n !== '✅').join(', ');
+                                delete gameData[sender];
+                                return sock.sendMessage(sender, { text: `🛑 *GAME OVER (BUNTU)!*\n\nMeja: *${game.nums.join(' | ')}*\n\nTidak ada lagi pasangan yang cocok (angka sisa: ${remaining}). Kamu kalah!` });
+                            }
+
                             return sock.sendMessage(sender, { text: `✅ *MATCH!*\n\nMeja: *${game.nums.join(' | ')}*\nLanjutkan!` });
                         } else {
-                            return sock.sendMessage(sender, { text: "❌ Tidak cocok! Harus angka yang sama atau jumlahnya 10." });
+                            game.wrongAttempts++;
+                            let response = "❌ Tidak cocok! Harus angka yang sama atau jumlahnya 10.";
+                            
+                            if (game.wrongAttempts >= 3) {
+                                const hint = hasMoves(game.nums);
+                                if (hint) {
+                                    response += `\n\n💡 *HINT:* Coba cek posisi *${hint.p1}* dan *${hint.p2}*.`;
+                                }
+                            }
+                            return sock.sendMessage(sender, { text: response });
                         }
                     }
                 }
