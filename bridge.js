@@ -714,14 +714,28 @@ async function connectWA() {
                 }
 
                 if (gameType === 'sudoku') {
-                    // Simple 4x4 Sudoku with some missing numbers
+                    // Simple 4x4 Sudoku boards
                     const boards = [
-                        { b: ['1','2','3','4', '4','3','2','1', '2','1','4','3', '3','4','1','2'], mask: [0, 5, 10, 15] }
+                        { b: ['1','2','3','4', '3','4','1','2', '2','3','4','1', '4','1','2','3'], mask: [0, 3, 5, 6, 10, 12, 15] },
+                        { b: ['2','4','1','3', '1','3','2','4', '3','1','4','2', '4','2','3','1'], mask: [1, 4, 7, 10, 11, 13] },
+                        { b: ['4','3','2','1', '1','2','3','4', '2','1','4','3', '3','4','1','2'], mask: [0, 5, 10, 15] }
                     ];
-                    const picked = boards[0];
+                    const picked = boards[Math.floor(Math.random() * boards.length)];
                     const current = picked.b.map((v, i) => picked.mask.includes(i) ? v : '.');
-                    gameData[sender] = { type: 'sudoku', solution: picked.b, board: current };
-                    const render = (b) => `*${b[0]} ${b[1]} | ${b[4]} ${b[5]}*\n*${b[2]} ${b[3]} | ${b[6]} ${b[7]}*\n-----------\n*${b[8]} ${b[9]} | ${b[12]} ${b[13]}*\n*${b[10]} ${b[11]} | ${b[14]} ${b[15]}*`;
+                    gameData[sender] = { 
+                        type: 'sudoku', 
+                        solution: picked.b, 
+                        board: current,
+                        wrongAttempts: 0 
+                    };
+                    
+                    const render = (b) => 
+                        `*${b[0]} ${b[1]} | ${b[2]} ${b[3]}*\n` +
+                        `*${b[4]} ${b[5]} | ${b[6]} ${b[7]}*\n` +
+                        `-----------\n` +
+                        `*${b[8]} ${b[9]} | ${b[10]} ${b[11]}*\n` +
+                        `*${b[12]} ${b[13]} | ${b[14]} ${b[15]}*`;
+
                     return sock.sendMessage(sender, { text: `🧩 *GAME: MINI SUDOKU (4x4)*\n\n${render(current)}\n\nFormat: *baris kolom angka*\n(Contoh: *1 2 3* untuk isi baris 1, kol 2 dengan angka 3)\n_Angka 1-4 saja!_` });
                 }
 
@@ -1597,7 +1611,13 @@ async function connectWA() {
                     if (r >= 0 && r < 4 && c >= 0 && c < 4 && idx < 16) {
                         if (game.solution[idx] === val) {
                             game.board[idx] = val;
-                            const render = (b) => `*${b[0]} ${b[1]} | ${b[4]} ${b[5]}*\n*${b[2]} ${b[3]} | ${b[6]} ${b[7]}*\n-----------\n*${b[8]} ${b[9]} | ${b[12]} ${b[13]}*\n*${b[10]} ${b[11]} | ${b[14]} ${b[15]}*`;
+                            game.wrongAttempts = 0; // Reset counter on correct move
+                            const render = (b) => 
+                                `*${b[0]} ${b[1]} | ${b[2]} ${b[3]}*\n` +
+                                `*${b[4]} ${b[5]} | ${b[6]} ${b[7]}*\n` +
+                                `-----------\n` +
+                                `*${b[8]} ${b[9]} | ${b[10]} ${b[11]}*\n` +
+                                `*${b[12]} ${b[13]} | ${b[14]} ${b[15]}*`;
                             
                             if (!game.board.includes('.')) {
                                 delete gameData[sender];
@@ -1605,7 +1625,21 @@ async function connectWA() {
                             }
                             return sock.sendMessage(sender, { text: `✅ *BENAR!*\n\n${render(game.board)}\nLanjutkan!` });
                         } else {
-                            return sock.sendMessage(sender, { text: "❌ *Salah!* Angka itu tidak cocok di sana." });
+                            game.wrongAttempts++;
+                            let response = "❌ *Salah!* Angka itu tidak cocok di sana.";
+                            
+                            if (game.wrongAttempts >= 3) {
+                                // Provide hint: find first empty index and give its coordinates and value
+                                const emptyIdx = game.board.indexOf('.');
+                                if (emptyIdx !== -1) {
+                                    const hintR = Math.floor(emptyIdx / 4) + 1;
+                                    const hintC = (emptyIdx % 4) + 1;
+                                    const hintVal = game.solution[emptyIdx];
+                                    response += `\n\n💡 *HINT:* Coba isi baris *${hintR}* kolom *${hintC}* dengan angka *${hintVal}*.`;
+                                }
+                            }
+                            
+                            return sock.sendMessage(sender, { text: response });
                         }
                     }
                 }
