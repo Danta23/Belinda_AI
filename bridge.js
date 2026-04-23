@@ -713,6 +713,24 @@ async function connectWA() {
                     return sock.sendMessage(sender, { text: `💻 *GAME: TEBAK OUTPUT*\n\nPilih bahasa pemrograman:\n1. *Python*\n2. *C++*\n\n_Ketik nama bahasanya untuk memulai!_` });
                 }
 
+                if (gameType === 'sudoku') {
+                    // Simple 4x4 Sudoku with some missing numbers
+                    const boards = [
+                        { b: ['1','2','3','4', '4','3','2','1', '2','1','4','3', '3','4','1','2'], mask: [0, 5, 10, 15] }
+                    ];
+                    const picked = boards[0];
+                    const current = picked.b.map((v, i) => picked.mask.includes(i) ? v : '.');
+                    gameData[sender] = { type: 'sudoku', solution: picked.b, board: current };
+                    const render = (b) => `*${b[0]} ${b[1]} | ${b[4]} ${b[5]}*\n*${b[2]} ${b[3]} | ${b[6]} ${b[7]}*\n-----------\n*${b[8]} ${b[9]} | ${b[12]} ${b[13]}*\n*${b[10]} ${b[11]} | ${b[14]} ${b[15]}*`;
+                    return sock.sendMessage(sender, { text: `🧩 *GAME: MINI SUDOKU (4x4)*\n\n${render(current)}\n\nFormat: *baris kolom angka*\n(Contoh: *1 2 3* untuk isi baris 1, kol 2 dengan angka 3)\n_Angka 1-4 saja!_` });
+                }
+
+                if (gameType === 'woodber') {
+                    const nums = Array(12).fill(0).map(() => Math.floor(Math.random() * 9) + 1);
+                    gameData[sender] = { type: 'woodber', nums };
+                    return sock.sendMessage(sender, { text: `🔢 *GAME: WOODBER*\n\nAngka di meja:\n*${nums.join(' | ')}*\n\nPilih dua angka yang *sama* atau berjumlah *10*!\nFormat: *pos1 pos2* (Contoh: *1 5*)` });
+                }
+
                 const gameHeader = 
                     "╭────────────────╮\n" +
                     "│  🕹️ GAME CENTER  │\n" +
@@ -724,7 +742,9 @@ async function connectWA() {
                     `├ 🧮 !game math\n` +
                     `├ 🧐 !game siapaaku\n` +
                     `├ 🧩 !game susunkata\n` +
-                    `└ 💻 !game tebakoutput\n\n` +
+                    `├ 💻 !game tebakoutput\n` +
+                    `├ 🧩 !game sudoku\n` +
+                    `└ 🔢 !game woodber\n\n` +
 
                     `🎮 *CASUAL FUN*\n` +
                     `├ 👊 !game suit\n` +
@@ -1562,6 +1582,53 @@ async function connectWA() {
                         const correct = game.currentAnswer;
                         delete gameData[sender];
                         return sock.sendMessage(sender, { text: `❌ *GAME OVER!*\n\nJawaban yang benar adalah: *${correct}*\nSkor Akhir: *${finalScore}*\n\n_Ayo coba lagi untuk melatih logika kodingmu!_` });
+                    }
+                }
+            }
+
+            if (game.type === 'sudoku') {
+                const parts = input.split(' ').map(Number);
+                if (parts.length === 3) {
+                    const r = parts[0] - 1;
+                    const c = parts[1] - 1;
+                    const val = parts[2].toString();
+                    const idx = r * 4 + c;
+
+                    if (r >= 0 && r < 4 && c >= 0 && c < 4 && idx < 16) {
+                        if (game.solution[idx] === val) {
+                            game.board[idx] = val;
+                            const render = (b) => `*${b[0]} ${b[1]} | ${b[4]} ${b[5]}*\n*${b[2]} ${b[3]} | ${b[6]} ${b[7]}*\n-----------\n*${b[8]} ${b[9]} | ${b[12]} ${b[13]}*\n*${b[10]} ${b[11]} | ${b[14]} ${b[15]}*`;
+                            
+                            if (!game.board.includes('.')) {
+                                delete gameData[sender];
+                                return sock.sendMessage(sender, { text: `🎉 *MENANG!* Sudoku selesai.\n\n${render(game.board)}` });
+                            }
+                            return sock.sendMessage(sender, { text: `✅ *BENAR!*\n\n${render(game.board)}\nLanjutkan!` });
+                        } else {
+                            return sock.sendMessage(sender, { text: "❌ *Salah!* Angka itu tidak cocok di sana." });
+                        }
+                    }
+                }
+            }
+
+            if (game.type === 'woodber') {
+                const parts = input.split(' ').map(n => parseInt(n) - 1);
+                if (parts.length === 2) {
+                    const p1 = parts[0], p2 = parts[1];
+                    if (p1 >= 0 && p1 < game.nums.length && p2 >= 0 && p2 < game.nums.length && p1 !== p2) {
+                        const n1 = game.nums[p1], n2 = game.nums[p2];
+                        if (n1 === n2 || n1 + n2 === 10) {
+                            game.nums[p1] = '✅';
+                            game.nums[p2] = '✅';
+                            
+                            if (game.nums.every(n => n === '✅')) {
+                                delete gameData[sender];
+                                return sock.sendMessage(sender, { text: "🎉 *MENANG!* Semua angka berhasil dicocokkan." });
+                            }
+                            return sock.sendMessage(sender, { text: `✅ *MATCH!*\n\nMeja: *${game.nums.join(' | ')}*\nLanjutkan!` });
+                        } else {
+                            return sock.sendMessage(sender, { text: "❌ Tidak cocok! Harus angka yang sama atau jumlahnya 10." });
+                        }
                     }
                 }
             }
