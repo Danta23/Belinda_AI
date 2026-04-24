@@ -746,7 +746,7 @@ async function connectWA() {
                         nums,
                         wrongAttempts: 0
                     };
-                    return sock.sendMessage(sender, { text: `🔢 *GAME: WOODBER*\n\nAngka di meja:\n*${nums.join(' | ')}*\n\nPilih dua angka yang *sama* atau berjumlah *10*!\nFormat: *pos1 pos2* (Contoh: *1 5*)` });
+                    return sock.sendMessage(sender, { text: `🔢 *GAME: WOODBER*\n\nAngka di meja:\n*${nums.join(' | ')}*\n\n1. Pilih dua angka yang *sama* atau berjumlah *10*!\n2. Format: *pos1 pos2* (Contoh: *1 5*)\n3. Ketik *add* jika buntu untuk menambah angka.` });
                 }
 
                 const gameHeader = 
@@ -1650,6 +1650,14 @@ async function connectWA() {
             }
 
             if (game.type === 'woodber') {
+                // Feature: Add Numbers
+                if (input === 'add') {
+                    const remaining = game.nums.filter(n => n !== '✅');
+                    if (remaining.length === 0) return;
+                    game.nums = [...game.nums, ...remaining];
+                    return sock.sendMessage(sender, { text: `➕ *ANGKA DITAMBAH!*\n\nMeja: *${game.nums.join(' | ')}*\nLanjutkan pencocokan!` });
+                }
+
                 const parts = input.split(' ').map(n => parseInt(n) - 1);
                 
                 // Helper to check if any moves are left
@@ -1679,9 +1687,7 @@ async function connectWA() {
 
                             const nextMove = hasMoves(game.nums);
                             if (!nextMove) {
-                                const remaining = game.nums.filter(n => n !== '✅').join(', ');
-                                delete gameData[sender];
-                                return sock.sendMessage(sender, { text: `🛑 *GAME OVER (BUNTU)!*\n\nMeja: *${game.nums.join(' | ')}*\n\nTidak ada lagi pasangan yang cocok (angka sisa: ${remaining}). Kamu kalah!` });
+                                return sock.sendMessage(sender, { text: `🛑 *BUNTU!*\n\nMeja: *${game.nums.join(' | ')}*\n\nTidak ada lagi pasangan yang cocok. Ketik *add* untuk menambah baris baru!` });
                             }
 
                             return sock.sendMessage(sender, { text: `✅ *MATCH!*\n\nMeja: *${game.nums.join(' | ')}*\nLanjutkan!` });
