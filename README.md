@@ -290,7 +290,7 @@ npm install
 | `!info` | Check AI and Bot status | All |
 | `!bot` | Toggle AI Mode (Enable/Disable) | Admin |
 | `!anti {type}` | Setup Protection (toxic/link/spam) | Admin |
-| `!game` | Play 17 interactive text games | All |
+| `!game` | Play interactive text games | All |
 | `!cari {query}`| Search information on internet | All |
 | `!image {url}` | Download image from link | All |
 | `!quiz` | Start a trivia quiz | All |
