@@ -311,7 +311,8 @@ async function connectWA() {
 
         // --- CHAT HISTORY ---
         if (text && !text.startsWith('!')) {
-            chatHistory.push({ sender, participant, text, time: new Date().toISOString() });
+            const pushName = m.pushName || "User";
+            chatHistory.push({ sender, participant, name: pushName, text, time: new Date().toISOString() });
             saveHistory(chatHistory);
         }
 
@@ -552,7 +553,7 @@ async function connectWA() {
             }
 
             if (cmd === '!font') {
-                const input = args.slice(1).join(' );
+                const input = args.slice(1).join(' ');
                 if (!input) return sock.sendMessage(sender, { text: "⚠️ Format: !font {teks_kamu}" });
 
                 const maps = {
@@ -574,45 +575,6 @@ async function connectWA() {
 
                 const convert = (txt, map) => {
                     const targetChars = [...map];
-                    return txt.split(').map(c => {
-                        const idx = normal.indexOf(c);
-                        if (idx === -1) return c;
-                        return targetChars[idx] || c;
-                    }).join(');
-                };
-
-                const resText = `✨ *AESTHETIC FONTS*nn` +
-                                `*Italic:* n${convert(input, maps.italic)}nn` +
-                                `*Bold:* n${convert(input, maps.bold)}nn` +
-                                `*Monospace:* n${convert(input, maps.mono)}nn` +
-                                `*Cursive:* n${convert(input, maps.script)}nn` +
-                                `*Bubbled:* n${convert(input, maps.bubble)}nn` +
-                                `*Squared:* n${convert(input, maps.square)}nn` +
-                                `*Gothic:* n${convert(input, maps.gothic)}nn` +
-                                `*Tiny Caps:* n${convert(input, maps.tiny)}nn` +
-                                `*Wide:* n${convert(input, maps.wide)}nn` +
-                                `*Double Struck:* n${convert(input, maps.struck)}nn` +
-                                `*Slashed:* n${convert(input, maps.slashed)}nn` +
-                                `*Underlined:* n${convert(input, maps.underline)}`;
-                n                return sock.sendMessage(sender, { text: resText });
-            }
-
-                // Character Mapping for Aesthetic Fonts
-                const maps = {
-                    italic: "𝘢bc𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻𝘈𝘉𝘊𝘋𝘌𝘍𝘎𝘏𝘐𝘑𝘒𝘓𝘔𝘕𝘖𝘗𝘘𝘙𝘚𝘛𝘜𝘝𝘞𝘟𝘠𝘡0123456789",
-                    bold: "𝐚𝐛𝐜𝐝𝐞𝐟𝐠𝐡𝐢𝐣𝐤𝐥𝐦𝐧𝐨𝐩𝐪𝐫𝐬𝐭𝐮𝐯𝐰𝐱𝐲𝐳𝐀𝐁𝐂𝐃𝐄𝐅𝐆𝐇𝐈𝐉𝐊𝐋𝐌𝐍𝐎𝐏𝐐𝐑𝐒𝐓𝐔𝐕𝐖𝐗𝐘𝐙𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗",
-                    mono: "𝚊𝚋𝚌𝚍𝚎𝚏𝚐𝚑𝚒𝚓𝚔𝚕𝚖𝚗𝚘𝚙𝚚𝚛𝚜𝚝𝚞𝚟𝚠𝚡𝚢𝚣𝙰𝙱𝙲𝙳𝙴𝙵𝙶𝙷𝙸𝙹𝙺𝙻𝙼𝙽𝙾𝙿𝚀𝚁𝚂𝚃𝚄𝚅𝚆𝚇𝚈𝚉𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿",
-                    script: "𝒶𝒷𝒸𝒹𝑒𝒻𝑔𝒽𝒾𝒿𝓀𝓁𝓂𝓃𝑜𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏𝒜𝐵𝒞𝒟𝐸𝐹𝒢𝐻𝐼𝒥𝒦𝐿𝑀𝒩𝒪𝒫𝒬𝑅𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵0123456789",
-                    bubble: "ⓐⓑ𝒸ⓓⓔⓕⓖⓗ𝒾ⓙ𝓀𝓁𝓂𝓃ⓞ𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ⓪①②③④⑤⑥⑦⑧⑨",
-                    square: "🄰ⓑ🄲ⓓ🄴ⓕ🄶ⓗ🄸ⓙ🄺𝓁🄼ⓝ🄾📅🄿📆🅀𝓇🅁𝓈🅂𝓉🅃𝓊🅄📋🅅𝓌🅆📍🅇𝓎🅈ⓩ🄰🄱🄲🄹🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉0123456789",
-                    gothic: "𝔞𝔟𝔠𝔡𝔢𝔣𝔤𝔥𝔦𝔧𝔨𝔩𝔪𝔫𝔬𝔭𝔮𝔯𝔰𝔱𝔲𝔳𝔴𝔵𝔶𝔷𝔄𝔅ℭ𝔇𝔈𝔉𝔊ℌℑ𝔍𝔎𝔏𝔐𝔑𝔒𝔓ℜ𝔖𝔗𝔘𝔙𝔚𝔛𝔜ℨ0123456789"
-                };
-                // Note: Simplified some mappings due to complex multi-byte character handling in JS string slicing
-                
-                const normal = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
-                const convert = (txt, map) => {
-                    const targetChars = [...map]; // Handles multi-byte characters correctly
                     return txt.split('').map(c => {
                         const idx = normal.indexOf(c);
                         if (idx === -1) return c;
@@ -626,7 +588,13 @@ async function connectWA() {
                                 `*Monospace:* \n${convert(input, maps.mono)}\n\n` +
                                 `*Cursive:* \n${convert(input, maps.script)}\n\n` +
                                 `*Bubbled:* \n${convert(input, maps.bubble)}\n\n` +
-                                `*Gothic:* \n${convert(input, maps.gothic)}`;
+                                `*Squared:* \n${convert(input, maps.square)}\n\n` +
+                                `*Gothic:* \n${convert(input, maps.gothic)}\n\n` +
+                                `*Tiny Caps:* \n${convert(input, maps.tiny)}\n\n` +
+                                `*Wide:* \n${convert(input, maps.wide)}\n\n` +
+                                `*Double Struck:* \n${convert(input, maps.struck)}\n\n` +
+                                `*Slashed:* \n${convert(input, maps.slashed)}\n\n` +
+                                `*Underlined:* \n${convert(input, maps.underline)}`;
                 
                 return sock.sendMessage(sender, { text: resText });
             }
@@ -1313,20 +1281,24 @@ async function connectWA() {
                 
                 const counts = {};
                 chatHistory.forEach(h => {
-                    const name = h.participant;
-                    counts[name] = (counts[name] || 0) + 1;
+                    counts[h.participant] = (counts[h.participant] || 0) + 1;
                 });
                 
                 const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);
-                const list = sorted.map((entry, i) => `${i + 1}. ${entry[0].split('@')[0]} : ${entry[1]} pesan`).join('\n');
-                return sock.sendMessage(sender, { text: `📊 *TOP 10 MEMBER AKTIF*\n\n${list}` });
+                const mentions = sorted.map(e => e[0]);
+                const list = sorted.map((e, i) => `${i + 1}. @${e[0].split('@')[0]} : ${e[1]} pesan`).join('\n');
+                
+                return sock.sendMessage(sender, { text: `📊 *TOP 10 MEMBER AKTIF*\n\n${list}`, mentions });
             }
 
             if (cmd === '!absen') {
                 if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
                 const meta = await sock.groupMetadata(sender);
-                const list = meta.participants.map((p, i) => `${i + 1}. ${p.id.split('@')[0]}`).join('\n');
-                return sock.sendMessage(sender, { text: `👥 *DAFTAR ABSEN MEMBER*\n\n${list}` });
+                
+                const mentions = meta.participants.map(p => p.id);
+                const list = meta.participants.map((p, i) => `${i + 1}. @${p.id.split('@')[0]}`).join('\n');
+                
+                return sock.sendMessage(sender, { text: `👥 *DAFTAR ABSEN MEMBER*\n\n${list}`, mentions });
             }
 
             if (cmd === '!quiz') {
