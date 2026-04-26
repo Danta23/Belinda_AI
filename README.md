@@ -290,7 +290,13 @@ npm install
 | `!info` | Check AI and Bot status | All |
 | `!bot` | Toggle AI Mode (Enable/Disable) | Admin |
 | `!anti {type}` | Setup Protection (toxic/link/spam) | Admin |
-| `!game` | Play interactive text games | All |
+| `!game` | Play 17 interactive text games | All |
+| `!sholat {city}`| Get local prayer times | All |
+| `!afk {reason}` | Set away from keyboard status | All |
+| `!rules` | Show group rules from description| All |
+| `!font {text}` | Convert to aesthetic fonts | All |
+| `!top` | View top 10 active members | Admin |
+| `!absen` | List all group members | Admin |
 | `!cari {query}`| Search information on internet | All |
 | `!image {url}` | Download image from link | All |
 | `!quiz` | Start a trivia quiz | All |
@@ -305,6 +311,7 @@ npm install
 | `!open` / `!close`| Group permission control | Admin |
 | `!zero` | Wipe chat context memory | Admin |
 | `!log` | View recent chat logs | All |
+
 
 ---
 

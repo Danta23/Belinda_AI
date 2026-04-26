@@ -69,6 +69,8 @@ let antiSettings = {};
 // Struktur: { "jid": { toxic: true, link: false, spam: false } }
 let spamTracker = {};
 // Struktur: { "jid": { "user": { lastMsg: "", count: 0 } } }
+let afkData = {};
+// Struktur: { "user_jid": { reason: "", time: Date } }
 
 function normalizeText(str) {
     return str.toLowerCase()
@@ -239,6 +241,26 @@ async function connectWA() {
 
         const isGroup = sender.endsWith('@g.us');
         const participant = m.key.participant || sender;
+
+        // --- AFK SYSTEM: AUTO-CLEAR ---
+        if (afkData[participant]) {
+            const timeDiff = new Date() - afkData[participant].time;
+            const hours = Math.floor(timeDiff / 3600000);
+            const minutes = Math.floor((timeDiff % 3600000) / 60000);
+            const seconds = Math.floor((timeDiff % 60000) / 1000);
+            const duration = `${hours > 0 ? hours + ' jam ' : ''}${minutes > 0 ? minutes + ' menit ' : ''}${seconds} detik`;
+            
+            await sock.sendMessage(sender, { text: `👋 *Selamat datang kembali!*\n\nStatus AFK kamu telah dihapus.\n*Alasan:* ${afkData[participant].reason}\n*Durasi:* ${duration}` });
+            delete afkData[participant];
+        }
+
+        // --- AFK SYSTEM: MENTION DETECT ---
+        const mentions = m.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        for (let jid of mentions) {
+            if (afkData[jid]) {
+                await sock.sendMessage(sender, { text: `🤫 *Ssstt!* Orangnya sedang AFK.\n\n*Alasan:* ${afkData[jid].reason}\n*Sejak:* ${new Date(afkData[jid].time).toLocaleTimeString()}` });
+            }
+        }
 
         async function isAdmin() {
             if (!isGroup) return true;
@@ -479,6 +501,134 @@ async function connectWA() {
                     await sock.sendMessage(sender, { text: `❌ Gagal mengambil gambar: ${e.message}`, edit: key });
                 }
                 return;
+            }
+
+            if (cmd === '!rules') {
+                if (!isGroup) return sock.sendMessage(sender, { text: "⚠️ Perintah ini hanya bisa digunakan di dalam grup." });
+                const meta = await sock.groupMetadata(sender);
+                const rules = meta.desc || "Deskripsi grup tidak tersedia.";
+                return sock.sendMessage(sender, { text: `📜 *PERATURAN GRUP*\n\n${rules}` });
+            }
+
+            if (cmd === '!afk') {
+                const reason = args.slice(1).join(' ') || "Tanpa alasan.";
+                afkData[participant] = { reason, time: new Date() };
+                return sock.sendMessage(sender, { text: `💤 *Status AFK Aktif*\n\nKamu sekarang AFK.\n*Alasan:* ${reason}\n\n_Bot akan otomatis memberitahu jika namamu disebut._` });
+            }
+
+            if (cmd === '!sholat') {
+                const city = args.slice(1).join(' ');
+                if (!city) return sock.sendMessage(sender, { text: "⚠️ Format: !sholat {nama_kota}" });
+
+                try {
+                    // Step 1: Search City ID
+                    const searchRes = await axios.get(`https://api.myquran.com/v2/sholat/kota/cari/${city}`);
+                    if (!searchRes.data.status || searchRes.data.data.length === 0) {
+                        return sock.sendMessage(sender, { text: `❌ Kota *${city}* tidak ditemukan.` });
+                    }
+                    const cityId = searchRes.data.data[0].id;
+                    const cityName = searchRes.data.data[0].lokasi;
+
+                    // Step 2: Get Schedule for Today
+                    const date = new Date().toISOString().split('T')[0].split('-').join('/');
+                    const scheduleRes = await axios.get(`https://api.myquran.com/v2/sholat/jadwal/${cityId}/${date}`);
+                    const j = scheduleRes.data.data.jadwal;
+
+                    const text = `🕌 *JADWAL SHOLAT: ${cityName}*\n` +
+                                 `📅 Tanggal: ${j.tanggal}\n\n` +
+                                 `✨ Imsak: ${j.imsak}\n` +
+                                 `✨ Subuh: ${j.subuh}\n` +
+                                 `✨ Terbit: ${j.terbit}\n` +
+                                 `✨ Dhuha: ${j.dhuha}\n` +
+                                 `✨ Dzuhur: ${j.dzuhur}\n` +
+                                 `✨ Ashar: ${j.ashar}\n` +
+                                 `✨ Maghrib: ${j.maghrib}\n` +
+                                 `✨ Isya: ${j.isya}\n\n` +
+                                 `_Sumber: api.myquran.com_`;
+                    return sock.sendMessage(sender, { text });
+                } catch (e) {
+                    return sock.sendMessage(sender, { text: `❌ Gagal mengambil jadwal sholat: ${e.message}` });
+                }
+            }
+
+            if (cmd === '!font') {
+                const input = args.slice(1).join(' );
+                if (!input) return sock.sendMessage(sender, { text: "⚠️ Format: !font {teks_kamu}" });
+
+                const maps = {
+                    italic: "𝘢bc𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻𝘈𝘉𝘊𝘋𝘌𝘍𝘎𝘏𝘐𝘑𝘒𝘓𝘔𝘕𝘖𝘗𝘘𝘙𝘚𝘛𝘜𝘝𝘞𝘟𝘠𝘡0123456789",
+                    bold: "𝐚𝐛𝐜𝐝𝐞𝐟𝐠𝐡𝐢𝐣𝐤𝐥𝐦𝐧𝐨𝐩𝐪𝐫𝐬𝐭𝐮𝐯𝐰𝐱𝐲𝐳𝐀𝐁𝐂𝐃𝐄𝐅𝐆𝐇𝐈𝐉𝐊𝐋𝐌𝐍𝐎𝐏𝐐𝐑𝐒𝐓𝐔ＶＷＸＹ𝐙𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗",
+                    mono: "𝚊𝚋𝚌𝚍𝚎𝚏𝚐𝚑𝚒𝚓𝚔𝚕𝚖𝚗𝚘𝚙𝚚𝚛𝚜𝚝𝚞𝚟𝚠𝚡𝚢𝚣𝙰𝙱𝙲𝙳ＥＦＧＨＩ𝙹𝙺ＬＭＮＯＰ𝚀𝚁ＳＴＵＶＷＸＹＺ𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿",
+                    script: "𝒶𝒷𝒸𝒹𝑒𝒻𝑔𝒽𝒾𝒿𝓀𝓁𝓂𝓃𝑜𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏𝒜𝐵𝒞𝒟ＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ0123456789",
+                    bubble: "ⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ⓪①②③④⑤⑥⑦⑧⑨",
+                    square: "🄰🄱🄲🄳🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉🄰🄱🄲🄳🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉0123456789",
+                    gothic: "𝔞𝔟𝔠𝔡𝔢𝔣𝔤𝔥𝔦𝔧𝔨𝔩𝔪𝔫𝔬𝔭𝔮𝔯𝔰𝔱𝔲𝔳𝔴𝔵𝔶𝔷𝔄𝔅ℭ𝔇𝔈𝔉𝔊ℌℑ𝔍𝔎𝔏𝔐𝔑𝔒𝔓ℜ𝔖𝔗𝔘𝔙𝔚𝔛𝔜ℨ0123456789",
+                    tiny: "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡxʏᴢᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡxʏᴢ0123456789",
+                    wide: "ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ０１２３４５６７８９",
+                    struck: "𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝕠𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊ＴＵＶＷＸＹＺ𝟘𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡",
+                    slashed: "a̸b̸c̸d̸e̸f̸g̸h̸i̸j̸k̸l̸m̸n̸o̸p̸q̸r̸s̸t̸u̸v̸w̸x̸y̸z̸A̸B̸C̸D̸E̸F̸G̸H̸I̸J̸K̸L̸M̸N̸O̸P̸Q̸R̸S̸T̸U̸V̸W̸X̸Y̸Z̸0̸1̸2̸3̸4̸5̸6̸7̸8̸9̸",
+                    underline: "a̲b̲c̲d̲e̲f̲g̲h̲i̲j̲k̲l̲m̲n̲o̲p̲q̲r̲s̲t̲u̲v̲w̲x̲y̲z̲A̲B̲C̲D̲E̲F̲G̲H̲I̲J̲K̲L̲M̲N̲O̲P̲Q̲R̲S̲T̲U̲V̲W̲X̲Y̲Z̲0̲1̲2̲3̲4̲5̲6̲7̲8̲9̲"
+                };
+
+                const normal = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+                const convert = (txt, map) => {
+                    const targetChars = [...map];
+                    return txt.split(').map(c => {
+                        const idx = normal.indexOf(c);
+                        if (idx === -1) return c;
+                        return targetChars[idx] || c;
+                    }).join(');
+                };
+
+                const resText = `✨ *AESTHETIC FONTS*nn` +
+                                `*Italic:* n${convert(input, maps.italic)}nn` +
+                                `*Bold:* n${convert(input, maps.bold)}nn` +
+                                `*Monospace:* n${convert(input, maps.mono)}nn` +
+                                `*Cursive:* n${convert(input, maps.script)}nn` +
+                                `*Bubbled:* n${convert(input, maps.bubble)}nn` +
+                                `*Squared:* n${convert(input, maps.square)}nn` +
+                                `*Gothic:* n${convert(input, maps.gothic)}nn` +
+                                `*Tiny Caps:* n${convert(input, maps.tiny)}nn` +
+                                `*Wide:* n${convert(input, maps.wide)}nn` +
+                                `*Double Struck:* n${convert(input, maps.struck)}nn` +
+                                `*Slashed:* n${convert(input, maps.slashed)}nn` +
+                                `*Underlined:* n${convert(input, maps.underline)}`;
+                n                return sock.sendMessage(sender, { text: resText });
+            }
+
+                // Character Mapping for Aesthetic Fonts
+                const maps = {
+                    italic: "𝘢bc𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻𝘈𝘉𝘊𝘋𝘌𝘍𝘎𝘏𝘐𝘑𝘒𝘓𝘔𝘕𝘖𝘗𝘘𝘙𝘚𝘛𝘜𝘝𝘞𝘟𝘠𝘡0123456789",
+                    bold: "𝐚𝐛𝐜𝐝𝐞𝐟𝐠𝐡𝐢𝐣𝐤𝐥𝐦𝐧𝐨𝐩𝐪𝐫𝐬𝐭𝐮𝐯𝐰𝐱𝐲𝐳𝐀𝐁𝐂𝐃𝐄𝐅𝐆𝐇𝐈𝐉𝐊𝐋𝐌𝐍𝐎𝐏𝐐𝐑𝐒𝐓𝐔𝐕𝐖𝐗𝐘𝐙𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗",
+                    mono: "𝚊𝚋𝚌𝚍𝚎𝚏𝚐𝚑𝚒𝚓𝚔𝚕𝚖𝚗𝚘𝚙𝚚𝚛𝚜𝚝𝚞𝚟𝚠𝚡𝚢𝚣𝙰𝙱𝙲𝙳𝙴𝙵𝙶𝙷𝙸𝙹𝙺𝙻𝙼𝙽𝙾𝙿𝚀𝚁𝚂𝚃𝚄𝚅𝚆𝚇𝚈𝚉𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿",
+                    script: "𝒶𝒷𝒸𝒹𝑒𝒻𝑔𝒽𝒾𝒿𝓀𝓁𝓂𝓃𝑜𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏𝒜𝐵𝒞𝒟𝐸𝐹𝒢𝐻𝐼𝒥𝒦𝐿𝑀𝒩𝒪𝒫𝒬𝑅𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵0123456789",
+                    bubble: "ⓐⓑ𝒸ⓓⓔⓕⓖⓗ𝒾ⓙ𝓀𝓁𝓂𝓃ⓞ𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ⓪①②③④⑤⑥⑦⑧⑨",
+                    square: "🄰ⓑ🄲ⓓ🄴ⓕ🄶ⓗ🄸ⓙ🄺𝓁🄼ⓝ🄾📅🄿📆🅀𝓇🅁𝓈🅂𝓉🅃𝓊🅄📋🅅𝓌🅆📍🅇𝓎🅈ⓩ🄰🄱🄲🄹🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉0123456789",
+                    gothic: "𝔞𝔟𝔠𝔡𝔢𝔣𝔤𝔥𝔦𝔧𝔨𝔩𝔪𝔫𝔬𝔭𝔮𝔯𝔰𝔱𝔲𝔳𝔴𝔵𝔶𝔷𝔄𝔅ℭ𝔇𝔈𝔉𝔊ℌℑ𝔍𝔎𝔏𝔐𝔑𝔒𝔓ℜ𝔖𝔗𝔘𝔙𝔚𝔛𝔜ℨ0123456789"
+                };
+                // Note: Simplified some mappings due to complex multi-byte character handling in JS string slicing
+                
+                const normal = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+                const convert = (txt, map) => {
+                    const targetChars = [...map]; // Handles multi-byte characters correctly
+                    return txt.split('').map(c => {
+                        const idx = normal.indexOf(c);
+                        if (idx === -1) return c;
+                        return targetChars[idx] || c;
+                    }).join('');
+                };
+
+                const resText = `✨ *AESTHETIC FONTS*\n\n` +
+                                `*Italic:* \n${convert(input, maps.italic)}\n\n` +
+                                `*Bold:* \n${convert(input, maps.bold)}\n\n` +
+                                `*Monospace:* \n${convert(input, maps.mono)}\n\n` +
+                                `*Cursive:* \n${convert(input, maps.script)}\n\n` +
+                                `*Bubbled:* \n${convert(input, maps.bubble)}\n\n` +
+                                `*Gothic:* \n${convert(input, maps.gothic)}`;
+                
+                return sock.sendMessage(sender, { text: resText });
             }
 
             if (cmd === '!anti') {
@@ -1130,8 +1280,12 @@ async function connectWA() {
                         `🎬 !video {url} (YouTube)\n` +
                         `📖 !quran {surah}:{ayah}\n` +
                         `🌦️ !cuaca {kota}\n` +
-                        `🎮 !game (17 Text Games)\n\n` +
+                        `🕌 !sholat {kota}\n` +
+                        `🎮 !game (Text Games)\n\n` +
                         `*Social & Info:*\n` +
+                        `💤 !afk {alasan}\n` +
+                        `📜 !rules (Group Rules)\n` +
+                        `✨ !font {teks}\n` +
                         `ℹ️ !info (AI Status)\n` +
                         `📝 !log (Recent logs)\n\n` +
                         `*Education (Quiz):*\n` +
@@ -1145,10 +1299,34 @@ async function connectWA() {
                         `🛡️ !anti {toxic|link|spam} {true|false}\n` +
                         `🤖 !bot (on/off)\n` +
                         `💻 !shell {command}\n` +
+                        `📊 !top (View activity)\n` +
+                        `👥 !absen (List members)\n` +
                         `➕ !add / 👢 !kick {nomor}\n` +
                         `🔓 !open / 🔒 !close\n` +
                         `🧹 !zero (Clear context)\n`
                 });
+            }
+
+            if (cmd === '!top') {
+                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
+                if (chatHistory.length === 0) return sock.sendMessage(sender, { text: "📭 No chat history found." });
+                
+                const counts = {};
+                chatHistory.forEach(h => {
+                    const name = h.participant;
+                    counts[name] = (counts[name] || 0) + 1;
+                });
+                
+                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+                const list = sorted.map((entry, i) => `${i + 1}. ${entry[0].split('@')[0]} : ${entry[1]} pesan`).join('\n');
+                return sock.sendMessage(sender, { text: `📊 *TOP 10 MEMBER AKTIF*\n\n${list}` });
+            }
+
+            if (cmd === '!absen') {
+                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
+                const meta = await sock.groupMetadata(sender);
+                const list = meta.participants.map((p, i) => `${i + 1}. ${p.id.split('@')[0]}`).join('\n');
+                return sock.sendMessage(sender, { text: `👥 *DAFTAR ABSEN MEMBER*\n\n${list}` });
             }
 
             if (cmd === '!quiz') {
