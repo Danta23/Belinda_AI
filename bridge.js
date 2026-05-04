@@ -72,6 +72,21 @@ let spamTracker = {};
 let afkData = {};
 // Struktur: { "user_jid": { reason: "", time: Date } }
 
+// --- NEW SYSTEM SETTINGS ---
+let customLists = {}; // { jid: { listName: [userJids] } }
+let globalLimit = 35; // Default limit
+let usageTracker = {}; // { jid: { date: "YYYY-MM-DD", count: 0 } }
+
+function drawProgressBar(current, total, label = "Loading") {
+    const size = 20;
+    const percent = Math.min(current / total, 1);
+    const filled = Math.round(size * percent);
+    const empty = size - filled;
+    const bar = '█'.repeat(filled) + '░'.repeat(empty);
+    process.stdout.write(`\r${label}: [${bar}] ${Math.round(percent * 100)}% `);
+    if (percent >= 1) process.stdout.write('\n');
+}
+
 function normalizeText(str) {
     return str.toLowerCase()
         .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e')
@@ -97,6 +112,15 @@ async function connectWA() {
     }
 
     console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`);
+
+    const history = loadHistory();
+    const total = history.length;
+    console.log("⏳ Loading chat history...");
+    for (let i = 0; i < total; i++) {
+        if (i % Math.ceil(total / 20) === 0) drawProgressBar(i, total, "Syncing History");
+    }
+    drawProgressBar(total, total, "Syncing History");
+    console.log("✅ History synced.");
 
     const sock = makeWASocket({
         version,
@@ -599,6 +623,15 @@ async function connectWA() {
                 return sock.sendMessage(sender, { text: resText });
             }
 
+            if (cmd === '!limit') {
+                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
+                const n = args[1];
+                if (n === 'inf') globalLimit = Infinity;
+                else if (!isNaN(parseInt(n)) && parseInt(n) >= 35) globalLimit = parseInt(n);
+                else return sock.sendMessage(sender, { text: "⚠️ Limit minimal 35 atau 'inf'" });
+                return sock.sendMessage(sender, { text: `✅ Limit diatur ke: ${globalLimit}` });
+            }
+
             if (cmd === '!anti') {
                 if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
                 const type = args[1]?.toLowerCase();
@@ -612,6 +645,34 @@ async function connectWA() {
                 antiSettings[sender][type] = (bool === 'true');
 
                 return sock.sendMessage(sender, { text: `✅ *ANTI-${type.toUpperCase()}* telah diatur menjadi: *${bool.toUpperCase()}*` });
+            }
+
+            if (cmd === '!list') {
+                const [mode, name] = [args[1], args[2]];
+                if (!mode || !name) return sock.sendMessage(sender, { text: "⚠️ Format: !list {create|clear|addme|delme} {name}" });
+                if (!customLists[sender]) customLists[sender] = {};
+
+                // Admin only modes
+                if (mode === 'create' || mode === 'clear') {
+                    if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Mode ini hanya untuk admin." });
+                    
+                    if (mode === 'create') { customLists[sender][name] = []; return sock.sendMessage(sender, { text: `✅ List *${name}* dibuat.` }); }
+                    if (!customLists[sender][name]) return sock.sendMessage(sender, { text: `❌ List *${name}* tidak ditemukan.` });
+                    if (mode === 'clear') { delete customLists[sender][name]; return sock.sendMessage(sender, { text: `🧹 List *${name}* dihapus.` }); }
+                }
+
+                // Member/Public modes
+                if (!customLists[sender][name]) return sock.sendMessage(sender, { text: `❌ List *${name}* tidak ditemukan.` });
+
+                if (mode === 'addme') { 
+                    if (!customLists[sender][name].includes(participant)) customLists[sender][name].push(participant);
+                    return sock.sendMessage(sender, { text: `✅ Ditambahkan ke list *${name}*.` });
+                }
+                if (mode === 'delme') {
+                    customLists[sender][name] = customLists[sender][name].filter(p => p !== participant);
+                    return sock.sendMessage(sender, { text: `✅ Dihapus dari list *${name}*.` });
+                }
+                return sock.sendMessage(sender, { text: `👥 List *${name}*: ${customLists[sender][name].length} member.` });
             }
 
             if (cmd === '!game') {
