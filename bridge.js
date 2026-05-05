@@ -1045,7 +1045,7 @@ async function connectWA() {
                 if (!url) return sock.sendMessage(sender, { text: "⚠️ Please provide a Spotify or YouTube link." });
 
                 const isSpotify = url.includes('spotify.com');
-                const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+                const isYouTube = url.includes('youtube.com') || url.includes('youtu.be') || url.includes('music.youtube.com');
 
                 if (!isSpotify && !isYouTube) {
                     return sock.sendMessage(sender, { text: "❌ Only Spotify or YouTube links are supported for music." });
@@ -1061,45 +1061,57 @@ async function connectWA() {
                 if (isSpotify) {
                     try {
                         const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+                        // Improved Regex to catch both Title and Artist
                         const matchTitle = response.data.match(/<title>(.*?)<\/title>/);
                         if (matchTitle && matchTitle[1]) {
                             let cleanTitle = matchTitle[1]
                                 .replace(/ \| Spotify/g, '')
-                                .replace(/song and lyrics by /g, '')
-                                .replace(/song by /g, '')
+                                .replace(/song and lyrics by /g, ' - ')
+                                .replace(/song by /g, ' - ')
                                 .trim();
                             searchQuery = cleanTitle;
+                            console.log(`🎵 [SPOTIFY DATA] Searching for: ${searchQuery}`);
                         }
                     } catch (e) {
                         console.error("Spotify fetch error:", e.message);
                     }
                 }
 
-                const isWin = process.platform === 'win32';
-                const audioFormat = isWin ? 'mp3' : 'opus';
-                const audioMime = isWin ? 'audio/mpeg' : 'audio/ogg; codecs=opus';
-                const isPtt = !isWin;
+                const platform = process.platform;
+                const isDesktop = platform === 'win32' || platform === 'darwin'; 
+                const audioFormat = isDesktop ? 'mp3' : 'opus';
+                const audioMime = isDesktop ? 'audio/mpeg' : 'audio/ogg; codecs=opus';
+                const isPtt = true;
 
-                // If it's already a YouTube link, don't use ytsearch1:
-                const finalQuery = (isYouTube && !isSpotify) ? url : `ytsearch1:${searchQuery}`;
+                // Direct URL for YouTube/YouTube Music, search only for Spotify
+                const finalQuery = (isYouTube) ? url : `ytsearch1:${searchQuery}`;
 
                 const args_dl = [
                     '--print', 'after_move:filepath',
                     '-x', '--audio-format', audioFormat,
                     '--no-playlist', '--no-check-certificate',
+                    '--audio-quality', '0',
                     '-o', `${fileNameBase}.%(ext)s`,
                     finalQuery
                 ];
+
+                console.log(`📡 [DL START] OS: ${platform} | Format: ${audioFormat} | Query: ${finalQuery}`);
 
                 const ls = spawn('yt-dlp', args_dl);
                 let lastUpdate = Date.now();
                 let stderrData = "";
                 let stdoutData = "";
 
-                ls.stderr.on('data', (data) => { stderrData += data.toString(); });
+                ls.stderr.on('data', (data) => { 
+                    const err = data.toString();
+                    stderrData += err;
+                    console.error(`[yt-dlp STDERR] ${err.trim()}`);
+                });
+
                 ls.stdout.on('data', (data) => {
                     const output = data.toString();
                     stdoutData += output;
+                    console.log(`[yt-dlp STDOUT] ${output.trim()}`);
                     const match = output.match(/(\d+\.\d+)%/);
                     if (match && Date.now() - lastUpdate > 4000) {
                         const percent = parseFloat(match[1]);
@@ -1109,46 +1121,61 @@ async function connectWA() {
                         lastUpdate = Date.now();
                     }
                 });
+
                 ls.on('close', async (code) => {
                     if (code === 0) {
+                        console.log(`✅ [DL SUCCESS] yt-dlp finished for: ${fileNameBase}`);
                         const fullBar = '█'.repeat(20);
                         await sock.sendMessage(sender, { text: `⏳ Processing ${isSpotify ? 'Spotify' : 'YouTube'} music... ✅\n\n🎵 *Downloading Audio*\n\`[${fullBar}] 100.0%\` \n\n_Finishing up, sending to WhatsApp..._`, edit: key }).catch(() => { });
                         await new Promise(resolve => setTimeout(resolve, 2000));
-                    } else {
-                        return sock.sendMessage(sender, { text: `❌ Failed to download music. (Code ${code})`, edit: key });
-                    }
-                });
 
-                ls.on('close', async (code) => {
-                    const lines = stdoutData.trim().split('\n');
-                    const lastLine = lines[lines.length - 1]?.trim();
-                    let filePath = lastLine && fs.existsSync(lastLine) ? lastLine : null;
+                        const lines = stdoutData.trim().split('\n');
+                        let filePath = null;
 
-                    if (!filePath) {
-                        // Aggressive search: look for any file starting with our base name
+                        for (const line of lines.reverse()) {
+                            const trimmedLine = line.trim();
+                            if (trimmedLine && fs.existsSync(trimmedLine) && trimmedLine.includes(fileNameBase)) {
+                                filePath = trimmedLine;
+                                break;
+                            }
+                        }
+
+                        if (!filePath) {
+                            try {
+                                const files = fs.readdirSync(process.cwd());
+                                const found = files.find(f => f.startsWith(fileNameBase));
+                                if (found) filePath = path.join(process.cwd(), found);
+                            } catch (e) { console.error("File search error:", e); }
+                        }
+
+                        if (!filePath) {
+                            console.error(`❌ [ERROR] Could not find file ${fileNameBase} even after success!`);
+                            try { await sock.sendMessage(sender, { text: "❌ Error: Could not find downloaded file. Check console.", edit: key }); } catch (e) { }
+                            return;
+                        }
+
                         try {
-                            const files = fs.readdirSync(process.cwd());
-                            const found = files.find(f => f.startsWith(fileNameBase));
-                            if (found) filePath = path.join(process.cwd(), found);
-                        } catch (e) { console.error("File search error:", e); }
-                    }
+                            console.log(`📤 [SENDING] File: ${filePath} | Mime: ${audioMime}`);
+                            const audioBuffer = fs.readFileSync(filePath);
+                            await sock.sendMessage(sender, { 
+                                audio: audioBuffer, 
+                                mimetype: audioMime, 
+                                ptt: isPtt 
+                            });
 
-                    if (!filePath) {
-                        try { await sock.sendMessage(sender, { text: "❌ Error: Could not find downloaded file. Check console.", edit: key }); } catch (e) { }
-                        return;
-                    }
-
-                    try {
-                        try { await sock.sendMessage(sender, { text: `📤 *Sending ${isPtt ? 'voice note' : 'audio'}...*`, edit: key }); } catch (e) { }
-                        await sock.sendMessage(sender, { audio: { url: filePath }, mimetype: audioMime, ptt: isPtt });
-                        try { await sock.sendMessage(sender, { text: "✅ Music sent!", edit: key }); } catch (e) { }
-                        // Use a small timeout before unlinking to ensure WhatsApp has finished processing
-                        setTimeout(() => { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); }, 5000);
-                    } catch (e) {
-                        try { await sock.sendMessage(sender, { text: `❌ Error sending: ${e.message}`, edit: key }); } catch (err) { }
-                        if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                            try { await sock.sendMessage(sender, { text: "✅ Music sent successfully!", edit: key }); } catch (e) { }
+                            setTimeout(() => { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); }, 60000);
+                        } catch (e) {
+                            console.error(`❌ [SEND ERROR] ${e.message}`);
+                            try { await sock.sendMessage(sender, { text: `❌ Error sending: ${e.message}`, edit: key }); } catch (err) { }
+                            if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                        }
+                    } else {
+                        console.error(`❌ [DL FAILED] Code: ${code} | Errors: ${stderrData}`);
+                        return sock.sendMessage(sender, { text: `❌ Failed to download music. (Code ${code})\n\n_Error:_ ${stderrData.slice(-100)}`, edit: key });
                     }
                 });
+
                 return;
             }
 
@@ -1196,8 +1223,16 @@ async function connectWA() {
                     }
 
                     const lines = stdoutData.trim().split('\n');
-                    const lastLine = lines[lines.length - 1]?.trim();
-                    let filePath = lastLine && fs.existsSync(lastLine) ? lastLine : null;
+                    let filePath = null;
+
+                    // Search for a valid filepath in all lines of stdout
+                    for (const line of lines.reverse()) {
+                        const trimmedLine = line.trim();
+                        if (trimmedLine && fs.existsSync(trimmedLine) && trimmedLine.includes(fileNameBase)) {
+                            filePath = trimmedLine;
+                            break;
+                        }
+                    }
 
                     if (!filePath) {
                         const files = fs.readdirSync(process.cwd());
