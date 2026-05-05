@@ -297,6 +297,8 @@ npm install
 | `!font {text}` | Convert to aesthetic fonts | All |
 | `!top` | View top 10 active members | Admin |
 | `!absen` | List all group members | Admin |
+| `!list {mode} {name}` | Manage custom lists | Admin |
+| `!limit {num}` | Set AI usage limit (min 35/inf) | Admin |
 | `!cari {query}`| Search information on internet | All |
 | `!image {url}` | Download image from link | All |
 | `!quiz` | Start a trivia quiz | All |

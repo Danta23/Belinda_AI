@@ -649,28 +649,38 @@ async function connectWA() {
 
             if (cmd === '!list') {
                 const [mode, name] = [args[1], args[2]];
-                if (!mode || !name) return sock.sendMessage(sender, { text: "⚠️ Format: !list {create|clear|addme|delme} {name}" });
-                if (!customLists[sender]) customLists[sender] = {};
+                if (!mode) {
+                    const titles = Object.keys(customLists[sender] || {});
+                    return sock.sendMessage(sender, { text: `📋 *DAFTAR LIST TERSEDIA:*\n\n${titles.length > 0 ? titles.join('\n') : "Tidak ada list."}` });
+                }
 
-                // Admin only modes
+                if (mode === 'clear' && name === 'all') {
+                    if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Admin only." });
+                    customLists[sender] = {};
+                    return sock.sendMessage(sender, { text: "🧹 Semua list dihapus." });
+                }
+                if (!name) return sock.sendMessage(sender, { text: "⚠️ Format: !list {mode} {name}" });
+                if (!customLists[sender]) customLists[sender] = {};
                 if (mode === 'create' || mode === 'clear') {
-                    if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Mode ini hanya untuk admin." });
-                    
+                    if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Admin only." });
                     if (mode === 'create') { customLists[sender][name] = []; return sock.sendMessage(sender, { text: `✅ List *${name}* dibuat.` }); }
                     if (!customLists[sender][name]) return sock.sendMessage(sender, { text: `❌ List *${name}* tidak ditemukan.` });
                     if (mode === 'clear') { delete customLists[sender][name]; return sock.sendMessage(sender, { text: `🧹 List *${name}* dihapus.` }); }
                 }
-
-                // Member/Public modes
                 if (!customLists[sender][name]) return sock.sendMessage(sender, { text: `❌ List *${name}* tidak ditemukan.` });
-
                 if (mode === 'addme') { 
                     if (!customLists[sender][name].includes(participant)) customLists[sender][name].push(participant);
-                    return sock.sendMessage(sender, { text: `✅ Ditambahkan ke list *${name}*.` });
+                    return sock.sendMessage(sender, { text: `✅ Ditambahkan ke *${name}*.` });
                 }
                 if (mode === 'delme') {
                     customLists[sender][name] = customLists[sender][name].filter(p => p !== participant);
-                    return sock.sendMessage(sender, { text: `✅ Dihapus dari list *${name}*.` });
+                    return sock.sendMessage(sender, { text: `✅ Dihapus dari *${name}*.` });
+                }
+                if (mode === 'print') {
+                    if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Admin only." });
+                    const listMembers = customLists[sender][name];
+                    const listText = listMembers.map((p, i) => `${i + 1}. @${p.split('@')[0]}`).join('\n');
+                    return sock.sendMessage(sender, { text: `📋 *DAFTAR ${name.toUpperCase()}*\n\n${listText}`, mentions: listMembers });
                 }
                 return sock.sendMessage(sender, { text: `👥 List *${name}*: ${customLists[sender][name].length} member.` });
             }
@@ -1330,6 +1340,8 @@ async function connectWA() {
                         `💻 !shell {command}\n` +
                         `📊 !top (View activity)\n` +
                         `👥 !absen (List members)\n` +
+                        `📋 !list {mode} {name}\n` +
+                        `⏳ !limit {num|inf}\n` +
                         `➕ !add / 👢 !kick {nomor}\n` +
                         `🔓 !open / 🔒 !close\n` +
                         `🧹 !zero (Clear context)\n`
