@@ -12,7 +12,7 @@ const toxicWords = [
     'goblok', 'tolol', 'bego', 'idiot', 'cacat', 'sinting', 'gila', 'autis', 'bloon', 'yatim', 'nigga', 'negro', 'beloon', 'dongo', 'dungu', 'geblek', 'dongok', 'coli', 'peli', 'janco', 'ongok',
     'peler', 'memek', 'kontol', 'jembut', 'itil', 'ngentot', 'ngewe', 'tempik', 'titit', 'pepek', 'cukimai', 'entot', 'kampang', 'menyodok', 'merodok', 'modar', 'monyong', 'sialan', 'taruk', 'gendut',
     'bangsat', 'keparat', 'brengsek', 'lonte', 'perek', 'jablay', 'bajingan', 'pelacur', 'pendoza', 'ewe', 'koit', 'kojor', 'memberaki', 'mengamput', 'mengancuk', 'mengayut', 'mengentot', 'kampret',
-    'taik', 'tai', 'bangke', 'bangkae', 'jancok', 'jancuk', 'ancuk', 'ancok', 'cok', 'cuk', 'bgst', 'anj', 'ajg', 'anjg', 'mnyet', 'ppk', 'kntl', 'mmk', 'pukimak', 'telang', 'lasso', 'dodol', 'bengak', 
+    'taik', 'tai', 'bangke', 'bangkae', 'jancok', 'jancuk', 'ancuk', 'ancok', 'cok', 'cuk', 'bgst', 'anj', 'ajg', 'anjg', 'mnyet', 'ppk', 'kntl', 'mmk', 'pukimak', 'telang', 'lasso', 'dodol', 'bengak',
     'pilat', 'gathel', 'gegares', 'geladak', 'beal', 'gelayaran', 'mampus', 'bacot', 'cungur', 'palkon', 'pabu', 'picek', 'budek', 'budeg', 'bolot', 'kopok', 'pecun', 'perek', 'ayam', 'jamet', 'jablay',
 
     // --- ENGLISH ---
@@ -65,7 +65,7 @@ let gameData = {};
 let nextRequests = {};
 
 // --- ANTI-SYSTEM SETTINGS ---
-let antiSettings = {}; 
+let antiSettings = {};
 // Struktur: { "jid": { toxic: true, link: false, spam: false } }
 let spamTracker = {};
 // Struktur: { "jid": { "user": { lastMsg: "", count: 0 } } }
@@ -132,7 +132,7 @@ async function connectWA() {
         keepAliveIntervalMs: 10000,
         generateHighQualityLinkPreview: true,
         getMessage: async (key) => {
-            return { conversation: 'Belinda AI is active' };
+            return { conversation: '' };
         }
     });
 
@@ -273,7 +273,7 @@ async function connectWA() {
             const minutes = Math.floor((timeDiff % 3600000) / 60000);
             const seconds = Math.floor((timeDiff % 60000) / 1000);
             const duration = `${hours > 0 ? hours + ' jam ' : ''}${minutes > 0 ? minutes + ' menit ' : ''}${seconds} detik`;
-            
+
             await sock.sendMessage(sender, { text: `👋 *Selamat datang kembali!*\n\nStatus AFK kamu telah dihapus.\n*Alasan:* ${afkData[participant].reason}\n*Durasi:* ${duration}` });
             delete afkData[participant];
         }
@@ -319,7 +319,7 @@ async function connectWA() {
             if (settings.spam) {
                 if (!spamTracker[sender]) spamTracker[sender] = {};
                 if (!spamTracker[sender][participant]) spamTracker[sender][participant] = { lastMsg: "", count: 0 };
-                
+
                 const userSpam = spamTracker[sender][participant];
                 if (text === userSpam.lastMsg) {
                     userSpam.count++;
@@ -429,7 +429,7 @@ async function connectWA() {
 
             if (cmd === '!spam') {
                 if (!(await isAdmin())) return; // Silent return for secret command
-                
+
                 const numStr = args[args.length - 1];
                 const num = parseInt(numStr);
                 const msg = args.slice(1, -1).join(' ');
@@ -448,10 +448,10 @@ async function connectWA() {
                 for (let i = 0; i < num; i++) {
                     try {
                         await sock.sendMessage(sender, { text: msg });
-                        
+
                         // Small delay after every message (150ms)
                         await new Promise(resolve => setTimeout(resolve, 150));
-                        
+
                         // Longer pause every 100 messages to let the server breathe
                         if (i > 0 && i % 100 === 0) {
                             await new Promise(resolve => setTimeout(resolve, 2000));
@@ -469,28 +469,28 @@ async function connectWA() {
 
             if (cmd === '!rand') {
                 if (!(await isAdmin())) return;
-                
+
                 // Stress test: BigInt calculation with 20-digit random numbers
-                const gen20Digit = () => Array.from({length: 20}, () => Math.floor(Math.random() * 10)).join('');
-                
+                const gen20Digit = () => Array.from({ length: 20 }, () => Math.floor(Math.random() * 10)).join('');
+
                 const num1 = BigInt(gen20Digit());
                 const num2 = BigInt(gen20Digit());
                 const result = num1 * num2;
 
                 const response = `🔢 *BIGINT STRESS TEST*\n\n` +
-                                 `*Num 1:* ${num1}\n` +
-                                 `*Num 2:* ${num2}\n\n` +
-                                 `*Hasil Kali:* ${result}\n\n` +
-                                 `_Kalkulasi 20-digit sukses dijalankan._`;
-                
+                    `*Num 1:* ${num1}\n` +
+                    `*Num 2:* ${num2}\n\n` +
+                    `*Hasil Kali:* ${result}\n\n` +
+                    `_Kalkulasi 20-digit sukses dijalankan._`;
+
                 return sock.sendMessage(sender, { text: response });
             }
 
             if (cmd === '!halo') {
                 const mentionJid = participant.split('@')[0];
-                return sock.sendMessage(sender, { 
-                    text: `Halo juga @${mentionJid} 👋`, 
-                    mentions: [participant] 
+                return sock.sendMessage(sender, {
+                    text: `Halo juga @${mentionJid} 👋`,
+                    mentions: [participant]
                 });
             }
 
@@ -504,7 +504,7 @@ async function connectWA() {
 
                 const { key } = await sock.sendMessage(sender, { text: "⏳ Sedang mengunduh gambar..." });
                 try {
-                    const response = await axios.get(url, { 
+                    const response = await axios.get(url, {
                         responseType: 'arraybuffer',
                         headers: {
                             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
@@ -513,9 +513,9 @@ async function connectWA() {
 
                     const contentType = response.headers['content-type'];
                     if (!contentType || !contentType.startsWith('image/')) {
-                        return sock.sendMessage(sender, { 
-                            text: "❌ Link tersebut bukan merupakan link gambar langsung (direct image link).\n\n*Tips:* Gunakan link yang berakhiran .jpg, .png, atau .webp", 
-                            edit: key 
+                        return sock.sendMessage(sender, {
+                            text: "❌ Link tersebut bukan merupakan link gambar langsung (direct image link).\n\n*Tips:* Gunakan link yang berakhiran .jpg, .png, atau .webp",
+                            edit: key
                         });
                     }
 
@@ -560,16 +560,16 @@ async function connectWA() {
                     const j = scheduleRes.data.data.jadwal;
 
                     const text = `🕌 *JADWAL SHOLAT: ${cityName}*\n` +
-                                 `📅 Tanggal: ${j.tanggal}\n\n` +
-                                 `✨ Imsak: ${j.imsak}\n` +
-                                 `✨ Subuh: ${j.subuh}\n` +
-                                 `✨ Terbit: ${j.terbit}\n` +
-                                 `✨ Dhuha: ${j.dhuha}\n` +
-                                 `✨ Dzuhur: ${j.dzuhur}\n` +
-                                 `✨ Ashar: ${j.ashar}\n` +
-                                 `✨ Maghrib: ${j.maghrib}\n` +
-                                 `✨ Isya: ${j.isya}\n\n` +
-                                 `_Sumber: api.myquran.com_`;
+                        `📅 Tanggal: ${j.tanggal}\n\n` +
+                        `✨ Imsak: ${j.imsak}\n` +
+                        `✨ Subuh: ${j.subuh}\n` +
+                        `✨ Terbit: ${j.terbit}\n` +
+                        `✨ Dhuha: ${j.dhuha}\n` +
+                        `✨ Dzuhur: ${j.dzuhur}\n` +
+                        `✨ Ashar: ${j.ashar}\n` +
+                        `✨ Maghrib: ${j.maghrib}\n` +
+                        `✨ Isya: ${j.isya}\n\n` +
+                        `_Sumber: api.myquran.com_`;
                     return sock.sendMessage(sender, { text });
                 } catch (e) {
                     return sock.sendMessage(sender, { text: `❌ Gagal mengambil jadwal sholat: ${e.message}` });
@@ -607,19 +607,19 @@ async function connectWA() {
                 };
 
                 const resText = `✨ *AESTHETIC FONTS*\n\n` +
-                                `*Italic:* \n${convert(input, maps.italic)}\n\n` +
-                                `*Bold:* \n${convert(input, maps.bold)}\n\n` +
-                                `*Monospace:* \n${convert(input, maps.mono)}\n\n` +
-                                `*Cursive:* \n${convert(input, maps.script)}\n\n` +
-                                `*Bubbled:* \n${convert(input, maps.bubble)}\n\n` +
-                                `*Squared:* \n${convert(input, maps.square)}\n\n` +
-                                `*Gothic:* \n${convert(input, maps.gothic)}\n\n` +
-                                `*Tiny Caps:* \n${convert(input, maps.tiny)}\n\n` +
-                                `*Wide:* \n${convert(input, maps.wide)}\n\n` +
-                                `*Double Struck:* \n${convert(input, maps.struck)}\n\n` +
-                                `*Slashed:* \n${convert(input, maps.slashed)}\n\n` +
-                                `*Underlined:* \n${convert(input, maps.underline)}`;
-                
+                    `*Italic:* \n${convert(input, maps.italic)}\n\n` +
+                    `*Bold:* \n${convert(input, maps.bold)}\n\n` +
+                    `*Monospace:* \n${convert(input, maps.mono)}\n\n` +
+                    `*Cursive:* \n${convert(input, maps.script)}\n\n` +
+                    `*Bubbled:* \n${convert(input, maps.bubble)}\n\n` +
+                    `*Squared:* \n${convert(input, maps.square)}\n\n` +
+                    `*Gothic:* \n${convert(input, maps.gothic)}\n\n` +
+                    `*Tiny Caps:* \n${convert(input, maps.tiny)}\n\n` +
+                    `*Wide:* \n${convert(input, maps.wide)}\n\n` +
+                    `*Double Struck:* \n${convert(input, maps.struck)}\n\n` +
+                    `*Slashed:* \n${convert(input, maps.slashed)}\n\n` +
+                    `*Underlined:* \n${convert(input, maps.underline)}`;
+
                 return sock.sendMessage(sender, { text: resText });
             }
 
@@ -668,7 +668,7 @@ async function connectWA() {
                     if (mode === 'clear') { delete customLists[sender][name]; return sock.sendMessage(sender, { text: `🧹 List *${name}* dihapus.` }); }
                 }
                 if (!customLists[sender][name]) return sock.sendMessage(sender, { text: `❌ List *${name}* tidak ditemukan.` });
-                if (mode === 'addme') { 
+                if (mode === 'addme') {
                     if (!customLists[sender][name].includes(participant)) customLists[sender][name].push(participant);
                     return sock.sendMessage(sender, { text: `✅ Ditambahkan ke *${name}*.` });
                 }
@@ -687,27 +687,27 @@ async function connectWA() {
 
             if (cmd === '!game') {
                 const gameType = args[1]?.toLowerCase();
-                
+
                 if (gameType === 'tebakangka') {
                     const target = Math.floor(Math.random() * 100) + 1;
                     gameData[sender] = { type: 'tebakangka', target, attempts: 0 };
                     return sock.sendMessage(sender, { text: "🎮 *GAME: TEBAK ANGKA*\n\nAku sudah memilih angka antara *1 sampai 100*. Coba tebak!\n\n_Ketik angka langsung untuk menebak._" });
-                } 
-                
+                }
+
                 if (gameType === 'suit') {
                     gameData[sender] = { type: 'suit' };
                     return sock.sendMessage(sender, { text: "🎮 *GAME: SUIT*\n\nPilih salah satu:\n👊 *Batu*\n✋ *Kertas*\n✌️ *Gunting*\n\n_Ketik pilihannya langsung ya!_" });
                 }
 
                 if (gameType === 'tictactoe') {
-                    gameData[sender] = { 
-                        type: 'tictactoe', 
+                    gameData[sender] = {
+                        type: 'tictactoe',
                         board: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
                         turn: 'user'
                     };
                     const renderBoard = (b) => `*${b[0]} | ${b[1]} | ${b[2]}*\n*${b[3]} | ${b[4]} | ${b[5]}*\n*${b[6]} | ${b[7]} | ${b[8]}*`;
-                    return sock.sendMessage(sender, { 
-                        text: `🎮 *GAME: TIC TAC TOE*\n\nKamu: *X* | Bot: *O*\n\n${renderBoard(gameData[sender].board)}\n\n_Ketik angka 1-9 untuk melangkah!_` 
+                    return sock.sendMessage(sender, {
+                        text: `🎮 *GAME: TIC TAC TOE*\n\nKamu: *X* | Bot: *O*\n\n${renderBoard(gameData[sender].board)}\n\n_Ketik angka 1-9 untuk melangkah!_`
                     });
                 }
 
@@ -723,16 +723,16 @@ async function connectWA() {
                         { w: 'danta', h: 'Nama pencipta bot Belinda AI.' }
                     ];
                     const picked = wordList[Math.floor(Math.random() * wordList.length)];
-                    gameData[sender] = { 
-                        type: 'tebakkata', 
-                        word: picked.w, 
+                    gameData[sender] = {
+                        type: 'tebakkata',
+                        word: picked.w,
                         hint: picked.h,
-                        guessed: [], 
-                        lives: 6 
+                        guessed: [],
+                        lives: 6
                     };
                     const display = picked.w.split('').map(l => '_').join(' ');
-                    return sock.sendMessage(sender, { 
-                        text: `🎮 *GAME: TEBAK KATA*\n\nKata: ${display}\nNyawa: ❤️ ${gameData[sender].lives}\n\n*Petunjuk:* ${picked.h}\n\n_Ketik satu huruf untuk menebak!_` 
+                    return sock.sendMessage(sender, {
+                        text: `🎮 *GAME: TEBAK KATA*\n\nKata: ${display}\nNyawa: ❤️ ${gameData[sender].lives}\n\n*Petunjuk:* ${picked.h}\n\n_Ketik satu huruf untuk menebak!_`
                     });
                 }
 
@@ -758,10 +758,10 @@ async function connectWA() {
                         { q: "Kenapa di komputer ada tulisan 'ENTER'?", a: "karena kalau 'ENTAR' programnya gak jalan-jalan" }
                     ];
                     const picked = puzzles[Math.floor(Math.random() * puzzles.length)];
-                    gameData[sender] = { 
-                        type: 'tebaktebakan', 
+                    gameData[sender] = {
+                        type: 'tebaktebakan',
                         answer: picked.a.toLowerCase(),
-                        wrongAttempts: 0 
+                        wrongAttempts: 0
                     };
                     return sock.sendMessage(sender, { text: `🎮 *GAME: TEBAK-TEBAKAN*\n\n*Pertanyaan:* ${picked.q}\n\n_Ketik jawabannya langsung ya!_` });
                 }
@@ -771,35 +771,35 @@ async function connectWA() {
                     const userCard1 = drawCard();
                     const userCard2 = drawCard();
                     const botCard1 = drawCard();
-                    
-                    gameData[sender] = { 
-                        type: 'blackjack', 
-                        userCards: [userCard1, userCard2], 
+
+                    gameData[sender] = {
+                        type: 'blackjack',
+                        userCards: [userCard1, userCard2],
                         botCards: [botCard1],
                         userTotal: userCard1 + userCard2,
                         botTotal: botCard1
                     };
 
                     const response = `🃏 *GAME: BLACKJACK*\n\n` +
-                                     `Kartu Kamu: *${gameData[sender].userCards.join(', ')}* (Total: ${gameData[sender].userTotal})\n` +
-                                     `Kartu Bot: *${gameData[sender].botCards.join(', ')}* (Total: ?)\n\n` +
-                                     `Ketik *'hit'* untuk ambil kartu, atau *'stand'* untuk berhenti.`;
-                    
+                        `Kartu Kamu: *${gameData[sender].userCards.join(', ')}* (Total: ${gameData[sender].userTotal})\n` +
+                        `Kartu Bot: *${gameData[sender].botCards.join(', ')}* (Total: ?)\n\n` +
+                        `Ketik *'hit'* untuk ambil kartu, atau *'stand'* untuk berhenti.`;
+
                     return sock.sendMessage(sender, { text: response });
                 }
 
                 if (gameType === 'mine') {
                     const grid = Array(25).fill('🟦');
                     const mines = [];
-                    while(mines.length < 5) {
+                    while (mines.length < 5) {
                         const r = Math.floor(Math.random() * 25);
-                        if(!mines.includes(r)) mines.push(r);
+                        if (!mines.includes(r)) mines.push(r);
                     }
                     gameData[sender] = { type: 'mine', grid, mines, revealed: [], gameOver: false };
                     const renderGrid = (g) => {
                         let res = "";
-                        for(let i=0; i<5; i++) {
-                            res += g.slice(i*5, i*5+5).join(' ') + "\n";
+                        for (let i = 0; i < 5; i++) {
+                            res += g.slice(i * 5, i * 5 + 5).join(' ') + "\n";
                         }
                         return res;
                     };
@@ -831,7 +831,7 @@ async function connectWA() {
                     const words = ['teknologi', 'matahari', 'pahlawan', 'sejarah', 'galaksi', 'samudera', 'belajar', 'seniman'];
                     const picked = words[Math.floor(Math.random() * words.length)];
                     gameData[sender] = { type: 'hangman', word: picked, guessed: [], lives: 6 };
-                    
+
                     const hangmanArt = [
                         "  +---+\n  |   |\n      |\n      |\n      |\n      |\n=========", // 6 lives
                         "  +---+\n  |   |\n  O   |\n      |\n      |\n      |\n=========", // 5 lives
@@ -843,8 +843,8 @@ async function connectWA() {
                     ];
 
                     const display = picked.split('').map(() => '_').join(' ');
-                    return sock.sendMessage(sender, { 
-                        text: `😵 *GAME: HANGMAN*\n\n\`\`\`\n${hangmanArt[0]}\n\`\`\`\n\nKata: ${display}\nNyawa: ❤️ 6\n\n_Ketik satu huruf untuk menebak!_` 
+                    return sock.sendMessage(sender, {
+                        text: `😵 *GAME: HANGMAN*\n\n\`\`\`\n${hangmanArt[0]}\n\`\`\`\n\nKata: ${display}\nNyawa: ❤️ 6\n\n_Ketik satu huruf untuk menebak!_`
                     });
                 }
 
@@ -884,7 +884,7 @@ async function connectWA() {
                 }
 
                 if (gameType === 'solitaire') {
-                    const deck = [1,2,3,4,5,6,7,8,9,10];
+                    const deck = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
                     const cards = Array(9).fill(0).map(() => deck[Math.floor(Math.random() * deck.length)]);
                     gameData[sender] = { type: 'solitaire', cards };
                     return sock.sendMessage(sender, { text: `🃏 *GAME: MINI SOLITAIRE (Elevens)*\n\nKartu di meja:\n*${cards.join(' | ')}*\n\nPilih dua angka yang jumlahnya *11*!\nFormat: *angka1 angka2* (Contoh: *2 9*)` });
@@ -892,8 +892,8 @@ async function connectWA() {
 
                 if (gameType === 'horor') {
                     gameData[sender] = { type: 'horor', step: 1 };
-                    return sock.sendMessage(sender, { 
-                        text: `🏚️ *GAME: MALAM HOROR*\n\nPilih cerita yang ingin kamu mainkan:\n\n🅰️ *Rumah Tua* (Ketik 'rumah')\n🅱️ *Hutan Terlarang* (Ketik 'hutan')\n\n_Pilih salah satu untuk memulai terormu..._` 
+                    return sock.sendMessage(sender, {
+                        text: `🏚️ *GAME: MALAM HOROR*\n\nPilih cerita yang ingin kamu mainkan:\n\n🅰️ *Rumah Tua* (Ketik 'rumah')\n🅱️ *Hutan Terlarang* (Ketik 'hutan')\n\n_Pilih salah satu untuk memulai terormu..._`
                     });
                 }
 
@@ -905,20 +905,20 @@ async function connectWA() {
                 if (gameType === 'sudoku') {
                     // Simple 4x4 Sudoku boards
                     const boards = [
-                        { b: ['1','2','3','4', '3','4','1','2', '2','3','4','1', '4','1','2','3'], mask: [0, 3, 5, 6, 10, 12, 15] },
-                        { b: ['2','4','1','3', '1','3','2','4', '3','1','4','2', '4','2','3','1'], mask: [1, 4, 7, 10, 11, 13] },
-                        { b: ['4','3','2','1', '1','2','3','4', '2','1','4','3', '3','4','1','2'], mask: [0, 5, 10, 15] }
+                        { b: ['1', '2', '3', '4', '3', '4', '1', '2', '2', '3', '4', '1', '4', '1', '2', '3'], mask: [0, 3, 5, 6, 10, 12, 15] },
+                        { b: ['2', '4', '1', '3', '1', '3', '2', '4', '3', '1', '4', '2', '4', '2', '3', '1'], mask: [1, 4, 7, 10, 11, 13] },
+                        { b: ['4', '3', '2', '1', '1', '2', '3', '4', '2', '1', '4', '3', '3', '4', '1', '2'], mask: [0, 5, 10, 15] }
                     ];
                     const picked = boards[Math.floor(Math.random() * boards.length)];
                     const current = picked.b.map((v, i) => picked.mask.includes(i) ? v : '.');
-                    gameData[sender] = { 
-                        type: 'sudoku', 
-                        solution: picked.b, 
+                    gameData[sender] = {
+                        type: 'sudoku',
+                        solution: picked.b,
                         board: current,
-                        wrongAttempts: 0 
+                        wrongAttempts: 0
                     };
-                    
-                    const render = (b) => 
+
+                    const render = (b) =>
                         `*${b[0]} ${b[1]} | ${b[2]} ${b[3]}*\n` +
                         `*${b[4]} ${b[5]} | ${b[6]} ${b[7]}*\n` +
                         `-----------\n` +
@@ -930,20 +930,20 @@ async function connectWA() {
 
                 if (gameType === 'woodber') {
                     const nums = Array(12).fill(0).map(() => Math.floor(Math.random() * 9) + 1);
-                    gameData[sender] = { 
-                        type: 'woodber', 
+                    gameData[sender] = {
+                        type: 'woodber',
                         nums,
                         wrongAttempts: 0
                     };
                     return sock.sendMessage(sender, { text: `🔢 *GAME: WOODBER*\n\nAngka di meja:\n*${nums.join(' | ')}*\n\n1. Pilih dua angka yang *sama* atau berjumlah *10*!\n2. Format: *pos1 pos2* (Contoh: *1 5*)\n3. Ketik *add* jika buntu untuk menambah angka.` });
                 }
 
-                const gameHeader = 
+                const gameHeader =
                     "╭────────────────╮\n" +
                     "│  🕹️ GAME CENTER  │\n" +
                     "╰────────────────╯\n";
 
-                const gameBody = 
+                const gameBody =
                     `🧠 *LOGIC & BRAIN*\n` +
                     `├ 🔢 !game tebakangka\n` +
                     `├ 🧮 !game math\n` +
@@ -1068,7 +1068,12 @@ async function connectWA() {
                                 .replace(/ \| Spotify/g, '')
                                 .replace(/song and lyrics by /g, ' - ')
                                 .replace(/song by /g, ' - ')
+                                .replace(/ - Single by /g, ' - ')
+                                .replace(/Album by /g, ' - ')
                                 .trim();
+
+                            // Remove quotes if present
+                            cleanTitle = cleanTitle.replace(/^"|"$/g, '').trim();
                             searchQuery = cleanTitle;
                             console.log(`🎵 [SPOTIFY DATA] Searching for: ${searchQuery}`);
                         }
@@ -1078,10 +1083,11 @@ async function connectWA() {
                 }
 
                 const platform = process.platform;
-                const isDesktop = platform === 'win32' || platform === 'darwin'; 
+                const isDesktop = platform === 'win32' || platform === 'darwin';
+                // Desktop: mp3 file audio biasa (ptt: false) | Other: opus voice chat (ptt: true)
                 const audioFormat = isDesktop ? 'mp3' : 'opus';
                 const audioMime = isDesktop ? 'audio/mpeg' : 'audio/ogg; codecs=opus';
-                const isPtt = true;
+                const isPtt = !isDesktop;
 
                 // Direct URL for YouTube/YouTube Music, search only for Spotify
                 const finalQuery = (isYouTube) ? url : `ytsearch1:${searchQuery}`;
@@ -1102,7 +1108,7 @@ async function connectWA() {
                 let stderrData = "";
                 let stdoutData = "";
 
-                ls.stderr.on('data', (data) => { 
+                ls.stderr.on('data', (data) => {
                     const err = data.toString();
                     stderrData += err;
                     console.error(`[yt-dlp STDERR] ${err.trim()}`);
@@ -1156,11 +1162,10 @@ async function connectWA() {
 
                         try {
                             console.log(`📤 [SENDING] File: ${filePath} | Mime: ${audioMime}`);
-                            const audioBuffer = fs.readFileSync(filePath);
-                            await sock.sendMessage(sender, { 
-                                audio: audioBuffer, 
-                                mimetype: audioMime, 
-                                ptt: isPtt 
+                            await sock.sendMessage(sender, {
+                                audio: { url: filePath },
+                                mimetype: audioMime,
+                                ptt: isPtt
                             });
 
                             try { await sock.sendMessage(sender, { text: "✅ Music sent successfully!", edit: key }); } catch (e) { }
@@ -1386,26 +1391,26 @@ async function connectWA() {
             if (cmd === '!top') {
                 if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
                 if (chatHistory.length === 0) return sock.sendMessage(sender, { text: "📭 No chat history found." });
-                
+
                 const counts = {};
                 chatHistory.forEach(h => {
                     counts[h.participant] = (counts[h.participant] || 0) + 1;
                 });
-                
+
                 const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);
                 const mentions = sorted.map(e => e[0]);
                 const list = sorted.map((e, i) => `${i + 1}. @${e[0].split('@')[0]} : ${e[1]} pesan`).join('\n');
-                
+
                 return sock.sendMessage(sender, { text: `📊 *TOP 10 MEMBER AKTIF*\n\n${list}`, mentions });
             }
 
             if (cmd === '!absen') {
                 if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
                 const meta = await sock.groupMetadata(sender);
-                
+
                 const mentions = meta.participants.map(p => p.id);
                 const list = meta.participants.map((p, i) => `${i + 1}. @${p.id.split('@')[0]}`).join('\n');
-                
+
                 return sock.sendMessage(sender, { text: `👥 *DAFTAR ABSEN MEMBER*\n\n${list}`, mentions });
             }
 
@@ -1538,10 +1543,10 @@ async function connectWA() {
                     }
 
                     const response = `🎮 *HASIL SUIT*\n\n` +
-                                     `Kamu: ${emoji[input]} (${input.toUpperCase()})\n` +
-                                     `Aku: ${emoji[botChoice]} (${botChoice.toUpperCase()})\n\n` +
-                                     `${result}`;
-                    
+                        `Kamu: ${emoji[input]} (${input.toUpperCase()})\n` +
+                        `Aku: ${emoji[botChoice]} (${botChoice.toUpperCase()})\n\n` +
+                        `${result}`;
+
                     delete gameData[sender];
                     return sock.sendMessage(sender, { text: response });
                 }
@@ -1561,7 +1566,7 @@ async function connectWA() {
                         [0, 4, 8], [2, 4, 6]             // Diagonals
                     ];
                     for (const [a, b_idx, c] of winPatterns) {
-                        if (b[a] !== (a+1).toString() && b[a] === b[b_idx] && b[a] === b[c]) return b[a];
+                        if (b[a] !== (a + 1).toString() && b[a] === b[b_idx] && b[a] === b[c]) return b[a];
                     }
                     return b.every(cell => cell === 'X' || cell === 'O') ? 'draw' : null;
                 };
@@ -1597,8 +1602,8 @@ async function connectWA() {
                     return sock.sendMessage(sender, { text: `🎮 *TIC TAC TOE: FINISH*\n\n${finalBoard}\n\n${resultText}` });
                 }
 
-                return sock.sendMessage(sender, { 
-                    text: `🎮 *TIC TAC TOE*\n\nKamu: *X* | Bot: *O*\n\n${renderBoard(game.board)}\n\n_Giliranmu! Ketik 1-9._` 
+                return sock.sendMessage(sender, {
+                    text: `🎮 *TIC TAC TOE*\n\nKamu: *X* | Bot: *O*\n\n${renderBoard(game.board)}\n\n_Giliranmu! Ketik 1-9._`
                 });
             }
 
@@ -1650,13 +1655,13 @@ async function connectWA() {
                 } else {
                     game.wrongAttempts++;
                     let response = "❌ *Salah!* Ayo coba tebak lagi.";
-                    
+
                     if (game.wrongAttempts >= 3) {
                         const ans = game.answer;
                         const hint = ans[0] + ans.slice(1, -1).replace(/[a-z0-9]/g, '_') + ans[ans.length - 1];
                         response += `\n\n💡 *HINT:* ${hint.toUpperCase()}`;
                     }
-                    
+
                     return sock.sendMessage(sender, { text: response });
                 }
             }
@@ -1694,10 +1699,10 @@ async function connectWA() {
                     }
 
                     const finalResponse = `🃏 *BLACKJACK: RESULT*\n\n` +
-                                          `Kartu Kamu: *${game.userCards.join(', ')}* (Total: ${game.userTotal})\n` +
-                                          `Kartu Bot: *${game.botCards.join(', ')}* (Total: ${game.botTotal})\n\n` +
-                                          `${result}`;
-                    
+                        `Kartu Kamu: *${game.userCards.join(', ')}* (Total: ${game.userTotal})\n` +
+                        `Kartu Bot: *${game.botCards.join(', ')}* (Total: ${game.botTotal})\n\n` +
+                        `${result}`;
+
                     delete gameData[sender];
                     return sock.sendMessage(sender, { text: finalResponse });
                 }
@@ -1705,15 +1710,15 @@ async function connectWA() {
 
             if (game.type === 'mine') {
                 const pos = parseInt(input) - 1;
-                if(isNaN(pos) || pos < 0 || pos > 24 || game.revealed.includes(pos)) return;
+                if (isNaN(pos) || pos < 0 || pos > 24 || game.revealed.includes(pos)) return;
 
                 const renderGrid = (g) => {
                     let res = "";
-                    for(let i=0; i<5; i++) res += g.slice(i*5, i*5+5).join(' ') + "\n";
+                    for (let i = 0; i < 5; i++) res += g.slice(i * 5, i * 5 + 5).join(' ') + "\n";
                     return res;
                 };
 
-                if(game.mines.includes(pos)) {
+                if (game.mines.includes(pos)) {
                     game.grid[pos] = '💣';
                     const finalGrid = renderGrid(game.grid);
                     delete gameData[sender];
@@ -1721,7 +1726,7 @@ async function connectWA() {
                 } else {
                     game.grid[pos] = '⬜';
                     game.revealed.push(pos);
-                    if(game.revealed.length === 20) {
+                    if (game.revealed.length === 20) {
                         const finalGrid = renderGrid(game.grid);
                         delete gameData[sender];
                         return sock.sendMessage(sender, { text: `🎉 *MENANG!* Kamu berhasil membersihkan semua lahan tanpa meledak.\n\n${finalGrid}` });
@@ -1838,7 +1843,7 @@ async function connectWA() {
                 if (game.state === 'choose_lang') {
                     const lang = input === 'python' || input === '1' ? 'python' : (input === 'c++' || input === '2' ? 'cpp' : null);
                     if (!lang) return sock.sendMessage(sender, { text: "⚠️ Pilih 'python' atau 'c++' ya!" });
-                    
+
                     game.lang = lang;
                     game.state = 'playing';
                     const p = problems[lang][Math.floor(Math.random() * problems[lang].length)];
@@ -1874,13 +1879,13 @@ async function connectWA() {
                         if (game.solution[idx] === val) {
                             game.board[idx] = val;
                             game.wrongAttempts = 0; // Reset counter on correct move
-                            const render = (b) => 
+                            const render = (b) =>
                                 `*${b[0]} ${b[1]} | ${b[2]} ${b[3]}*\n` +
                                 `*${b[4]} ${b[5]} | ${b[6]} ${b[7]}*\n` +
                                 `-----------\n` +
                                 `*${b[8]} ${b[9]} | ${b[10]} ${b[11]}*\n` +
                                 `*${b[12]} ${b[13]} | ${b[14]} ${b[15]}*`;
-                            
+
                             if (!game.board.includes('.')) {
                                 delete gameData[sender];
                                 return sock.sendMessage(sender, { text: `🎉 *MENANG!* Sudoku selesai.\n\n${render(game.board)}` });
@@ -1889,7 +1894,7 @@ async function connectWA() {
                         } else {
                             game.wrongAttempts++;
                             let response = "❌ *Salah!* Angka itu tidak cocok di sana.";
-                            
+
                             if (game.wrongAttempts >= 3) {
                                 // Provide hint: find first empty index and give its coordinates and value
                                 const emptyIdx = game.board.indexOf('.');
@@ -1900,7 +1905,7 @@ async function connectWA() {
                                     response += `\n\n💡 *HINT:* Coba isi baris *${hintR}* kolom *${hintC}* dengan angka *${hintVal}*.`;
                                 }
                             }
-                            
+
                             return sock.sendMessage(sender, { text: response });
                         }
                     }
@@ -1917,13 +1922,13 @@ async function connectWA() {
                 }
 
                 const parts = input.split(' ').map(n => parseInt(n) - 1);
-                
+
                 // Helper to check if any moves are left
                 const hasMoves = (nums) => {
-                    const active = nums.map((v, i) => ({v, i})).filter(x => x.v !== '✅');
+                    const active = nums.map((v, i) => ({ v, i })).filter(x => x.v !== '✅');
                     for (let i = 0; i < active.length; i++) {
                         for (let j = i + 1; j < active.length; j++) {
-                            if (active[i].v === active[j].v || active[i].v + active[j].v === 10) return {p1: active[i].i + 1, p2: active[j].i + 1};
+                            if (active[i].v === active[j].v || active[i].v + active[j].v === 10) return { p1: active[i].i + 1, p2: active[j].i + 1 };
                         }
                     }
                     return null;
@@ -1937,7 +1942,7 @@ async function connectWA() {
                             game.nums[p1] = '✅';
                             game.nums[p2] = '✅';
                             game.wrongAttempts = 0; // Reset on success
-                            
+
                             if (game.nums.every(n => n === '✅')) {
                                 delete gameData[sender];
                                 return sock.sendMessage(sender, { text: "🎉 *MENANG!* Semua angka berhasil dicocokkan." });
@@ -1952,7 +1957,7 @@ async function connectWA() {
                         } else {
                             game.wrongAttempts++;
                             let response = "❌ Tidak cocok! Harus angka yang sama atau jumlahnya 10.";
-                            
+
                             if (game.wrongAttempts >= 3) {
                                 const hint = hasMoves(game.nums);
                                 if (hint) {
@@ -2061,28 +2066,50 @@ async function connectWA() {
                     await sock.sendMessage(sender, { text: res.data });
                 }
             } catch (e) { }
-        } else if (m.message && (m.message.audioMessage || (m.message.documentMessage && m.message.documentMessage.mimetype.startsWith('audio/')))) {
-            try {
-                const st = await axios.post(`${pythonUrl}/status`, { sender, action: "get" });
-                if (st.data.active) {
-                    await sock.sendPresenceUpdate('recording', sender);
-                    const { downloadMediaMessage } = require('baileys');
-                    const buffer = await downloadMediaMessage(m, 'buffer', {}, { logger: require('pino')({ level: 'silent' }) });
-                    if (buffer) {
-                        const FormData = require('form-data');
-                        const formData = new FormData();
-                        formData.append('sender', sender);
-                        formData.append('audio', buffer, 'voice_note.ogg');
-                        const res = await axios.post(`${pythonUrl}/voice`, formData, {
-                            headers: formData.getHeaders()
-                        });
-                        await sock.sendMessage(sender, { text: res.data });
+        } else {
+            // Check for audio in standard, ephemeral, or view-once messages
+            const msg = m.message;
+            const audioMsg = msg?.audioMessage ||
+                msg?.ephemeralMessage?.message?.audioMessage ||
+                msg?.viewOnceMessage?.message?.audioMessage ||
+                msg?.viewOnceMessageV2?.message?.audioMessage ||
+                (msg?.documentMessage && msg?.documentMessage.mimetype.startsWith('audio/'));
+
+            if (audioMsg) {
+                try {
+                    const st = await axios.post(`${pythonUrl}/status`, { sender, action: "get" });
+                    if (st.data.active) {
+                        await sock.sendPresenceUpdate('recording', sender);
+                        const { downloadMediaMessage } = require('baileys');
+                        const buffer = await downloadMediaMessage(m, 'buffer', {}, { logger: require('pino')({ level: 'silent' }) });
+
+                        if (buffer) {
+                            const FormData = require('form-data');
+                            const formData = new FormData();
+                            formData.append('sender', sender);
+                            formData.append('audio', buffer, 'voice_note.ogg');
+
+                            const res = await axios.post(`${pythonUrl}/voice`, formData, {
+                                headers: formData.getHeaders()
+                            });
+
+                            // Handle both string and object responses
+                            let responseText = res.data;
+                            if (typeof res.data === 'object') {
+                                responseText = res.data.reply || res.data.text || JSON.stringify(res.data);
+                            }
+
+                            await sock.sendMessage(sender, { text: responseText });
+                        }
                     }
+                } catch (e) {
+                    console.error("Audio processing error:", e.message);
+                    // Optionally notify the user
+                    // await sock.sendMessage(sender, { text: "❌ Maaf, saya gagal memproses pesan suara kamu." });
                 }
-            } catch (e) {
-                console.error("Audio processing error:", e.message);
             }
         }
     });
 }
+
 connectWA();
