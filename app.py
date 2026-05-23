@@ -10,8 +10,8 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Ambil port dari .env (default 8000 kalau tidak ada)
-FLASK_PORT = int(os.getenv("FLASK_PORT", 8000))
+# Ambil port dari .env (default 8001 kalau tidak ada)
+FLASK_PORT = int(os.getenv("FLASK_PORT", 8001))
 
 @app.before_request
 def log_request_info():

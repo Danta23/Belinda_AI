@@ -23,7 +23,7 @@ const toxicWords = [
     'asu', 'raimu', 'matamu', 'ndasmu', 'dancok', 'jancok', 'cok', 'jangkrik', 'mbokmu', 'tempik', 'jembut', 'jembutmu', 'silit', 'silitmu', 'picek', 'kopok', 'mbelgedes', 'budeg', 'cocote', 'lambemu',
     'anying', 'anyink', 'goblog', 'belegug', 'sia', 'sia mah', 'maneh', 'kebluk', 'modar', 'kokod', 'beungeut', 'gejul', 'boro'
 ];
-const pythonUrl = process.env.PYTHON_URL || 'http://127.0.0.1:8000';
+const pythonUrl = process.env.PYTHON_URL || 'http://127.0.0.1:8001';
 
 // --- CHAT HISTORY ---
 const historyFile = 'chat_history.json';

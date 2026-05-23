@@ -386,9 +386,9 @@ class BelindaApp(toga.App):
         template = [
             ("--- Flask Backend Settings ---", None),
             ("GROQ_API_KEY", ""),
-            ("FLASK_PORT", "8000"),
+            ("FLASK_PORT", "8001"),
             ("--- Bridge Settings ---", None),
-            ("PYTHON_URL", "http://localhost:8000"),
+            ("PYTHON_URL", "http://localhost:8001"),
             ("SESSION_NAME", "auth_info"),
             ("--- Connection Tuning ---", None),
             ("BRIDGE_HOST", "127.0.0.1"),

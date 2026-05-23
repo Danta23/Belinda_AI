@@ -9,7 +9,7 @@ class SettingsManager:
         self.env_path = os.path.join(root_dir, ".env")
         self.defaults = {
             "GROQ_API_KEY": "",
-            "FLASK_PORT": "8000",
+            "FLASK_PORT": "8001",
             "AI_NAME": "Belinda AI",
             "AI_PERSONALITY": "Intelligent assistant",
             "AI_MAX_TOKENS": "1024",
