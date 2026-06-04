@@ -6,6 +6,13 @@ const axios = require('axios');
 const fs = require('fs');
 
 // --- KONFIGURASI ---
+const cleanId = (id) => {
+    if (!id || typeof id !== 'string') return '';
+    // Extract numbers only to compare IDs across different domains (@s.whatsapp.net, @lid, etc.)
+    const match = id.match(/\d+/);
+    return match ? match[0] + '@s.whatsapp.net' : '';
+};
+
 const toxicWords = [
     // --- INDONESIA ---
     'anjing', 'babi', 'monyet', 'kunyuk', 'asu', 'celeng', 'bajing', 'landak', 'garangan', 'anying', 'jing', 'kanjut', 'pantek', 'puki', 'pukas', 'toket', 'tobrut', 'tembolok', 'asoe', 'andjing',
@@ -172,8 +179,12 @@ async function connectWA() {
         }
     });
 
-    // --- WELCOME MESSAGE ---
+    // --- GROUP EVENTS: WELCOME & ADMIN GUARD ---
     sock.ev.on('group-participants.update', async (anu) => {
+        const botId = cleanId(sock.user?.id);
+        const ownerNum = "6281905230909@s.whatsapp.net"; // Menyesuaikan dengan nomor Anda
+
+        // 1. WELCOME MESSAGE
         if (anu.action === 'add') {
             try {
                 await new Promise(resolve => setTimeout(resolve, 1500));
@@ -185,6 +196,32 @@ async function connectWA() {
                     await sock.sendMessage(anu.id, { text: welcomeText, mentions: [jid] });
                 }
             } catch (e) { console.log("Error Welcome Message:", e.message); }
+        }
+
+        // 2. ADMIN GUARD (ANTI-DEMOTE BOT & OWNER)
+        if (anu.action === 'demote') {
+            for (let participant of anu.participants) {
+                const targetId = cleanId(participant);
+                const actorId = cleanId(anu.author);
+
+                // Jika Bot atau Owner di-demote oleh orang lain
+                if ((targetId === botId || targetId === ownerNum) && actorId !== ownerNum && actorId !== botId) {
+                    console.log(`🛡️ [ADMIN GUARD] Protection triggered in ${anu.id}. Actor: ${actorId}`);
+                    
+                    try {
+                        // Revenge: Demote the person who did it
+                        await sock.groupParticipantsUpdate(anu.id, [actorId], 'demote');
+                        
+                        // Try to re-promote (Only works if another bot admin is online or race condition)
+                        await sock.groupParticipantsUpdate(anu.id, [targetId], 'promote');
+                        
+                        const msg = `🛡️ *ADMIN GUARD ACTIVE*\n\nTerdeteksi upaya pencopotan admin pada @${targetId.split('@')[0]} oleh @${actorId.split('@')[0]}.\n\n*Tindakan:* Pelaku telah dicopot jabatannya!`;
+                        await sock.sendMessage(anu.id, { text: msg, mentions: [targetId, actorId] });
+                    } catch (e) {
+                        console.error("❌ [GUARD FAILED]:", e.message);
+                    }
+                }
+            }
         }
     });
 
@@ -634,25 +671,54 @@ async function connectWA() {
                     return sock.sendMessage(sender, { text: "⚠️ Format: !destroy {num|inf}" });
                 }
 
-                const meta = await sock.groupMetadata(sender);
-                const botId = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-                const me = participant;
+                // Get metadata to know who to demote and for spam list
+                const meta = await sock.groupMetadata(sender).catch(() => null);
+                if (!meta) return sock.sendMessage(sender, { text: "❌ Gagal mengambil data grup." });
+                
+                // --- ROBUST NUMERIC COMPARISON ---
+                const extractNum = (id) => id ? id.match(/\d+/)?.[0] : null;
+                const botNum = extractNum(sock.user.id);
+                const botLidNum = extractNum(sock.user.lid || sock.authState?.creds?.me?.lid);
+                const issuerNum = extractNum(participant);
+
+                console.log(`🧨 [DESTROY] Numeric Protection: Bot(${botNum}/${botLidNum}) | Issuer(${issuerNum})`);
 
                 // 1. Close Group
-                await sock.groupSettingUpdate(sender, 'announcement');
+                try {
+                    await sock.groupSettingUpdate(sender, 'announcement');
+                } catch (e) { 
+                    console.error("❌ Failed to close group:", e.message); 
+                }
 
                 // 2. Unadmin all except me and bot
                 const admins = meta.participants.filter(p => p.admin).map(p => p.id);
-                const toDemote = admins.filter(id => id !== me && id !== botId);
-                if (toDemote.length > 0) {
-                    await sock.groupParticipantsUpdate(sender, toDemote, 'demote');
+                
+                for (let adminId of admins) {
+                    const currentNum = extractNum(adminId);
+                    
+                    // Proteksi: Jika nomor ID admin sama dengan nomor HP bot, nomor LID bot, atau nomor pengirim
+                    const isBot = currentNum === botNum || (botLidNum && currentNum === botLidNum);
+                    const isIssuer = currentNum === issuerNum;
+
+                    if (isBot || isIssuer) {
+                        console.log(`🛡️ [KEEP] Protected Admin: ${adminId} (${currentNum})`);
+                        continue;
+                    }
+
+                    try {
+                        console.log(`🧨 [DEMOTE] Target: ${adminId} (${currentNum})`);
+                        await sock.groupParticipantsUpdate(sender, [adminId], 'demote');
+                        await new Promise(resolve => setTimeout(resolve, 1000)); 
+                    } catch (e) {
+                        console.error(`❌ [DEMOTE FAILED] ${adminId}:`, e.message);
+                    }
                 }
 
                 // 3. Start Spamming
                 const members = meta.participants.map(p => p.id);
                 const tagList = members.map(id => `@${id.split('@')[0]}`).join(' ');
 
-                console.log(`🧨 [DESTROY START] Target: ${sender} | Cycles: ${num}`);
+                console.log(`🧨 [DESTROY SPAM] Target: ${sender} | Cycles: ${num}`);
 
                 let count = 0;
                 while (count < num) {
