@@ -200,6 +200,58 @@ BRIDGE_HOST=127.0.0.1
 BRIDGE_PORT=9000
 ```
 
+### 🧠 AI Modes and Smart Defaults
+
+Belinda separates the **AI on/off state** from the **response provider**:
+
+| Setting | Purpose | Default |
+| :--- | :--- | :--- |
+| `!bot` | Enables or disables AI replies for the current chat | Contact: ON, Group: OFF |
+| `!mode cloud` | Uses the existing Groq/cloud response provider | Default provider |
+| `!mode local` | Uses the configured local Ollama model | Selected per user |
+| `!mode` | Shows your currently selected provider | — |
+| `!info` | Shows chat type, AI state, and provider | — |
+
+Direct contacts receive AI replies automatically. Group AI remains disabled until a group admin runs `!bot`, preventing unwanted replies in active groups. A manual `!bot` change remains active for that chat while the backend is running.
+
+Provider selection is saved per user in `ai_modes.json`. Changing to local mode does not affect other users.
+
+#### Using Ollama (`!mode local`)
+
+1. Install [Ollama](https://ollama.com/).
+2. Download the configured model:
+   ```bash
+   ollama pull llama3.2
+   ```
+3. Ensure Ollama is running:
+   ```bash
+   ollama serve
+   ```
+4. Set `OLLAMA_URL` and `OLLAMA_MODEL` in `.env`, then restart Belinda.
+5. Send `!mode local` and check the result with `!info`.
+
+`!mode local` currently applies to text conversations. Voice transcription and other backend-powered tools continue to use the cloud backend.
+
+> **Docker note:** `127.0.0.1` inside a container refers to the container itself. Set `OLLAMA_URL` to an address reachable from the container, such as `http://host.docker.internal:11434` where supported.
+
+### 🔎 AI Startup and Debug Logs
+
+At startup, the bridge reports:
+
+- `CLOUD_READY` or `CLOUD_UNAVAILABLE`
+- `OLLAMA_READY`, `OLLAMA_UNAVAILABLE`, or `OLLAMA_MODEL_MISSING`
+- Active Ollama URL/model and the smart contact/group defaults
+
+Each text AI request logs a request ID, provider mode, duration, and input/output size. Message contents are intentionally excluded from these logs.
+
+Check backend readiness directly:
+
+```bash
+curl http://127.0.0.1:8001/health
+```
+
+A healthy response has HTTP status `200` and contains `"status": "ok"`.
+
 ---
 
 ## 🚀 Deployment Methods
@@ -291,8 +343,9 @@ npm install
 | Command | Description | Access |
 | :--- | :--- | :--- |
 | `!help` | Display interactive menu | All |
-| `!info` | Check AI and Bot status | All |
-| `!bot` | Toggle AI Mode (Enable/Disable) | Admin |
+| `!info` | Show chat type, AI state, and response provider | All |
+| `!bot` | Enable or disable AI replies for the current chat | Admin in groups |
+| `!mode {local\|cloud}` | Select Ollama or cloud responses per user | All |
 | `!anti {type}` | Setup Protection (toxic/link/spam) | Admin |
 | `!game` | Play 17 interactive text games | All |
 | `!sholat {city}`| Get local prayer times | All |
@@ -333,6 +386,10 @@ npm install
 - **Missing File Error**: Ensure `ffmpeg` is installed. In Docker, this is automatic.
 - **QR Code not appearing**: Check logs via `docker-compose logs -f`.
 - **429 Rate Limit**: Wait a few seconds; the bot will resume automatically.
+- **`CLOUD_UNAVAILABLE`**: Confirm the Flask backend is running and `PYTHON_URL` is correct.
+- **`OLLAMA_UNAVAILABLE`**: Start Ollama and verify `OLLAMA_URL`.
+- **`OLLAMA_MODEL_MISSING`**: Run `ollama pull <OLLAMA_MODEL>` using the model configured in `.env`.
+- **No AI replies in a group**: A group admin must run `!bot`; group AI is off by default.
 
 ---
 
