@@ -18,8 +18,11 @@
             --accent: #007aff;
             --forum-bg: #05070a;
             --forum-border: rgba(255, 255, 255, 0.14);
+            --font-family: 'Inter', sans-serif;
             --blur: 20px;
             --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            --mouse-x: 50vw;
+            --mouse-y: 50vh;
         }
 
         .light-mode {
@@ -32,13 +35,41 @@
             --forum-border: rgba(0, 0, 0, 0.12);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        html { font-size: 16px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-family); }
 
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
             overflow-x: hidden;
             transition: background-color 0.5s ease;
+        }
+
+        body::before {
+            background: radial-gradient(
+                380px circle at var(--mouse-x) var(--mouse-y),
+                color-mix(in srgb, var(--accent) 18%, transparent),
+                transparent 72%
+            );
+            content: "";
+            inset: 0;
+            pointer-events: none;
+            position: fixed;
+            z-index: 0;
+        }
+
+        .mouse-trail {
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 75%, transparent);
+            height: 7px;
+            left: 0;
+            opacity: 0;
+            pointer-events: none;
+            position: fixed;
+            top: 0;
+            width: 7px;
+            z-index: 90;
         }
 
         /* Animated Blobs Background */
@@ -117,7 +148,9 @@
             margin-left: 110px;
             padding: 40px;
             max-width: 900px;
+            position: relative;
             transition: var(--transition);
+            z-index: 1;
         }
 
         .section { display: none; animation: fadeIn 0.6s ease forwards; }
@@ -130,6 +163,8 @@
 
         /* Glass Card Utility Classes */
         .glass-card {
+            --tilt-x: 0deg;
+            --tilt-y: 0deg;
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             backdrop-filter: blur(var(--blur));
@@ -137,6 +172,14 @@
             border-radius: 20px;
             padding: 30px;
             margin-bottom: 20px;
+            transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+            transform-style: preserve-3d;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.16s ease-out;
+        }
+
+        .glass-card:hover {
+            border-color: color-mix(in srgb, var(--accent) 35%, var(--glass-border));
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
         }
 
         .flex-row { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 20px; }
@@ -291,6 +334,114 @@
             width: 7px;
         }
 
+        .settings-grid {
+            display: grid;
+            gap: 18px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin-top: 20px;
+        }
+
+        .setting-field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .setting-field label { font-weight: 600; }
+
+        .setting-field select {
+            appearance: none;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: var(--text-main);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 12px 14px;
+        }
+
+        .setting-field select:focus {
+            border-color: var(--accent);
+            outline: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+        }
+
+        html[dir="rtl"] .note {
+            border-left: 0;
+            border-right: 3px solid var(--accent);
+        }
+
+        html[dir="rtl"] .command {
+            direction: ltr;
+            text-align: left;
+        }
+
+        .settings-preview {
+            background: rgba(127, 127, 127, 0.08);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            margin-top: 20px;
+            padding: 22px;
+        }
+
+        .welcome-modal {
+            align-items: center;
+            background: rgba(0, 0, 0, 0.68);
+            backdrop-filter: blur(16px);
+            display: flex;
+            inset: 0;
+            justify-content: center;
+            padding: 24px;
+            position: fixed;
+            z-index: 1000;
+        }
+
+        .welcome-modal[hidden] { display: none; }
+
+        .welcome-dialog {
+            background: color-mix(in srgb, var(--bg-color) 88%, transparent);
+            border: 1px solid var(--glass-border);
+            border-radius: 26px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+            max-width: 520px;
+            overflow: hidden;
+            padding: 36px;
+            position: relative;
+            text-align: center;
+            width: 100%;
+        }
+
+        .welcome-icon {
+            align-items: center;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border-radius: 20px;
+            box-shadow: 0 14px 30px color-mix(in srgb, var(--accent) 30%, transparent);
+            color: white;
+            display: inline-flex;
+            height: 64px;
+            justify-content: center;
+            margin-bottom: 22px;
+            width: 64px;
+        }
+
+        .welcome-dialog h2 {
+            font-size: clamp(1.65rem, 5vw, 2.25rem);
+            margin-bottom: 12px;
+        }
+
+        .welcome-dialog p {
+            color: var(--text-muted);
+            margin: 0 auto 26px;
+            max-width: 410px;
+        }
+
+        .welcome-dialog .btn {
+            border: 0;
+            justify-content: center;
+            min-width: 180px;
+        }
+
+        body.welcome-open { overflow: hidden; }
+
         .section-heading { margin-bottom: 24px; }
         .section-heading p { max-width: 680px; }
         .step-number { color: var(--accent); font-size: 0.8rem; font-weight: 600; }
@@ -313,16 +464,34 @@
             .nav-item { justify-content: center; padding: 10px 4px; }
             main { margin-left: 0; padding: 30px 20px 110px; }
             .status-row, .feature-grid, .step-grid { grid-template-columns: 1fr; }
+            .settings-grid { grid-template-columns: 1fr; }
             .theme-toggle { bottom: 95px; right: 20px; }
             h1 { font-size: 2rem; }
             #blog .glass-card { padding: 18px; }
             #comment-container { border-radius: 14px; padding: 12px; }
+            .blob { animation: none; height: 100vw; transform: none !important; width: 100vw; }
+            .welcome-modal { padding: 16px; }
+            .welcome-dialog { border-radius: 22px; padding: 30px 22px; }
         }
 
         @media (max-width: 420px) {
             main { padding-left: 14px; padding-right: 14px; }
             #blog .glass-card { padding: 14px; }
             #comment-container { margin-top: 18px; padding: 8px; }
+        }
+
+        @media (pointer: coarse) {
+            body:not(.pointer-effects-active)::before { display: none; }
+            body:not(.pointer-effects-active) .mouse-trail { display: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            body::before { display: none; }
+            .mouse-trail { display: none; }
+            .glass-card {
+                transform: none !important;
+                transition: none;
+            }
         }
     </style>
 </head>
@@ -332,30 +501,45 @@
         <div class="blob" id="dynamicBlob"></div>
     </div>
 
+    <div id="welcome-modal" class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title" aria-describedby="welcome-description" onclick="closeWelcomeModal(event)" hidden>
+        <div class="welcome-dialog">
+            <div class="welcome-icon" aria-hidden="true">
+                <i data-lucide="sparkles"></i>
+            </div>
+            <h2 id="welcome-title" data-i18n="welcome.title">Welcome to Belinda_AI!</h2>
+            <p id="welcome-description" data-i18n="welcome.description">Your friendly WhatsApp AI assistant for smarter conversations, useful tools, and a better experience.</p>
+            <button id="welcome-close" class="btn" type="button" onclick="closeWelcomeModal()" data-i18n="welcome.button">Start Exploring</button>
+        </div>
+    </div>
+
     <nav id="sidebar" aria-label="Main Navigation">
         <button class="nav-item" onclick="toggleSidebar()" aria-label="Toggle Menu" title="Toggle Menu">
             <i data-lucide="menu"></i>
-            <span class="nav-text">Menu</span>
+            <span class="nav-text" data-i18n="nav.menu">Menu</span>
         </button>
         <button class="nav-item active" onclick="showSection('about')" aria-label="About Project" title="About">
             <i data-lucide="cpu"></i>
-            <span class="nav-text">About Project</span>
+            <span class="nav-text" data-i18n="nav.about">About Project</span>
         </button>
         <button class="nav-item" onclick="showSection('features')" aria-label="Project Features" title="Features">
             <i data-lucide="sparkles"></i>
-            <span class="nav-text">Features</span>
+            <span class="nav-text" data-i18n="nav.features">Features</span>
         </button>
         <button class="nav-item" onclick="showSection('ai-guide')" aria-label="AI Mode Guide" title="AI Guide">
             <i data-lucide="bot"></i>
-            <span class="nav-text">AI Mode Guide</span>
+            <span class="nav-text" data-i18n="nav.guide">AI Mode Guide</span>
         </button>
         <button class="nav-item" onclick="showSection('updates')" aria-label="View Change Logs" title="Updates">
             <i data-lucide="history"></i>
-            <span class="nav-text">Change Logs</span>
+            <span class="nav-text" data-i18n="nav.updates">Change Logs</span>
         </button>
         <button class="nav-item" onclick="showSection('blog')" aria-label="Community Forum" title="Forum">
             <i data-lucide="message-square"></i>
-            <span class="nav-text">Forum/Blog</span>
+            <span class="nav-text" data-i18n="nav.forum">Forum/Blog</span>
+        </button>
+        <button class="nav-item" onclick="showSection('settings')" aria-label="UI Settings" title="Settings">
+            <i data-lucide="settings"></i>
+            <span class="nav-text" data-i18n="nav.settings">Settings</span>
         </button>
     </nav>
 
@@ -366,40 +550,40 @@
     <main>
         <section id="about" class="section active">
             <div class="glass-card">
-                <p class="eyebrow">WhatsApp automation · Cloud + Local AI</p>
+                <p class="eyebrow" data-i18n="about.eyebrow">WhatsApp automation · Cloud + Local AI</p>
                 <h1>Belinda_AI</h1>
-                <p>Asisten WhatsApp fleksibel untuk percakapan natural, otomasi grup, edukasi, media, dan alat produktivitas. Belinda dapat menggunakan AI cloud Groq atau model lokal Ollama, dengan pengaturan cerdas yang menyesuaikan jenis chat secara otomatis.</p>
+                <p data-i18n="about.description">A flexible WhatsApp assistant for natural conversations, group automation, education, media, and productivity. Belinda supports Groq cloud AI or local Ollama models with smart behavior for each chat type.</p>
                 <div class="status-row">
-                    <div class="mini-card status-pill"><span class="status-dot"></span> Cloud AI Ready</div>
-                    <div class="mini-card status-pill"><span class="status-dot"></span> Ollama Supported</div>
-                    <div class="mini-card status-pill"><span class="status-dot"></span> Multi-platform</div>
+                    <div class="mini-card status-pill"><span class="status-dot"></span><span data-i18n="about.cloudReady">Cloud AI Ready</span></div>
+                    <div class="mini-card status-pill"><span class="status-dot"></span><span data-i18n="about.ollamaReady">Ollama Supported</span></div>
+                    <div class="mini-card status-pill"><span class="status-dot"></span><span data-i18n="about.multiplatform">Multi-platform</span></div>
                 </div>
                 <div class="flex-row">
-                    <a href="https://github.com/Danta23/Belinda_AI" class="btn">View on GitHub</a>
-                    <button class="btn btn-secondary" onclick="showSection('ai-guide')">AI Setup Guide</button>
+                    <a href="https://github.com/Danta23/Belinda_AI" class="btn" data-i18n="about.github">View on GitHub</a>
+                    <button class="btn btn-secondary" onclick="showSection('ai-guide')" data-i18n="about.setupGuide">AI Setup Guide</button>
                     <a href="https://danta23.github.io/Studio-234/index.html" class="btn btn-secondary">Studio 234</a>
                 </div>
             </div>
 
             <div class="glass-card">
-                <h3>Designed for Better UX</h3>
-                <p>Chat pribadi langsung siap menggunakan AI, sedangkan AI di grup tetap nonaktif sampai admin mengaktifkannya. Setiap pengguna dapat memilih provider sendiri tanpa mengubah pengalaman pengguna lain.</p>
+                <h3 data-i18n="about.uxTitle">Designed for Better UX</h3>
+                <p data-i18n="about.uxDescription">Direct chats are ready for AI immediately, while group AI stays disabled until an admin enables it. Every user can select a provider without affecting anyone else.</p>
                 <div class="feature-grid">
                     <div class="mini-card">
                         <i data-lucide="user-check"></i>
-                        <h4>Direct Contact</h4>
-                        <p>AI aktif otomatis untuk respons yang cepat dan natural.</p>
+                        <h4 data-i18n="about.contactTitle">Direct Contact</h4>
+                        <p data-i18n="about.contactDescription">AI starts automatically for fast and natural responses.</p>
                     </div>
                     <div class="mini-card">
                         <i data-lucide="users"></i>
-                        <h4>Group Chat</h4>
-                        <p>AI nonaktif secara default untuk mencegah balasan yang tidak diinginkan.</p>
+                        <h4 data-i18n="about.groupTitle">Group Chat</h4>
+                        <p data-i18n="about.groupDescription">AI stays off by default to prevent unwanted replies.</p>
                     </div>
                 </div>
             </div>
 
             <div class="glass-card">
-                <h3>Social Media & Connect</h3>
+                <h3 data-i18n="about.social">Social Media & Connect</h3>
                 <div class="social-links">
                     <a href="https://www.youtube.com/@theriver234" aria-label="Youtube" title="Youtube"><i data-lucide="video"></i></a>
                     <a href="https://www.instagram.com/theriver234/" aria-label="Instagram" title="Instagram"><i data-lucide="camera"></i></a>
@@ -411,138 +595,138 @@
 
         <section id="features" class="section">
             <div class="section-heading">
-                <p class="eyebrow">Project capabilities</p>
-                <h1>Built for More Than Chat</h1>
-                <p>Satu bot untuk percakapan AI, pengelolaan komunitas, pembelajaran, media, dan kebutuhan developer.</p>
+                <p class="eyebrow" data-i18n="features.eyebrow">Project capabilities</p>
+                <h1 data-i18n="features.title">Built for More Than Chat</h1>
+                <p data-i18n="features.description">One bot for AI conversations, community management, learning, media, and developer workflows.</p>
             </div>
             <div class="feature-grid">
                 <div class="glass-card">
                     <i data-lucide="cloud"></i>
-                    <h3>Flexible AI Provider</h3>
-                    <p>Pilih Groq cloud untuk kecepatan atau Ollama lokal untuk kontrol dan privasi yang lebih besar.</p>
+                    <h3 data-i18n="features.providerTitle">Flexible AI Provider</h3>
+                    <p data-i18n="features.providerDescription">Choose Groq cloud for speed or local Ollama for greater control and privacy.</p>
                 </div>
                 <div class="glass-card">
                     <i data-lucide="shield-check"></i>
-                    <h3>Smart Group Safety</h3>
-                    <p>AI grup default OFF, dilengkapi anti-toxic, anti-link, anti-spam, dan kontrol khusus admin.</p>
+                    <h3 data-i18n="features.safetyTitle">Smart Group Safety</h3>
+                    <p data-i18n="features.safetyDescription">Group AI defaults to OFF with anti-toxic, anti-link, anti-spam, and admin controls.</p>
                 </div>
                 <div class="glass-card">
                     <i data-lucide="graduation-cap"></i>
-                    <h3>Education & Games</h3>
-                    <p>Quiz adaptif, pembahasan AI, permainan teks interaktif, dan alat pembelajaran dalam WhatsApp.</p>
+                    <h3 data-i18n="features.educationTitle">Education & Games</h3>
+                    <p data-i18n="features.educationDescription">Adaptive quizzes, AI explanations, interactive text games, and learning tools in WhatsApp.</p>
                 </div>
                 <div class="glass-card">
                     <i data-lucide="music"></i>
-                    <h3>Media Tools</h3>
-                    <p>Unduh musik, video, gambar, dan kirim voice note dengan pengalaman native WhatsApp.</p>
+                    <h3 data-i18n="features.mediaTitle">Media Tools</h3>
+                    <p data-i18n="features.mediaDescription">Download music, video, and images or send voice notes with a native WhatsApp experience.</p>
                 </div>
                 <div class="glass-card">
                     <i data-lucide="terminal"></i>
-                    <h3>Developer Utilities</h3>
-                    <p>Shell streaming, pencarian web, generator script, dokumen, spreadsheet, presentasi, dan model 3D.</p>
+                    <h3 data-i18n="features.developerTitle">Developer Utilities</h3>
+                    <p data-i18n="features.developerDescription">Shell streaming, web search, and generators for scripts, documents, spreadsheets, presentations, and 3D models.</p>
                 </div>
                 <div class="glass-card">
                     <i data-lucide="activity"></i>
-                    <h3>Observable & Debuggable</h3>
-                    <p>Health endpoint serta log startup, provider, request ID, durasi, dan ukuran respons tanpa membocorkan isi chat.</p>
+                    <h3 data-i18n="features.debugTitle">Observable & Debuggable</h3>
+                    <p data-i18n="features.debugDescription">Health checks plus startup, provider, request ID, timing, and response-size logs without exposing chat content.</p>
                 </div>
             </div>
         </section>
 
         <section id="ai-guide" class="section">
             <div class="section-heading">
-                <p class="eyebrow">Quick start</p>
-                <h1>AI Mode Guide</h1>
-                <p>Status ON/OFF menentukan apakah bot membalas. Mode menentukan provider yang menghasilkan respons.</p>
+                <p class="eyebrow" data-i18n="guide.eyebrow">Quick start</p>
+                <h1 data-i18n="guide.title">AI Mode Guide</h1>
+                <p data-i18n="guide.description">The ON/OFF state controls whether the bot replies. The mode selects which provider generates the response.</p>
             </div>
 
             <div class="glass-card">
-                <h3>Essential Commands</h3>
+                <h3 data-i18n="guide.commands">Essential Commands</h3>
                 <div class="feature-grid">
                     <div class="mini-card">
-                        <h4>Check Current Status</h4>
-                        <p>Menampilkan jenis chat, status AI, dan provider aktif.</p>
+                        <h4 data-i18n="guide.statusTitle">Check Current Status</h4>
+                        <p data-i18n="guide.statusDescription">Displays the chat type, AI state, and active provider.</p>
                         <code class="command">!info</code>
                     </div>
                     <div class="mini-card">
-                        <h4>Enable or Disable AI</h4>
-                        <p>Di grup, perintah ini hanya tersedia untuk admin.</p>
+                        <h4 data-i18n="guide.toggleTitle">Enable or Disable AI</h4>
+                        <p data-i18n="guide.toggleDescription">In groups, this command is available only to admins.</p>
                         <code class="command">!bot</code>
                     </div>
                     <div class="mini-card">
-                        <h4>Use Cloud AI</h4>
-                        <p>Provider default dengan respons dari backend Groq.</p>
+                        <h4 data-i18n="guide.cloudTitle">Use Cloud AI</h4>
+                        <p data-i18n="guide.cloudDescription">The default provider, powered by the Groq backend.</p>
                         <code class="command">!mode cloud</code>
                     </div>
                     <div class="mini-card">
-                        <h4>Use Local AI</h4>
-                        <p>Menggunakan model Ollama yang berjalan di perangkatmu.</p>
+                        <h4 data-i18n="guide.localTitle">Use Local AI</h4>
+                        <p data-i18n="guide.localDescription">Uses an Ollama model running on your device.</p>
                         <code class="command">!mode local</code>
                     </div>
                 </div>
             </div>
 
             <div class="glass-card">
-                <h3>Run Ollama Locally</h3>
+                <h3 data-i18n="guide.ollamaTitle">Run Ollama Locally</h3>
                 <div class="step-grid">
                     <div class="mini-card">
-                        <span class="step-number">STEP 01</span>
-                        <h4>Install a Model</h4>
+                        <span class="step-number" data-i18n="guide.step1">STEP 01</span>
+                        <h4 data-i18n="guide.installModel">Install a Model</h4>
                         <code class="command">ollama pull llama3.2</code>
                     </div>
                     <div class="mini-card">
-                        <span class="step-number">STEP 02</span>
-                        <h4>Start Ollama</h4>
+                        <span class="step-number" data-i18n="guide.step2">STEP 02</span>
+                        <h4 data-i18n="guide.startOllama">Start Ollama</h4>
                         <code class="command">ollama serve</code>
                     </div>
                     <div class="mini-card">
-                        <span class="step-number">STEP 03</span>
-                        <h4>Select Local Mode</h4>
+                        <span class="step-number" data-i18n="guide.step3">STEP 03</span>
+                        <h4 data-i18n="guide.selectLocal">Select Local Mode</h4>
                         <code class="command">!mode local</code>
                     </div>
                 </div>
                 <div class="note">
-                    <p><strong>Docker:</strong> gunakan URL Ollama yang dapat diakses dari container, misalnya <code>http://host.docker.internal:11434</code>. Mode lokal saat ini digunakan untuk percakapan teks.</p>
+                    <p data-i18n="guide.dockerNote"><strong>Docker:</strong> use an Ollama URL reachable from the container, such as <code>http://host.docker.internal:11434</code>. Local mode currently applies to text conversations.</p>
                 </div>
             </div>
 
             <div class="glass-card">
-                <h3>Health & Troubleshooting</h3>
-                <p>Backend menyediakan endpoint health dan bridge akan memeriksa cloud serta Ollama saat startup.</p>
+                <h3 data-i18n="guide.healthTitle">Health & Troubleshooting</h3>
+                <p data-i18n="guide.healthDescription">The backend provides a health endpoint, and the bridge checks cloud and Ollama services at startup.</p>
                 <code class="command">curl http://127.0.0.1:8001/health</code>
                 <div class="note">
-                    <p><strong>CLOUD_UNAVAILABLE:</strong> periksa <code>PYTHON_URL</code>. <strong>OLLAMA_UNAVAILABLE:</strong> pastikan Ollama berjalan. <strong>OLLAMA_MODEL_MISSING:</strong> unduh model yang tercantum di <code>OLLAMA_MODEL</code>.</p>
+                    <p data-i18n="guide.troubleshooting"><strong>CLOUD_UNAVAILABLE:</strong> check <code>PYTHON_URL</code>. <strong>OLLAMA_UNAVAILABLE:</strong> make sure Ollama is running. <strong>OLLAMA_MODEL_MISSING:</strong> download the model configured in <code>OLLAMA_MODEL</code>.</p>
                 </div>
             </div>
         </section>
 
         <section id="updates" class="section">
-            <h1>Change Logs</h1>
+            <h1 data-i18n="updates.title">Change Logs</h1>
             <div class="glass-card">
                 <div class="log-item">
                     <h4>v1.4.0 - Flexible AI Experience</h4>
                     <p><small>Aug 4, 2026</small></p>
-                    <p>Menambahkan mode cloud/local per pengguna, dukungan Ollama, smart defaults untuk contact dan group, health endpoint, serta logging AI yang aman untuk debugging.</p>
+                    <p data-i18n="updates.v14">Added per-user cloud/local modes, Ollama support, smart contact and group defaults, a health endpoint, and privacy-safe AI logging.</p>
                 </div>
                 <div class="log-item">
                     <h4>v1.2.0 - Fluid Aero Design</h4>
                     <p><small>Feb 19, 2026</small></p>
-                    <p>Pembaruan antarmuka dengan efek Liquid Glass dan perbaikan aksesibilitas (W3C Standard).</p>
+                    <p data-i18n="updates.v12">Updated the interface with Liquid Glass effects and accessibility improvements.</p>
                 </div>
                 <div class="log-item">
                     <h4>v1.1.0 - Giscus Integration</h4>
-                    <p>Penambahan sistem forum berbasis GitHub Discussion.</p>
+                    <p data-i18n="updates.v11">Added a community forum powered by GitHub Discussions.</p>
                 </div>
             </div>
         </section>
 
         <section id="blog" class="section">
-            <h1>Discussion Forum</h1>
+            <h1 data-i18n="forum.title">Discussion Forum</h1>
             <div class="glass-card">
-                <p>Silahkan masuk menggunakan akun <strong>GitHub</strong> untuk menulis komentar atau berdiskusi.</p>
+                <p data-i18n="forum.description">Sign in with your <strong>GitHub</strong> account to comment or join the discussion.</p>
                 <div class="forum-live-status" role="status" aria-live="polite">
                     <span class="status-dot"></span>
-                    <span id="giscus-live-status">Live updates every 15 seconds</span>
+                    <span id="giscus-live-status" data-i18n="forum.live">Live updates every 15 seconds</span>
                 </div>
                 <div id="comment-container">
                     <script src="https://giscus.app/client.js"
@@ -563,11 +747,922 @@
                 </div>
             </div>
         </section>
+
+        <section id="settings" class="section">
+            <div class="section-heading">
+                <p class="eyebrow" data-i18n="settings.eyebrow">Accessibility & appearance</p>
+                <h1 data-i18n="settings.title">UI Settings</h1>
+                <p data-i18n="settings.description">Customize the website for comfortable reading. Your preferences are saved automatically on this device.</p>
+            </div>
+            <div class="glass-card">
+                <div class="settings-grid">
+                    <div class="setting-field">
+                        <label for="language-select" data-i18n="settings.language">Language</label>
+                        <select id="language-select" onchange="updatePreference('language', this.value)">
+                            <option value="en">English</option>
+                            <option value="id">Bahasa Indonesia</option>
+                            <option value="zh-CN">简体中文</option>
+                            <option value="ja">日本語</option>
+                            <option value="ko">한국어</option>
+                            <option value="ar">العربية</option>
+                            <option value="nl">Nederlands</option>
+                            <option value="es">Español</option>
+                            <option value="pt">Português</option>
+                        </select>
+                    </div>
+                    <div class="setting-field">
+                        <label for="font-family-select" data-i18n="settings.fontFamily">Font Style</label>
+                        <select id="font-family-select" onchange="updatePreference('fontFamily', this.value)">
+                            <option value="inter">Inter</option>
+                            <option value="system">System UI</option>
+                            <option value="serif">Georgia Serif</option>
+                            <option value="mono">Monospace</option>
+                        </select>
+                    </div>
+                    <div class="setting-field">
+                        <label for="font-size-select" data-i18n="settings.fontSize">Font Size</label>
+                        <select id="font-size-select" onchange="updatePreference('fontSize', this.value)">
+                            <option value="14" data-i18n="settings.sizeSmall">Small</option>
+                            <option value="16" data-i18n="settings.sizeMedium">Medium (Default)</option>
+                            <option value="18" data-i18n="settings.sizeLarge">Large</option>
+                            <option value="20" data-i18n="settings.sizeExtraLarge">Extra Large</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-preview">
+                    <h3 data-i18n="settings.previewTitle">Readability Preview</h3>
+                    <p data-i18n="settings.previewText">Belinda_AI makes conversations and project information easier to understand on every device.</p>
+                </div>
+            </div>
+        </section>
     </main>
 
     <script>
         const darkGiscusTheme = new URL('giscus-dark.css', window.location.href).href;
         const giscusRefreshIntervalMs = 15000;
+        const defaultPreferences = { language: 'en', fontFamily: 'inter', fontSize: '16' };
+        const fontFamilies = {
+            inter: "'Inter', sans-serif",
+            system: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            serif: "Georgia, 'Times New Roman', serif",
+            mono: "SFMono-Regular, Consolas, 'Liberation Mono', monospace"
+        };
+        const translations = {
+            en: {
+                'nav.menu': 'Menu',
+                'nav.about': 'About Project',
+                'nav.features': 'Features',
+                'nav.guide': 'AI Mode Guide',
+                'nav.updates': 'Change Logs',
+                'nav.forum': 'Forum/Blog',
+                'nav.settings': 'Settings',
+                'about.eyebrow': 'WhatsApp automation · Cloud + Local AI',
+                'about.description': 'A flexible WhatsApp assistant for natural conversations, group automation, education, media, and productivity. Belinda supports Groq cloud AI or local Ollama models with smart behavior for each chat type.',
+                'about.cloudReady': 'Cloud AI Ready',
+                'about.ollamaReady': 'Ollama Supported',
+                'about.multiplatform': 'Multi-platform',
+                'about.github': 'View on GitHub',
+                'about.setupGuide': 'AI Setup Guide',
+                'about.uxTitle': 'Designed for Better UX',
+                'about.uxDescription': 'Direct chats are ready for AI immediately, while group AI stays disabled until an admin enables it. Every user can select a provider without affecting anyone else.',
+                'about.contactTitle': 'Direct Contact',
+                'about.contactDescription': 'AI starts automatically for fast and natural responses.',
+                'about.groupTitle': 'Group Chat',
+                'about.groupDescription': 'AI stays off by default to prevent unwanted replies.',
+                'about.social': 'Social Media & Connect',
+                'features.eyebrow': 'Project capabilities',
+                'features.title': 'Built for More Than Chat',
+                'features.description': 'One bot for AI conversations, community management, learning, media, and developer workflows.',
+                'features.providerTitle': 'Flexible AI Provider',
+                'features.providerDescription': 'Choose Groq cloud for speed or local Ollama for greater control and privacy.',
+                'features.safetyTitle': 'Smart Group Safety',
+                'features.safetyDescription': 'Group AI defaults to OFF with anti-toxic, anti-link, anti-spam, and admin controls.',
+                'features.educationTitle': 'Education & Games',
+                'features.educationDescription': 'Adaptive quizzes, AI explanations, interactive text games, and learning tools in WhatsApp.',
+                'features.mediaTitle': 'Media Tools',
+                'features.mediaDescription': 'Download music, video, and images or send voice notes with a native WhatsApp experience.',
+                'features.developerTitle': 'Developer Utilities',
+                'features.developerDescription': 'Shell streaming, web search, and generators for scripts, documents, spreadsheets, presentations, and 3D models.',
+                'features.debugTitle': 'Observable & Debuggable',
+                'features.debugDescription': 'Health checks plus startup, provider, request ID, timing, and response-size logs without exposing chat content.',
+                'guide.eyebrow': 'Quick start',
+                'guide.title': 'AI Mode Guide',
+                'guide.description': 'The ON/OFF state controls whether the bot replies. The mode selects which provider generates the response.',
+                'guide.commands': 'Essential Commands',
+                'guide.statusTitle': 'Check Current Status',
+                'guide.statusDescription': 'Displays the chat type, AI state, and active provider.',
+                'guide.toggleTitle': 'Enable or Disable AI',
+                'guide.toggleDescription': 'In groups, this command is available only to admins.',
+                'guide.cloudTitle': 'Use Cloud AI',
+                'guide.cloudDescription': 'The default provider, powered by the Groq backend.',
+                'guide.localTitle': 'Use Local AI',
+                'guide.localDescription': 'Uses an Ollama model running on your device.',
+                'guide.ollamaTitle': 'Run Ollama Locally',
+                'guide.step1': 'STEP 01',
+                'guide.step2': 'STEP 02',
+                'guide.step3': 'STEP 03',
+                'guide.installModel': 'Install a Model',
+                'guide.startOllama': 'Start Ollama',
+                'guide.selectLocal': 'Select Local Mode',
+                'guide.dockerNote': '<strong>Docker:</strong> use an Ollama URL reachable from the container, such as <code>http://host.docker.internal:11434</code>. Local mode currently applies to text conversations.',
+                'guide.healthTitle': 'Health & Troubleshooting',
+                'guide.healthDescription': 'The backend provides a health endpoint, and the bridge checks cloud and Ollama services at startup.',
+                'guide.troubleshooting': '<strong>CLOUD_UNAVAILABLE:</strong> check <code>PYTHON_URL</code>. <strong>OLLAMA_UNAVAILABLE:</strong> make sure Ollama is running. <strong>OLLAMA_MODEL_MISSING:</strong> download the model configured in <code>OLLAMA_MODEL</code>.',
+                'updates.title': 'Change Logs',
+                'updates.v14': 'Added per-user cloud/local modes, Ollama support, smart contact and group defaults, a health endpoint, and privacy-safe AI logging.',
+                'updates.v12': 'Updated the interface with Liquid Glass effects and accessibility improvements.',
+                'updates.v11': 'Added a community forum powered by GitHub Discussions.',
+                'forum.title': 'Discussion Forum',
+                'forum.description': 'Sign in with your <strong>GitHub</strong> account to comment or join the discussion.',
+                'forum.live': 'Live updates every 15 seconds',
+                'forum.checking': 'Checking for new comments and reactions...',
+                'forum.paused': 'Live updates paused while you interact',
+                'settings.eyebrow': 'Accessibility & appearance',
+                'settings.title': 'UI Settings',
+                'settings.description': 'Customize the website for comfortable reading. Your preferences are saved automatically on this device.',
+                'settings.language': 'Language',
+                'settings.fontFamily': 'Font Style',
+                'settings.fontSize': 'Font Size',
+                'settings.sizeSmall': 'Small',
+                'settings.sizeMedium': 'Medium (Default)',
+                'settings.sizeLarge': 'Large',
+                'settings.sizeExtraLarge': 'Extra Large',
+                'settings.previewTitle': 'Readability Preview',
+                'settings.previewText': 'Belinda_AI makes conversations and project information easier to understand on every device.',
+                'welcome.title': 'Welcome to Belinda_AI!',
+                'welcome.description': 'Your friendly WhatsApp AI assistant for smarter conversations, useful tools, and a better experience.',
+                'welcome.button': 'Start Exploring'
+            },
+            id: {
+                'nav.menu': 'Menu',
+                'nav.about': 'Tentang Proyek',
+                'nav.features': 'Fitur',
+                'nav.guide': 'Panduan Mode AI',
+                'nav.updates': 'Catatan Perubahan',
+                'nav.forum': 'Forum/Blog',
+                'nav.settings': 'Pengaturan',
+                'about.eyebrow': 'Otomasi WhatsApp · AI Cloud + Lokal',
+                'about.description': 'Asisten WhatsApp fleksibel untuk percakapan natural, otomasi grup, edukasi, media, dan produktivitas. Belinda mendukung AI cloud Groq atau model Ollama lokal dengan perilaku cerdas untuk setiap jenis chat.',
+                'about.cloudReady': 'AI Cloud Siap',
+                'about.ollamaReady': 'Mendukung Ollama',
+                'about.multiplatform': 'Multi-platform',
+                'about.github': 'Lihat di GitHub',
+                'about.setupGuide': 'Panduan Pengaturan AI',
+                'about.uxTitle': 'Dirancang untuk UX yang Lebih Baik',
+                'about.uxDescription': 'Chat pribadi langsung siap menggunakan AI, sedangkan AI grup tetap nonaktif sampai admin mengaktifkannya. Setiap pengguna dapat memilih provider tanpa memengaruhi pengguna lain.',
+                'about.contactTitle': 'Kontak Pribadi',
+                'about.contactDescription': 'AI aktif otomatis untuk respons yang cepat dan natural.',
+                'about.groupTitle': 'Chat Grup',
+                'about.groupDescription': 'AI nonaktif secara default untuk mencegah balasan yang tidak diinginkan.',
+                'about.social': 'Media Sosial & Terhubung',
+                'features.eyebrow': 'Kemampuan proyek',
+                'features.title': 'Lebih dari Sekadar Chat',
+                'features.description': 'Satu bot untuk percakapan AI, pengelolaan komunitas, pembelajaran, media, dan kebutuhan developer.',
+                'features.providerTitle': 'Provider AI Fleksibel',
+                'features.providerDescription': 'Pilih Groq cloud untuk kecepatan atau Ollama lokal untuk kontrol dan privasi lebih besar.',
+                'features.safetyTitle': 'Keamanan Grup Cerdas',
+                'features.safetyDescription': 'AI grup default OFF dengan anti-toxic, anti-link, anti-spam, dan kontrol admin.',
+                'features.educationTitle': 'Edukasi & Game',
+                'features.educationDescription': 'Kuis adaptif, pembahasan AI, permainan teks interaktif, dan alat belajar di WhatsApp.',
+                'features.mediaTitle': 'Alat Media',
+                'features.mediaDescription': 'Unduh musik, video, dan gambar atau kirim voice note dengan pengalaman WhatsApp native.',
+                'features.developerTitle': 'Utilitas Developer',
+                'features.developerDescription': 'Shell streaming, pencarian web, serta generator script, dokumen, spreadsheet, presentasi, dan model 3D.',
+                'features.debugTitle': 'Mudah Dipantau & Debug',
+                'features.debugDescription': 'Health check dan log startup, provider, request ID, durasi, serta ukuran respons tanpa membocorkan isi chat.',
+                'guide.eyebrow': 'Mulai cepat',
+                'guide.title': 'Panduan Mode AI',
+                'guide.description': 'Status ON/OFF menentukan apakah bot membalas. Mode menentukan provider yang menghasilkan respons.',
+                'guide.commands': 'Perintah Penting',
+                'guide.statusTitle': 'Periksa Status Saat Ini',
+                'guide.statusDescription': 'Menampilkan jenis chat, status AI, dan provider aktif.',
+                'guide.toggleTitle': 'Aktifkan atau Nonaktifkan AI',
+                'guide.toggleDescription': 'Di grup, perintah ini hanya tersedia untuk admin.',
+                'guide.cloudTitle': 'Gunakan AI Cloud',
+                'guide.cloudDescription': 'Provider default yang menggunakan backend Groq.',
+                'guide.localTitle': 'Gunakan AI Lokal',
+                'guide.localDescription': 'Menggunakan model Ollama yang berjalan di perangkatmu.',
+                'guide.ollamaTitle': 'Jalankan Ollama Secara Lokal',
+                'guide.step1': 'LANGKAH 01',
+                'guide.step2': 'LANGKAH 02',
+                'guide.step3': 'LANGKAH 03',
+                'guide.installModel': 'Instal Model',
+                'guide.startOllama': 'Jalankan Ollama',
+                'guide.selectLocal': 'Pilih Mode Lokal',
+                'guide.dockerNote': '<strong>Docker:</strong> gunakan URL Ollama yang dapat diakses dari container, misalnya <code>http://host.docker.internal:11434</code>. Mode lokal saat ini digunakan untuk percakapan teks.',
+                'guide.healthTitle': 'Health & Pemecahan Masalah',
+                'guide.healthDescription': 'Backend menyediakan health endpoint dan bridge memeriksa layanan cloud serta Ollama saat startup.',
+                'guide.troubleshooting': '<strong>CLOUD_UNAVAILABLE:</strong> periksa <code>PYTHON_URL</code>. <strong>OLLAMA_UNAVAILABLE:</strong> pastikan Ollama berjalan. <strong>OLLAMA_MODEL_MISSING:</strong> unduh model yang dikonfigurasi di <code>OLLAMA_MODEL</code>.',
+                'updates.title': 'Catatan Perubahan',
+                'updates.v14': 'Menambahkan mode cloud/lokal per pengguna, dukungan Ollama, default cerdas untuk kontak dan grup, health endpoint, serta logging AI yang aman.',
+                'updates.v12': 'Memperbarui antarmuka dengan efek Liquid Glass dan peningkatan aksesibilitas.',
+                'updates.v11': 'Menambahkan forum komunitas berbasis GitHub Discussions.',
+                'forum.title': 'Forum Diskusi',
+                'forum.description': 'Masuk dengan akun <strong>GitHub</strong> untuk menulis komentar atau bergabung dalam diskusi.',
+                'forum.live': 'Pembaruan langsung setiap 15 detik',
+                'forum.checking': 'Memeriksa komentar dan reaksi baru...',
+                'forum.paused': 'Pembaruan langsung dijeda saat Anda berinteraksi',
+                'settings.eyebrow': 'Aksesibilitas & tampilan',
+                'settings.title': 'Pengaturan UI',
+                'settings.description': 'Sesuaikan situs agar nyaman dibaca. Preferensi Anda tersimpan otomatis di perangkat ini.',
+                'settings.language': 'Bahasa',
+                'settings.fontFamily': 'Gaya Font',
+                'settings.fontSize': 'Ukuran Font',
+                'settings.sizeSmall': 'Kecil',
+                'settings.sizeMedium': 'Sedang (Default)',
+                'settings.sizeLarge': 'Besar',
+                'settings.sizeExtraLarge': 'Sangat Besar',
+                'settings.previewTitle': 'Pratinjau Keterbacaan',
+                'settings.previewText': 'Belinda_AI membuat percakapan dan informasi proyek lebih mudah dipahami di setiap perangkat.',
+                'welcome.title': 'Selamat datang di Belinda_AI!',
+                'welcome.description': 'Asisten AI WhatsApp ramah Anda untuk percakapan yang lebih cerdas, alat yang berguna, dan pengalaman yang lebih baik.',
+                'welcome.button': 'Mulai Menjelajah'
+            }
+        };
+
+        Object.assign(translations, {
+            'zh-CN': {
+                'nav.menu': '菜单',
+                'nav.about': '项目介绍',
+                'nav.features': '功能',
+                'nav.guide': 'AI 模式指南',
+                'nav.updates': '更新日志',
+                'nav.forum': '论坛/博客',
+                'nav.settings': '设置',
+                'about.eyebrow': 'WhatsApp 自动化 · 云端 + 本地 AI',
+                'about.description': '灵活的 WhatsApp 助手，支持自然对话、群组自动化、教育、媒体和效率工具。Belinda 可使用 Groq 云端 AI 或本地 Ollama 模型，并针对不同聊天类型智能运行。',
+                'about.cloudReady': '云端 AI 就绪',
+                'about.ollamaReady': '支持 Ollama',
+                'about.multiplatform': '多平台支持',
+                'about.github': '在 GitHub 查看',
+                'about.setupGuide': 'AI 设置指南',
+                'about.uxTitle': '为更好的体验而设计',
+                'about.uxDescription': '私聊可立即使用 AI，群组 AI 则保持关闭，直到管理员启用。每位用户都能独立选择服务提供商。',
+                'about.contactTitle': '私人联系人',
+                'about.contactDescription': 'AI 自动启动，提供快速自然的回复。',
+                'about.groupTitle': '群组聊天',
+                'about.groupDescription': 'AI 默认关闭，避免不需要的回复。',
+                'about.social': '社交媒体与联系',
+                'features.eyebrow': '项目能力',
+                'features.title': '不只是聊天',
+                'features.description': '一个机器人即可处理 AI 对话、社区管理、学习、媒体和开发工作流。',
+                'features.providerTitle': '灵活的 AI 提供商',
+                'features.providerDescription': '选择高速的 Groq 云端服务，或使用本地 Ollama 获得更多控制和隐私。',
+                'features.safetyTitle': '智能群组安全',
+                'features.safetyDescription': '群组 AI 默认关闭，并提供反辱骂、反链接、反垃圾消息和管理员控制。',
+                'features.educationTitle': '教育与游戏',
+                'features.educationDescription': '在 WhatsApp 中使用自适应测验、AI 讲解、互动文字游戏和学习工具。',
+                'features.mediaTitle': '媒体工具',
+                'features.mediaDescription': '下载音乐、视频和图片，或以原生 WhatsApp 体验发送语音消息。',
+                'features.developerTitle': '开发者工具',
+                'features.developerDescription': '终端流式输出、网页搜索，以及脚本、文档、表格、演示文稿和 3D 模型生成器。',
+                'features.debugTitle': '可观察且易调试',
+                'features.debugDescription': '提供健康检查及启动、提供商、请求 ID、耗时和响应大小日志，不泄露聊天内容。',
+                'guide.eyebrow': '快速开始',
+                'guide.title': 'AI 模式指南',
+                'guide.description': '开关状态决定机器人是否回复，模式决定由哪个提供商生成回复。',
+                'guide.commands': '常用命令',
+                'guide.statusTitle': '查看当前状态',
+                'guide.statusDescription': '显示聊天类型、AI 状态和当前提供商。',
+                'guide.toggleTitle': '启用或关闭 AI',
+                'guide.toggleDescription': '在群组中，仅管理员可使用此命令。',
+                'guide.cloudTitle': '使用云端 AI',
+                'guide.cloudDescription': '默认提供商，由 Groq 后端支持。',
+                'guide.localTitle': '使用本地 AI',
+                'guide.localDescription': '使用设备上运行的 Ollama 模型。',
+                'guide.ollamaTitle': '在本地运行 Ollama',
+                'guide.step1': '步骤 01',
+                'guide.step2': '步骤 02',
+                'guide.step3': '步骤 03',
+                'guide.installModel': '安装模型',
+                'guide.startOllama': '启动 Ollama',
+                'guide.selectLocal': '选择本地模式',
+                'guide.dockerNote': '<strong>Docker：</strong>请使用容器可访问的 Ollama 地址，例如 <code>http://host.docker.internal:11434</code>。本地模式目前用于文字对话。',
+                'guide.healthTitle': '健康检查与故障排除',
+                'guide.healthDescription': '后端提供健康检查端点，桥接程序会在启动时检查云端和 Ollama 服务。',
+                'guide.troubleshooting': '<strong>CLOUD_UNAVAILABLE：</strong>检查 <code>PYTHON_URL</code>。<strong>OLLAMA_UNAVAILABLE：</strong>确认 Ollama 正在运行。<strong>OLLAMA_MODEL_MISSING：</strong>下载 <code>OLLAMA_MODEL</code> 中配置的模型。',
+                'updates.title': '更新日志',
+                'updates.v14': '新增按用户选择云端/本地模式、Ollama 支持、联系人和群组智能默认值、健康检查端点及隐私安全的 AI 日志。',
+                'updates.v12': '使用 Liquid Glass 效果更新界面并改进无障碍体验。',
+                'updates.v11': '新增由 GitHub Discussions 提供支持的社区论坛。',
+                'forum.title': '讨论论坛',
+                'forum.description': '使用 <strong>GitHub</strong> 账户登录后即可发表评论或加入讨论。',
+                'forum.live': '每 15 秒实时更新',
+                'forum.checking': '正在检查新评论和反应...',
+                'forum.paused': '互动期间暂停实时更新',
+                'settings.eyebrow': '无障碍与外观',
+                'settings.title': '界面设置',
+                'settings.description': '自定义网站以获得舒适的阅读体验。偏好设置会自动保存在此设备上。',
+                'settings.language': '语言',
+                'settings.fontFamily': '字体样式',
+                'settings.fontSize': '字体大小',
+                'settings.sizeSmall': '小',
+                'settings.sizeMedium': '中（默认）',
+                'settings.sizeLarge': '大',
+                'settings.sizeExtraLarge': '超大',
+                'settings.previewTitle': '可读性预览',
+                'settings.previewText': 'Belinda_AI 让所有设备上的对话和项目信息更容易理解。',
+                'welcome.title': '欢迎使用 Belinda_AI！',
+                'welcome.description': '您的友好 WhatsApp AI 助手，为您带来更智能的对话、实用工具和更好的体验。',
+                'welcome.button': '开始探索'
+            },
+            ja: {
+                'nav.menu': 'メニュー',
+                'nav.about': 'プロジェクト概要',
+                'nav.features': '機能',
+                'nav.guide': 'AIモードガイド',
+                'nav.updates': '変更履歴',
+                'nav.forum': 'フォーラム/ブログ',
+                'nav.settings': '設定',
+                'about.eyebrow': 'WhatsApp 自動化 · クラウド + ローカルAI',
+                'about.description': '自然な会話、グループ自動化、教育、メディア、生産性に対応する柔軟な WhatsApp アシスタントです。Belinda は Groq クラウドAIまたはローカル Ollama モデルを利用し、チャットの種類に応じて動作します。',
+                'about.cloudReady': 'クラウドAI対応',
+                'about.ollamaReady': 'Ollama対応',
+                'about.multiplatform': 'マルチプラットフォーム',
+                'about.github': 'GitHubで見る',
+                'about.setupGuide': 'AI設定ガイド',
+                'about.uxTitle': 'より良いUXのための設計',
+                'about.uxDescription': '個人チャットではAIをすぐに利用でき、グループでは管理者が有効にするまでオフです。各ユーザーが独立してプロバイダーを選択できます。',
+                'about.contactTitle': '個人チャット',
+                'about.contactDescription': 'AIが自動で起動し、すばやく自然に応答します。',
+                'about.groupTitle': 'グループチャット',
+                'about.groupDescription': '不要な返信を防ぐため、AIは初期状態でオフです。',
+                'about.social': 'ソーシャルメディア',
+                'features.eyebrow': 'プロジェクト機能',
+                'features.title': 'チャット以上の機能',
+                'features.description': 'AI会話、コミュニティ管理、学習、メディア、開発ワークフローを1つのボットで提供します。',
+                'features.providerTitle': '柔軟なAIプロバイダー',
+                'features.providerDescription': '速度重視なら Groq、制御とプライバシー重視ならローカル Ollama を選択できます。',
+                'features.safetyTitle': 'スマートなグループ保護',
+                'features.safetyDescription': 'グループAIは初期状態でオフ。暴言、リンク、スパム対策と管理者制御を備えています。',
+                'features.educationTitle': '教育とゲーム',
+                'features.educationDescription': 'WhatsApp 上で適応型クイズ、AI解説、対話型テキストゲーム、学習ツールを利用できます。',
+                'features.mediaTitle': 'メディアツール',
+                'features.mediaDescription': '音楽、動画、画像のダウンロードや、WhatsApp ネイティブの音声メッセージ送信に対応します。',
+                'features.developerTitle': '開発者ユーティリティ',
+                'features.developerDescription': 'シェル出力、ウェブ検索、スクリプト、文書、表計算、プレゼン、3Dモデルの生成に対応します。',
+                'features.debugTitle': '監視とデバッグ',
+                'features.debugDescription': 'チャット内容を公開せず、ヘルスチェック、起動、プロバイダー、リクエストID、処理時間、応答サイズを記録します。',
+                'guide.eyebrow': 'クイックスタート',
+                'guide.title': 'AIモードガイド',
+                'guide.description': 'ON/OFFはボットが返信するかを、モードは返信を生成するプロバイダーを決定します。',
+                'guide.commands': '基本コマンド',
+                'guide.statusTitle': '現在の状態を確認',
+                'guide.statusDescription': 'チャット種類、AI状態、使用中のプロバイダーを表示します。',
+                'guide.toggleTitle': 'AIを有効・無効にする',
+                'guide.toggleDescription': 'グループでは管理者のみ使用できます。',
+                'guide.cloudTitle': 'クラウドAIを使用',
+                'guide.cloudDescription': 'Groq バックエンドを利用する既定のプロバイダーです。',
+                'guide.localTitle': 'ローカルAIを使用',
+                'guide.localDescription': '端末上で動作する Ollama モデルを使用します。',
+                'guide.ollamaTitle': 'Ollamaをローカル実行',
+                'guide.step1': 'ステップ 01',
+                'guide.step2': 'ステップ 02',
+                'guide.step3': 'ステップ 03',
+                'guide.installModel': 'モデルをインストール',
+                'guide.startOllama': 'Ollamaを起動',
+                'guide.selectLocal': 'ローカルモードを選択',
+                'guide.dockerNote': '<strong>Docker:</strong> コンテナから接続可能な Ollama URL（例: <code>http://host.docker.internal:11434</code>）を使用してください。ローカルモードは現在テキスト会話に適用されます。',
+                'guide.healthTitle': 'ヘルスチェックとトラブルシューティング',
+                'guide.healthDescription': 'バックエンドはヘルスエンドポイントを提供し、ブリッジは起動時にクラウドと Ollama を確認します。',
+                'guide.troubleshooting': '<strong>CLOUD_UNAVAILABLE:</strong> <code>PYTHON_URL</code> を確認してください。<strong>OLLAMA_UNAVAILABLE:</strong> Ollama が実行中か確認してください。<strong>OLLAMA_MODEL_MISSING:</strong> <code>OLLAMA_MODEL</code> で指定したモデルをダウンロードしてください。',
+                'updates.title': '変更履歴',
+                'updates.v14': 'ユーザー別のクラウド/ローカルモード、Ollama対応、個人・グループのスマート既定値、ヘルスエンドポイント、安全なAIログを追加しました。',
+                'updates.v12': 'Liquid Glass 効果とアクセシビリティ改善でインターフェースを更新しました。',
+                'updates.v11': 'GitHub Discussions を利用したコミュニティフォーラムを追加しました。',
+                'forum.title': 'ディスカッションフォーラム',
+                'forum.description': '<strong>GitHub</strong> アカウントでログインしてコメントや議論に参加できます。',
+                'forum.live': '15秒ごとにライブ更新',
+                'forum.checking': '新しいコメントとリアクションを確認中...',
+                'forum.paused': '操作中はライブ更新を一時停止します',
+                'settings.eyebrow': 'アクセシビリティと外観',
+                'settings.title': 'UI設定',
+                'settings.description': '読みやすい表示にカスタマイズできます。設定はこの端末に自動保存されます。',
+                'settings.language': '言語',
+                'settings.fontFamily': 'フォントスタイル',
+                'settings.fontSize': 'フォントサイズ',
+                'settings.sizeSmall': '小',
+                'settings.sizeMedium': '中（既定）',
+                'settings.sizeLarge': '大',
+                'settings.sizeExtraLarge': '特大',
+                'settings.previewTitle': '読みやすさのプレビュー',
+                'settings.previewText': 'Belinda_AI は、どの端末でも会話やプロジェクト情報を理解しやすくします。',
+                'welcome.title': 'Belinda_AI へようこそ！',
+                'welcome.description': 'よりスマートな会話、便利なツール、快適な体験を提供する親しみやすい WhatsApp AI アシスタントです。',
+                'welcome.button': '探索を始める'
+            }
+        });
+
+        Object.assign(translations, {
+            ko: {
+                'nav.menu': '메뉴',
+                'nav.about': '프로젝트 소개',
+                'nav.features': '기능',
+                'nav.guide': 'AI 모드 가이드',
+                'nav.updates': '변경 기록',
+                'nav.forum': '포럼/블로그',
+                'nav.settings': '설정',
+                'about.eyebrow': 'WhatsApp 자동화 · 클라우드 + 로컬 AI',
+                'about.description': '자연스러운 대화, 그룹 자동화, 교육, 미디어 및 생산성을 위한 유연한 WhatsApp 도우미입니다. Belinda는 Groq 클라우드 AI 또는 로컬 Ollama 모델을 지원하며 채팅 유형에 맞게 동작합니다.',
+                'about.cloudReady': '클라우드 AI 준비됨',
+                'about.ollamaReady': 'Ollama 지원',
+                'about.multiplatform': '다중 플랫폼',
+                'about.github': 'GitHub에서 보기',
+                'about.setupGuide': 'AI 설정 가이드',
+                'about.uxTitle': '더 나은 UX를 위한 설계',
+                'about.uxDescription': '개인 채팅에서는 AI를 즉시 사용할 수 있고, 그룹에서는 관리자가 활성화할 때까지 꺼져 있습니다. 각 사용자는 다른 사용자에게 영향을 주지 않고 제공자를 선택할 수 있습니다.',
+                'about.contactTitle': '개인 연락처',
+                'about.contactDescription': 'AI가 자동으로 시작되어 빠르고 자연스럽게 응답합니다.',
+                'about.groupTitle': '그룹 채팅',
+                'about.groupDescription': '원하지 않는 응답을 방지하기 위해 AI는 기본적으로 꺼져 있습니다.',
+                'about.social': '소셜 미디어 및 연결',
+                'features.eyebrow': '프로젝트 기능',
+                'features.title': '채팅 그 이상의 기능',
+                'features.description': 'AI 대화, 커뮤니티 관리, 학습, 미디어 및 개발 작업을 하나의 봇에서 제공합니다.',
+                'features.providerTitle': '유연한 AI 제공자',
+                'features.providerDescription': '속도를 위한 Groq 클라우드 또는 제어와 개인정보 보호를 위한 로컬 Ollama를 선택하세요.',
+                'features.safetyTitle': '스마트 그룹 안전',
+                'features.safetyDescription': '그룹 AI는 기본적으로 꺼져 있으며 유해 언어, 링크, 스팸 방지 및 관리자 제어를 제공합니다.',
+                'features.educationTitle': '교육 및 게임',
+                'features.educationDescription': 'WhatsApp에서 맞춤형 퀴즈, AI 설명, 대화형 텍스트 게임 및 학습 도구를 제공합니다.',
+                'features.mediaTitle': '미디어 도구',
+                'features.mediaDescription': '음악, 동영상, 이미지를 다운로드하거나 기본 WhatsApp 환경으로 음성 메시지를 보낼 수 있습니다.',
+                'features.developerTitle': '개발자 유틸리티',
+                'features.developerDescription': '셸 스트리밍, 웹 검색, 스크립트, 문서, 스프레드시트, 프레젠테이션 및 3D 모델 생성을 지원합니다.',
+                'features.debugTitle': '관찰 및 디버깅',
+                'features.debugDescription': '채팅 내용을 노출하지 않고 상태 확인, 시작, 제공자, 요청 ID, 처리 시간 및 응답 크기를 기록합니다.',
+                'guide.eyebrow': '빠른 시작',
+                'guide.title': 'AI 모드 가이드',
+                'guide.description': 'ON/OFF 상태는 봇의 응답 여부를 결정하고 모드는 응답을 생성할 제공자를 선택합니다.',
+                'guide.commands': '필수 명령어',
+                'guide.statusTitle': '현재 상태 확인',
+                'guide.statusDescription': '채팅 유형, AI 상태 및 활성 제공자를 표시합니다.',
+                'guide.toggleTitle': 'AI 활성화 또는 비활성화',
+                'guide.toggleDescription': '그룹에서는 관리자만 이 명령을 사용할 수 있습니다.',
+                'guide.cloudTitle': '클라우드 AI 사용',
+                'guide.cloudDescription': 'Groq 백엔드를 사용하는 기본 제공자입니다.',
+                'guide.localTitle': '로컬 AI 사용',
+                'guide.localDescription': '기기에서 실행 중인 Ollama 모델을 사용합니다.',
+                'guide.ollamaTitle': 'Ollama 로컬 실행',
+                'guide.step1': '단계 01',
+                'guide.step2': '단계 02',
+                'guide.step3': '단계 03',
+                'guide.installModel': '모델 설치',
+                'guide.startOllama': 'Ollama 시작',
+                'guide.selectLocal': '로컬 모드 선택',
+                'guide.dockerNote': '<strong>Docker:</strong> 컨테이너에서 접근 가능한 Ollama URL(예: <code>http://host.docker.internal:11434</code>)을 사용하세요. 로컬 모드는 현재 텍스트 대화에 적용됩니다.',
+                'guide.healthTitle': '상태 확인 및 문제 해결',
+                'guide.healthDescription': '백엔드는 상태 확인 엔드포인트를 제공하며 브리지는 시작 시 클라우드와 Ollama 서비스를 확인합니다.',
+                'guide.troubleshooting': '<strong>CLOUD_UNAVAILABLE:</strong> <code>PYTHON_URL</code>을 확인하세요. <strong>OLLAMA_UNAVAILABLE:</strong> Ollama가 실행 중인지 확인하세요. <strong>OLLAMA_MODEL_MISSING:</strong> <code>OLLAMA_MODEL</code>에 설정된 모델을 다운로드하세요.',
+                'updates.title': '변경 기록',
+                'updates.v14': '사용자별 클라우드/로컬 모드, Ollama 지원, 연락처 및 그룹 스마트 기본값, 상태 엔드포인트, 개인정보 보호 AI 로그를 추가했습니다.',
+                'updates.v12': 'Liquid Glass 효과와 접근성 개선으로 인터페이스를 업데이트했습니다.',
+                'updates.v11': 'GitHub Discussions 기반 커뮤니티 포럼을 추가했습니다.',
+                'forum.title': '토론 포럼',
+                'forum.description': '<strong>GitHub</strong> 계정으로 로그인하여 댓글을 작성하거나 토론에 참여하세요.',
+                'forum.live': '15초마다 실시간 업데이트',
+                'forum.checking': '새 댓글과 반응을 확인하는 중...',
+                'forum.paused': '상호작용 중에는 실시간 업데이트가 일시 중지됩니다',
+                'settings.eyebrow': '접근성 및 모양',
+                'settings.title': 'UI 설정',
+                'settings.description': '편안하게 읽을 수 있도록 웹사이트를 맞춤 설정하세요. 설정은 이 기기에 자동 저장됩니다.',
+                'settings.language': '언어',
+                'settings.fontFamily': '글꼴 스타일',
+                'settings.fontSize': '글꼴 크기',
+                'settings.sizeSmall': '작게',
+                'settings.sizeMedium': '보통(기본값)',
+                'settings.sizeLarge': '크게',
+                'settings.sizeExtraLarge': '매우 크게',
+                'settings.previewTitle': '가독성 미리보기',
+                'settings.previewText': 'Belinda_AI는 모든 기기에서 대화와 프로젝트 정보를 더 쉽게 이해하도록 도와줍니다.',
+                'welcome.title': 'Belinda_AI에 오신 것을 환영합니다!',
+                'welcome.description': '더 스마트한 대화, 유용한 도구와 더 나은 경험을 제공하는 친근한 WhatsApp AI 도우미입니다.',
+                'welcome.button': '둘러보기'
+            },
+            ar: {
+                'nav.menu': 'القائمة',
+                'nav.about': 'عن المشروع',
+                'nav.features': 'الميزات',
+                'nav.guide': 'دليل وضع الذكاء الاصطناعي',
+                'nav.updates': 'سجل التغييرات',
+                'nav.forum': 'المنتدى/المدونة',
+                'nav.settings': 'الإعدادات',
+                'about.eyebrow': 'أتمتة WhatsApp · ذكاء اصطناعي سحابي ومحلي',
+                'about.description': 'مساعد WhatsApp مرن للمحادثات الطبيعية وأتمتة المجموعات والتعليم والوسائط والإنتاجية. يدعم Belinda ذكاء Groq السحابي أو نماذج Ollama المحلية مع سلوك ذكي لكل نوع من المحادثات.',
+                'about.cloudReady': 'الذكاء السحابي جاهز',
+                'about.ollamaReady': 'يدعم Ollama',
+                'about.multiplatform': 'متعدد المنصات',
+                'about.github': 'عرض على GitHub',
+                'about.setupGuide': 'دليل إعداد الذكاء الاصطناعي',
+                'about.uxTitle': 'مصمم لتجربة استخدام أفضل',
+                'about.uxDescription': 'يعمل الذكاء الاصطناعي مباشرة في المحادثات الخاصة، بينما يبقى متوقفاً في المجموعات حتى يفعّله المشرف. يمكن لكل مستخدم اختيار المزود بشكل مستقل.',
+                'about.contactTitle': 'محادثة خاصة',
+                'about.contactDescription': 'يبدأ الذكاء الاصطناعي تلقائياً لتقديم ردود سريعة وطبيعية.',
+                'about.groupTitle': 'محادثة جماعية',
+                'about.groupDescription': 'يبقى الذكاء الاصطناعي متوقفاً افتراضياً لمنع الردود غير المرغوبة.',
+                'about.social': 'التواصل الاجتماعي',
+                'features.eyebrow': 'قدرات المشروع',
+                'features.title': 'أكثر من مجرد محادثة',
+                'features.description': 'روبوت واحد لمحادثات الذكاء الاصطناعي وإدارة المجتمع والتعلم والوسائط وأعمال المطورين.',
+                'features.providerTitle': 'مزود ذكاء اصطناعي مرن',
+                'features.providerDescription': 'اختر Groq السحابي للسرعة أو Ollama المحلي لمزيد من التحكم والخصوصية.',
+                'features.safetyTitle': 'أمان ذكي للمجموعات',
+                'features.safetyDescription': 'الذكاء الاصطناعي متوقف افتراضياً في المجموعات مع حماية من الإساءة والروابط والرسائل المزعجة وتحكم المشرف.',
+                'features.educationTitle': 'التعليم والألعاب',
+                'features.educationDescription': 'اختبارات تكيفية وشروحات بالذكاء الاصطناعي وألعاب نصية تفاعلية وأدوات تعلم داخل WhatsApp.',
+                'features.mediaTitle': 'أدوات الوسائط',
+                'features.mediaDescription': 'تنزيل الموسيقى والفيديو والصور أو إرسال الرسائل الصوتية بتجربة WhatsApp أصلية.',
+                'features.developerTitle': 'أدوات المطور',
+                'features.developerDescription': 'بث الطرفية والبحث على الويب وتوليد النصوص البرمجية والمستندات والجداول والعروض والنماذج ثلاثية الأبعاد.',
+                'features.debugTitle': 'المراقبة وتصحيح الأخطاء',
+                'features.debugDescription': 'فحوصات الحالة وسجلات بدء التشغيل والمزود ومعرف الطلب والمدة وحجم الاستجابة دون كشف محتوى المحادثة.',
+                'guide.eyebrow': 'بدء سريع',
+                'guide.title': 'دليل وضع الذكاء الاصطناعي',
+                'guide.description': 'تحدد حالة التشغيل ما إذا كان الروبوت يرد، ويحدد الوضع المزود الذي ينشئ الاستجابة.',
+                'guide.commands': 'الأوامر الأساسية',
+                'guide.statusTitle': 'عرض الحالة الحالية',
+                'guide.statusDescription': 'يعرض نوع المحادثة وحالة الذكاء الاصطناعي والمزود النشط.',
+                'guide.toggleTitle': 'تشغيل أو إيقاف الذكاء الاصطناعي',
+                'guide.toggleDescription': 'في المجموعات، يتوفر هذا الأمر للمشرفين فقط.',
+                'guide.cloudTitle': 'استخدام الذكاء السحابي',
+                'guide.cloudDescription': 'المزود الافتراضي والمدعوم بخلفية Groq.',
+                'guide.localTitle': 'استخدام الذكاء المحلي',
+                'guide.localDescription': 'يستخدم نموذج Ollama يعمل على جهازك.',
+                'guide.ollamaTitle': 'تشغيل Ollama محلياً',
+                'guide.step1': 'الخطوة 01',
+                'guide.step2': 'الخطوة 02',
+                'guide.step3': 'الخطوة 03',
+                'guide.installModel': 'تثبيت نموذج',
+                'guide.startOllama': 'تشغيل Ollama',
+                'guide.selectLocal': 'اختيار الوضع المحلي',
+                'guide.dockerNote': '<strong>Docker:</strong> استخدم عنوان Ollama يمكن للحاوية الوصول إليه، مثل <code>http://host.docker.internal:11434</code>. ينطبق الوضع المحلي حالياً على المحادثات النصية.',
+                'guide.healthTitle': 'فحص الحالة وحل المشكلات',
+                'guide.healthDescription': 'توفر الخلفية نقطة لفحص الحالة، ويتحقق الجسر من خدمات السحابة وOllama عند بدء التشغيل.',
+                'guide.troubleshooting': '<strong>CLOUD_UNAVAILABLE:</strong> تحقق من <code>PYTHON_URL</code>. <strong>OLLAMA_UNAVAILABLE:</strong> تأكد من تشغيل Ollama. <strong>OLLAMA_MODEL_MISSING:</strong> نزّل النموذج المحدد في <code>OLLAMA_MODEL</code>.',
+                'updates.title': 'سجل التغييرات',
+                'updates.v14': 'إضافة أوضاع سحابية ومحلية لكل مستخدم ودعم Ollama والإعدادات الذكية للمحادثات ونقطة فحص الحالة وسجلات آمنة.',
+                'updates.v12': 'تحديث الواجهة بتأثيرات Liquid Glass وتحسينات إمكانية الوصول.',
+                'updates.v11': 'إضافة منتدى مجتمع يعمل عبر GitHub Discussions.',
+                'forum.title': 'منتدى النقاش',
+                'forum.description': 'سجّل الدخول بحساب <strong>GitHub</strong> للتعليق أو المشاركة في النقاش.',
+                'forum.live': 'تحديث مباشر كل 15 ثانية',
+                'forum.checking': 'جارٍ التحقق من التعليقات والتفاعلات الجديدة...',
+                'forum.paused': 'تم إيقاف التحديث المباشر أثناء تفاعلك',
+                'settings.eyebrow': 'إمكانية الوصول والمظهر',
+                'settings.title': 'إعدادات الواجهة',
+                'settings.description': 'خصص الموقع لقراءة مريحة. تُحفظ تفضيلاتك تلقائياً على هذا الجهاز.',
+                'settings.language': 'اللغة',
+                'settings.fontFamily': 'نمط الخط',
+                'settings.fontSize': 'حجم الخط',
+                'settings.sizeSmall': 'صغير',
+                'settings.sizeMedium': 'متوسط (افتراضي)',
+                'settings.sizeLarge': 'كبير',
+                'settings.sizeExtraLarge': 'كبير جداً',
+                'settings.previewTitle': 'معاينة سهولة القراءة',
+                'settings.previewText': 'يجعل Belinda_AI المحادثات ومعلومات المشروع أسهل للفهم على كل الأجهزة.',
+                'welcome.title': 'مرحباً بك في Belinda_AI!',
+                'welcome.description': 'مساعد WhatsApp ذكي وودود لمحادثات أذكى وأدوات مفيدة وتجربة أفضل.',
+                'welcome.button': 'ابدأ الاستكشاف'
+            }
+        });
+
+        Object.assign(translations, {
+            nl: {
+                'nav.menu': 'Menu',
+                'nav.about': 'Over het project',
+                'nav.features': 'Functies',
+                'nav.guide': 'AI-modusgids',
+                'nav.updates': 'Wijzigingslogboek',
+                'nav.forum': 'Forum/blog',
+                'nav.settings': 'Instellingen',
+                'about.eyebrow': 'WhatsApp-automatisering · Cloud + lokale AI',
+                'about.description': 'Een flexibele WhatsApp-assistent voor natuurlijke gesprekken, groepsautomatisering, onderwijs, media en productiviteit. Belinda ondersteunt Groq-cloud-AI of lokale Ollama-modellen met slim gedrag voor elk chattype.',
+                'about.cloudReady': 'Cloud-AI gereed',
+                'about.ollamaReady': 'Ollama ondersteund',
+                'about.multiplatform': 'Meerdere platforms',
+                'about.github': 'Bekijken op GitHub',
+                'about.setupGuide': 'AI-installatiegids',
+                'about.uxTitle': 'Ontworpen voor een betere UX',
+                'about.uxDescription': 'Privéchats kunnen AI direct gebruiken, terwijl AI in groepen uitgeschakeld blijft totdat een beheerder deze activeert. Elke gebruiker kan een provider kiezen zonder anderen te beïnvloeden.',
+                'about.contactTitle': 'Privécontact',
+                'about.contactDescription': 'AI start automatisch voor snelle en natuurlijke antwoorden.',
+                'about.groupTitle': 'Groepschat',
+                'about.groupDescription': 'AI staat standaard uit om ongewenste antwoorden te voorkomen.',
+                'about.social': 'Sociale media en contact',
+                'features.eyebrow': 'Projectmogelijkheden',
+                'features.title': 'Meer dan alleen chat',
+                'features.description': 'Eén bot voor AI-gesprekken, communitybeheer, leren, media en ontwikkelaarstaken.',
+                'features.providerTitle': 'Flexibele AI-provider',
+                'features.providerDescription': 'Kies Groq-cloud voor snelheid of lokale Ollama voor meer controle en privacy.',
+                'features.safetyTitle': 'Slimme groepsbeveiliging',
+                'features.safetyDescription': 'AI staat standaard uit in groepen, met bescherming tegen beledigingen, links en spam, plus beheerdersbediening.',
+                'features.educationTitle': 'Onderwijs en games',
+                'features.educationDescription': 'Adaptieve quizzen, AI-uitleg, interactieve tekstgames en leermiddelen binnen WhatsApp.',
+                'features.mediaTitle': 'Mediatools',
+                'features.mediaDescription': 'Download muziek, video en afbeeldingen of verstuur spraakberichten via een vertrouwde WhatsApp-ervaring.',
+                'features.developerTitle': 'Ontwikkelaarshulpmiddelen',
+                'features.developerDescription': 'Terminalstreaming, zoeken op het web en het genereren van scripts, documenten, spreadsheets, presentaties en 3D-modellen.',
+                'features.debugTitle': 'Observatie en foutopsporing',
+                'features.debugDescription': 'Statuscontroles en logboeken voor opstarten, provider, aanvraag-ID, duur en antwoordgrootte zonder chatinhoud te onthullen.',
+                'guide.eyebrow': 'Snel starten',
+                'guide.title': 'AI-modusgids',
+                'guide.description': 'De AAN/UIT-status bepaalt of de bot antwoordt; de modus bepaalt welke provider het antwoord genereert.',
+                'guide.commands': 'Belangrijkste opdrachten',
+                'guide.statusTitle': 'Huidige status bekijken',
+                'guide.statusDescription': 'Toont het chattype, de AI-status en de actieve provider.',
+                'guide.toggleTitle': 'AI in- of uitschakelen',
+                'guide.toggleDescription': 'In groepen is deze opdracht alleen beschikbaar voor beheerders.',
+                'guide.cloudTitle': 'Cloud-AI gebruiken',
+                'guide.cloudDescription': 'De standaardprovider, aangedreven door de Groq-back-end.',
+                'guide.localTitle': 'Lokale AI gebruiken',
+                'guide.localDescription': 'Gebruikt een Ollama-model dat op je apparaat draait.',
+                'guide.ollamaTitle': 'Ollama lokaal uitvoeren',
+                'guide.step1': 'Stap 01',
+                'guide.step2': 'Stap 02',
+                'guide.step3': 'Stap 03',
+                'guide.installModel': 'Een model installeren',
+                'guide.startOllama': 'Ollama starten',
+                'guide.selectLocal': 'Lokale modus selecteren',
+                'guide.dockerNote': '<strong>Docker:</strong> gebruik een Ollama-URL die de container kan bereiken, zoals <code>http://host.docker.internal:11434</code>. De lokale modus is momenteel van toepassing op tekstgesprekken.',
+                'guide.healthTitle': 'Statuscontrole en probleemoplossing',
+                'guide.healthDescription': 'De back-end biedt een statuscontrole-eindpunt en de bridge controleert cloud- en Ollama-services tijdens het opstarten.',
+                'guide.troubleshooting': '<strong>CLOUD_UNAVAILABLE:</strong> controleer <code>PYTHON_URL</code>. <strong>OLLAMA_UNAVAILABLE:</strong> controleer of Ollama actief is. <strong>OLLAMA_MODEL_MISSING:</strong> download het model dat in <code>OLLAMA_MODEL</code> is ingesteld.',
+                'updates.title': 'Wijzigingslogboek',
+                'updates.v14': 'Cloud- en lokale modi per gebruiker, Ollama-ondersteuning, slimme standaardwaarden voor chats, een status-eindpunt en privacyveilige AI-logboeken toegevoegd.',
+                'updates.v12': 'De interface bijgewerkt met Liquid Glass-effecten en verbeteringen voor toegankelijkheid.',
+                'updates.v11': 'Een communityforum toegevoegd, mogelijk gemaakt door GitHub Discussions.',
+                'forum.title': 'Discussieforum',
+                'forum.description': 'Meld je aan met een <strong>GitHub</strong>-account om te reageren of deel te nemen aan de discussie.',
+                'forum.live': 'Live-updates elke 15 seconden',
+                'forum.checking': 'Controleren op nieuwe reacties en emoji-reacties...',
+                'forum.paused': 'Live-updates zijn gepauzeerd terwijl je bezig bent',
+                'settings.eyebrow': 'Toegankelijkheid en uiterlijk',
+                'settings.title': 'UI-instellingen',
+                'settings.description': 'Pas de website aan voor comfortabel lezen. Je voorkeuren worden automatisch op dit apparaat opgeslagen.',
+                'settings.language': 'Taal',
+                'settings.fontFamily': 'Lettertype',
+                'settings.fontSize': 'Tekstgrootte',
+                'settings.sizeSmall': 'Klein',
+                'settings.sizeMedium': 'Gemiddeld (standaard)',
+                'settings.sizeLarge': 'Groot',
+                'settings.sizeExtraLarge': 'Extra groot',
+                'settings.previewTitle': 'Voorbeeld leesbaarheid',
+                'settings.previewText': 'Belinda_AI maakt gesprekken en projectinformatie gemakkelijker te begrijpen op elk apparaat.',
+                'welcome.title': 'Welkom bij Belinda_AI!',
+                'welcome.description': 'Je vriendelijke WhatsApp-AI-assistent voor slimmere gesprekken, handige tools en een betere ervaring.',
+                'welcome.button': 'Begin met verkennen'
+            },
+            es: {
+                'nav.menu': 'Menú',
+                'nav.about': 'Sobre el proyecto',
+                'nav.features': 'Funciones',
+                'nav.guide': 'Guía del modo IA',
+                'nav.updates': 'Registro de cambios',
+                'nav.forum': 'Foro/blog',
+                'nav.settings': 'Configuración',
+                'about.eyebrow': 'Automatización de WhatsApp · IA en la nube + local',
+                'about.description': 'Un asistente flexible de WhatsApp para conversaciones naturales, automatización de grupos, educación, contenido multimedia y productividad. Belinda admite la IA en la nube de Groq o modelos locales de Ollama con un comportamiento inteligente para cada tipo de chat.',
+                'about.cloudReady': 'IA en la nube lista',
+                'about.ollamaReady': 'Compatible con Ollama',
+                'about.multiplatform': 'Multiplataforma',
+                'about.github': 'Ver en GitHub',
+                'about.setupGuide': 'Guía de configuración de IA',
+                'about.uxTitle': 'Diseñado para una mejor experiencia',
+                'about.uxDescription': 'Los chats directos pueden usar la IA de inmediato, mientras que en los grupos permanece desactivada hasta que un administrador la habilita. Cada usuario puede elegir un proveedor sin afectar a los demás.',
+                'about.contactTitle': 'Contacto directo',
+                'about.contactDescription': 'La IA se inicia automáticamente para ofrecer respuestas rápidas y naturales.',
+                'about.groupTitle': 'Chat grupal',
+                'about.groupDescription': 'La IA está desactivada de forma predeterminada para evitar respuestas no deseadas.',
+                'about.social': 'Redes sociales y contacto',
+                'features.eyebrow': 'Capacidades del proyecto',
+                'features.title': 'Más que un simple chat',
+                'features.description': 'Un solo bot para conversaciones con IA, gestión de comunidades, aprendizaje, contenido multimedia y tareas de desarrollo.',
+                'features.providerTitle': 'Proveedor de IA flexible',
+                'features.providerDescription': 'Elige Groq en la nube para mayor velocidad u Ollama local para tener más control y privacidad.',
+                'features.safetyTitle': 'Seguridad inteligente para grupos',
+                'features.safetyDescription': 'La IA está desactivada de forma predeterminada en los grupos, con protección contra lenguaje ofensivo, enlaces y spam, además de controles de administrador.',
+                'features.educationTitle': 'Educación y juegos',
+                'features.educationDescription': 'Cuestionarios adaptativos, explicaciones con IA, juegos de texto interactivos y herramientas de aprendizaje dentro de WhatsApp.',
+                'features.mediaTitle': 'Herramientas multimedia',
+                'features.mediaDescription': 'Descarga música, videos e imágenes o envía mensajes de voz con una experiencia nativa de WhatsApp.',
+                'features.developerTitle': 'Herramientas para desarrolladores',
+                'features.developerDescription': 'Transmisión de terminal, búsqueda web y generación de scripts, documentos, hojas de cálculo, presentaciones y modelos 3D.',
+                'features.debugTitle': 'Observabilidad y depuración',
+                'features.debugDescription': 'Comprobaciones de estado y registros de inicio, proveedor, ID de solicitud, duración y tamaño de respuesta sin exponer el contenido del chat.',
+                'guide.eyebrow': 'Inicio rápido',
+                'guide.title': 'Guía del modo IA',
+                'guide.description': 'El estado ACTIVADO/DESACTIVADO decide si el bot responde; el modo selecciona el proveedor que genera la respuesta.',
+                'guide.commands': 'Comandos esenciales',
+                'guide.statusTitle': 'Ver el estado actual',
+                'guide.statusDescription': 'Muestra el tipo de chat, el estado de la IA y el proveedor activo.',
+                'guide.toggleTitle': 'Activar o desactivar la IA',
+                'guide.toggleDescription': 'En los grupos, este comando solo está disponible para administradores.',
+                'guide.cloudTitle': 'Usar IA en la nube',
+                'guide.cloudDescription': 'El proveedor predeterminado, impulsado por el backend de Groq.',
+                'guide.localTitle': 'Usar IA local',
+                'guide.localDescription': 'Utiliza un modelo de Ollama que se ejecuta en tu dispositivo.',
+                'guide.ollamaTitle': 'Ejecutar Ollama localmente',
+                'guide.step1': 'Paso 01',
+                'guide.step2': 'Paso 02',
+                'guide.step3': 'Paso 03',
+                'guide.installModel': 'Instalar un modelo',
+                'guide.startOllama': 'Iniciar Ollama',
+                'guide.selectLocal': 'Seleccionar el modo local',
+                'guide.dockerNote': '<strong>Docker:</strong> usa una URL de Ollama accesible desde el contenedor, como <code>http://host.docker.internal:11434</code>. Actualmente, el modo local se aplica a las conversaciones de texto.',
+                'guide.healthTitle': 'Estado y solución de problemas',
+                'guide.healthDescription': 'El backend proporciona un punto de comprobación de estado y el puente verifica los servicios de la nube y Ollama durante el inicio.',
+                'guide.troubleshooting': '<strong>CLOUD_UNAVAILABLE:</strong> comprueba <code>PYTHON_URL</code>. <strong>OLLAMA_UNAVAILABLE:</strong> asegúrate de que Ollama esté en ejecución. <strong>OLLAMA_MODEL_MISSING:</strong> descarga el modelo configurado en <code>OLLAMA_MODEL</code>.',
+                'updates.title': 'Registro de cambios',
+                'updates.v14': 'Se añadieron modos en la nube y local por usuario, compatibilidad con Ollama, valores predeterminados inteligentes para chats, un punto de estado y registros de IA que protegen la privacidad.',
+                'updates.v12': 'Se actualizó la interfaz con efectos Liquid Glass y mejoras de accesibilidad.',
+                'updates.v11': 'Se añadió un foro comunitario impulsado por GitHub Discussions.',
+                'forum.title': 'Foro de discusión',
+                'forum.description': 'Inicia sesión con una cuenta de <strong>GitHub</strong> para comentar o participar en la discusión.',
+                'forum.live': 'Actualizaciones en vivo cada 15 segundos',
+                'forum.checking': 'Buscando nuevos comentarios y reacciones...',
+                'forum.paused': 'Las actualizaciones en vivo están en pausa mientras interactúas',
+                'settings.eyebrow': 'Accesibilidad y apariencia',
+                'settings.title': 'Configuración de la interfaz',
+                'settings.description': 'Personaliza el sitio web para leer cómodamente. Tus preferencias se guardan automáticamente en este dispositivo.',
+                'settings.language': 'Idioma',
+                'settings.fontFamily': 'Estilo de fuente',
+                'settings.fontSize': 'Tamaño de fuente',
+                'settings.sizeSmall': 'Pequeño',
+                'settings.sizeMedium': 'Mediano (predeterminado)',
+                'settings.sizeLarge': 'Grande',
+                'settings.sizeExtraLarge': 'Extra grande',
+                'settings.previewTitle': 'Vista previa de legibilidad',
+                'settings.previewText': 'Belinda_AI facilita la comprensión de las conversaciones y la información del proyecto en cualquier dispositivo.',
+                'welcome.title': '¡Bienvenido a Belinda_AI!',
+                'welcome.description': 'Tu amigable asistente de IA para WhatsApp, con conversaciones más inteligentes, herramientas útiles y una mejor experiencia.',
+                'welcome.button': 'Comenzar a explorar'
+            },
+            pt: {
+                'nav.menu': 'Menu',
+                'nav.about': 'Sobre o projeto',
+                'nav.features': 'Recursos',
+                'nav.guide': 'Guia do modo de IA',
+                'nav.updates': 'Registro de alterações',
+                'nav.forum': 'Fórum/blog',
+                'nav.settings': 'Configurações',
+                'about.eyebrow': 'Automação do WhatsApp · IA na nuvem + local',
+                'about.description': 'Um assistente flexível para WhatsApp com conversas naturais, automação de grupos, educação, mídia e produtividade. A Belinda oferece suporte à IA na nuvem da Groq ou a modelos locais do Ollama, com comportamento inteligente para cada tipo de conversa.',
+                'about.cloudReady': 'IA na nuvem pronta',
+                'about.ollamaReady': 'Compatível com Ollama',
+                'about.multiplatform': 'Multiplataforma',
+                'about.github': 'Ver no GitHub',
+                'about.setupGuide': 'Guia de configuração da IA',
+                'about.uxTitle': 'Projetado para uma experiência melhor',
+                'about.uxDescription': 'As conversas diretas podem usar a IA imediatamente, enquanto ela permanece desativada nos grupos até que um administrador a habilite. Cada usuário pode escolher um provedor sem afetar os outros.',
+                'about.contactTitle': 'Contato direto',
+                'about.contactDescription': 'A IA inicia automaticamente para fornecer respostas rápidas e naturais.',
+                'about.groupTitle': 'Conversa em grupo',
+                'about.groupDescription': 'A IA fica desativada por padrão para evitar respostas indesejadas.',
+                'about.social': 'Redes sociais e contato',
+                'features.eyebrow': 'Recursos do projeto',
+                'features.title': 'Mais do que apenas conversa',
+                'features.description': 'Um único bot para conversas com IA, gerenciamento de comunidades, aprendizado, mídia e tarefas de desenvolvimento.',
+                'features.providerTitle': 'Provedor de IA flexível',
+                'features.providerDescription': 'Escolha a Groq na nuvem para obter velocidade ou o Ollama local para ter mais controle e privacidade.',
+                'features.safetyTitle': 'Segurança inteligente para grupos',
+                'features.safetyDescription': 'A IA fica desativada por padrão nos grupos, com proteção contra linguagem ofensiva, links e spam, além de controles de administrador.',
+                'features.educationTitle': 'Educação e jogos',
+                'features.educationDescription': 'Questionários adaptativos, explicações com IA, jogos de texto interativos e ferramentas de aprendizagem no WhatsApp.',
+                'features.mediaTitle': 'Ferramentas de mídia',
+                'features.mediaDescription': 'Baixe músicas, vídeos e imagens ou envie mensagens de voz com uma experiência nativa do WhatsApp.',
+                'features.developerTitle': 'Ferramentas para desenvolvedores',
+                'features.developerDescription': 'Transmissão de terminal, pesquisa na web e geração de scripts, documentos, planilhas, apresentações e modelos 3D.',
+                'features.debugTitle': 'Observabilidade e depuração',
+                'features.debugDescription': 'Verificações de integridade e registros de inicialização, provedor, ID da solicitação, duração e tamanho da resposta sem expor o conteúdo da conversa.',
+                'guide.eyebrow': 'Início rápido',
+                'guide.title': 'Guia do modo de IA',
+                'guide.description': 'O status ATIVADO/DESATIVADO define se o bot responde; o modo seleciona o provedor que gera a resposta.',
+                'guide.commands': 'Comandos essenciais',
+                'guide.statusTitle': 'Ver o status atual',
+                'guide.statusDescription': 'Mostra o tipo de conversa, o status da IA e o provedor ativo.',
+                'guide.toggleTitle': 'Ativar ou desativar a IA',
+                'guide.toggleDescription': 'Nos grupos, este comando está disponível apenas para administradores.',
+                'guide.cloudTitle': 'Usar IA na nuvem',
+                'guide.cloudDescription': 'O provedor padrão, operado pelo backend da Groq.',
+                'guide.localTitle': 'Usar IA local',
+                'guide.localDescription': 'Utiliza um modelo do Ollama em execução no seu dispositivo.',
+                'guide.ollamaTitle': 'Executar o Ollama localmente',
+                'guide.step1': 'Etapa 01',
+                'guide.step2': 'Etapa 02',
+                'guide.step3': 'Etapa 03',
+                'guide.installModel': 'Instalar um modelo',
+                'guide.startOllama': 'Iniciar o Ollama',
+                'guide.selectLocal': 'Selecionar o modo local',
+                'guide.dockerNote': '<strong>Docker:</strong> use uma URL do Ollama acessível pelo contêiner, como <code>http://host.docker.internal:11434</code>. Atualmente, o modo local se aplica às conversas de texto.',
+                'guide.healthTitle': 'Integridade e solução de problemas',
+                'guide.healthDescription': 'O backend fornece um endpoint de integridade, e a ponte verifica os serviços da nuvem e do Ollama durante a inicialização.',
+                'guide.troubleshooting': '<strong>CLOUD_UNAVAILABLE:</strong> verifique <code>PYTHON_URL</code>. <strong>OLLAMA_UNAVAILABLE:</strong> confirme se o Ollama está em execução. <strong>OLLAMA_MODEL_MISSING:</strong> baixe o modelo configurado em <code>OLLAMA_MODEL</code>.',
+                'updates.title': 'Registro de alterações',
+                'updates.v14': 'Adição de modos na nuvem e local por usuário, suporte ao Ollama, padrões inteligentes para conversas, endpoint de integridade e registros de IA que preservam a privacidade.',
+                'updates.v12': 'Atualização da interface com efeitos Liquid Glass e melhorias de acessibilidade.',
+                'updates.v11': 'Adição de um fórum comunitário com tecnologia do GitHub Discussions.',
+                'forum.title': 'Fórum de discussão',
+                'forum.description': 'Entre com uma conta do <strong>GitHub</strong> para comentar ou participar da discussão.',
+                'forum.live': 'Atualizações em tempo real a cada 15 segundos',
+                'forum.checking': 'Verificando novos comentários e reações...',
+                'forum.paused': 'As atualizações em tempo real estão pausadas enquanto você interage',
+                'settings.eyebrow': 'Acessibilidade e aparência',
+                'settings.title': 'Configurações da interface',
+                'settings.description': 'Personalize o site para uma leitura confortável. Suas preferências são salvas automaticamente neste dispositivo.',
+                'settings.language': 'Idioma',
+                'settings.fontFamily': 'Estilo da fonte',
+                'settings.fontSize': 'Tamanho da fonte',
+                'settings.sizeSmall': 'Pequeno',
+                'settings.sizeMedium': 'Médio (padrão)',
+                'settings.sizeLarge': 'Grande',
+                'settings.sizeExtraLarge': 'Extragrande',
+                'settings.previewTitle': 'Prévia de legibilidade',
+                'settings.previewText': 'A Belinda_AI facilita a compreensão das conversas e das informações do projeto em qualquer dispositivo.',
+                'welcome.title': 'Boas-vindas à Belinda_AI!',
+                'welcome.description': 'Sua amigável assistente de IA para WhatsApp, com conversas mais inteligentes, ferramentas úteis e uma experiência melhor.',
+                'welcome.button': 'Começar a explorar'
+            }
+        });
+
+        function loadPreferences() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('belindaUiPreferences') || '{}');
+                return { ...defaultPreferences, ...saved };
+            } catch (error) {
+                console.warn('Unable to load UI preferences:', error);
+                return { ...defaultPreferences };
+            }
+        }
+
+        let preferences = loadPreferences();
+
+        function translate(key) {
+            return translations[preferences.language]?.[key] || translations.en[key] || key;
+        }
+
+        function applyLanguage() {
+            document.documentElement.lang = preferences.language;
+            document.documentElement.dir = preferences.language === 'ar' ? 'rtl' : 'ltr';
+            document.querySelectorAll('[data-i18n]').forEach((element) => {
+                element.innerHTML = translate(element.dataset.i18n);
+            });
+            updateGiscusTheme(document.body.classList.contains('light-mode'));
+        }
+
+        function applyPreferences() {
+            if (!translations[preferences.language]) preferences.language = defaultPreferences.language;
+            if (!fontFamilies[preferences.fontFamily]) preferences.fontFamily = defaultPreferences.fontFamily;
+            if (!['14', '16', '18', '20'].includes(preferences.fontSize)) preferences.fontSize = defaultPreferences.fontSize;
+
+            document.documentElement.style.fontSize = `${preferences.fontSize}px`;
+            document.documentElement.style.setProperty('--font-family', fontFamilies[preferences.fontFamily]);
+            document.getElementById('language-select').value = preferences.language;
+            document.getElementById('font-family-select').value = preferences.fontFamily;
+            document.getElementById('font-size-select').value = preferences.fontSize;
+            applyLanguage();
+        }
+
+        function updatePreference(key, value) {
+            preferences = { ...preferences, [key]: value };
+            applyPreferences();
+            try {
+                localStorage.setItem('belindaUiPreferences', JSON.stringify(preferences));
+            } catch (error) {
+                console.warn('Unable to save UI preferences:', error);
+            }
+        }
+
+        function showWelcomeModal() {
+            const navigationEntry = performance.getEntriesByType('navigation')[0];
+            const isPageRefresh = navigationEntry?.type === 'reload';
+
+            try {
+                const alreadyShown = sessionStorage.getItem('belindaWelcomeShown') === 'true';
+                if (alreadyShown || isPageRefresh) return;
+                sessionStorage.setItem('belindaWelcomeShown', 'true');
+            } catch (error) {
+                console.warn('Unable to store welcome popup state:', error);
+                if (isPageRefresh) return;
+            }
+
+            const modal = document.getElementById('welcome-modal');
+            modal.hidden = false;
+            document.body.classList.add('welcome-open');
+            document.getElementById('welcome-close').focus();
+        }
+
+        function closeWelcomeModal(event) {
+            const modal = document.getElementById('welcome-modal');
+            if (event && event.target !== modal) return;
+            modal.hidden = true;
+            document.body.classList.remove('welcome-open');
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !document.getElementById('welcome-modal').hidden) {
+                closeWelcomeModal();
+            }
+        });
 
         // Initialize Lucide Icons
         lucide.createIcons();
@@ -577,15 +1672,31 @@
             if (!iframe) return;
 
             const theme = isLight ? 'light' : darkGiscusTheme;
-            if (iframe.dataset.activeTheme === theme) return;
+            const giscusLanguages = {
+                en: 'en',
+                id: 'id',
+                'zh-CN': 'zh-CN',
+                ja: 'ja',
+                ko: 'ko',
+                ar: 'ar',
+                nl: 'nl',
+                es: 'es',
+                pt: 'pt'
+            };
+            const language = giscusLanguages[preferences.language] || 'en';
+            if (iframe.dataset.activeTheme === theme && iframe.dataset.activeLanguage === language) return;
 
             iframe.dataset.activeTheme = theme;
-            iframe.contentWindow.postMessage({ giscus: { setConfig: { theme } } }, 'https://giscus.app');
+            iframe.dataset.activeLanguage = language;
+            iframe.contentWindow.postMessage({ giscus: { setConfig: { theme, lang: language } } }, 'https://giscus.app');
         }
 
-        function setGiscusLiveStatus(message) {
+        function setGiscusLiveStatus(key) {
             const status = document.getElementById('giscus-live-status');
-            if (status) status.textContent = message;
+            if (status) {
+                status.dataset.i18n = key;
+                status.textContent = translate(key);
+            }
         }
 
         function refreshGiscus() {
@@ -594,11 +1705,11 @@
             if (!forum?.classList.contains('active') || !iframe || document.hidden) return;
 
             if (document.activeElement === iframe) {
-                setGiscusLiveStatus('Live updates paused while you interact');
+                setGiscusLiveStatus('forum.paused');
                 return;
             }
 
-            setGiscusLiveStatus('Checking for new comments and reactions...');
+            setGiscusLiveStatus('forum.checking');
             const isLight = document.body.classList.contains('light-mode');
             const theme = isLight ? 'light' : darkGiscusTheme;
             const src = new URL(iframe.src);
@@ -606,7 +1717,7 @@
             src.searchParams.set('_refresh', Date.now().toString());
             iframe.dataset.activeTheme = theme;
             iframe.addEventListener('load', () => {
-                setGiscusLiveStatus('Live updates every 15 seconds');
+                setGiscusLiveStatus('forum.live');
             }, { once: true });
             iframe.src = src.href;
         }
@@ -621,6 +1732,8 @@
             if (!document.hidden) refreshGiscus();
         });
         window.setInterval(refreshGiscus, giscusRefreshIntervalMs);
+        applyPreferences();
+        showWelcomeModal();
 
         // Sidebar Toggle
         function toggleSidebar() {
@@ -654,13 +1767,89 @@
             updateGiscusTheme(isLight);
         }
 
-        // Smooth Blob Movement (Parallax Effect)
+        // Mouse and stylus effects ignore touch input and respect reduced-motion preferences.
         const blob = document.getElementById('dynamicBlob');
-        document.addEventListener('mousemove', (e) => {
-            const x = (e.clientX - window.innerWidth / 2) / 15;
-            const y = (e.clientY - window.innerHeight / 2) / 15;
-            blob.style.transform = `translate(${x}px, ${y}px)`;
-        });
+        const pointerEffectsEnabled = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        if (pointerEffectsEnabled) {
+            let pointerFrame;
+            let pointerX = window.innerWidth / 2;
+            let pointerY = window.innerHeight / 2;
+            let previousTrailX = pointerX;
+            let previousTrailY = pointerY;
+            let trailIndex = 0;
+            let trailParticles = [];
+
+            function isSupportedPointer(event) {
+                return event.pointerType === 'mouse' || event.pointerType === 'pen';
+            }
+
+            function ensureTrailParticles() {
+                if (trailParticles.length) return;
+                trailParticles = Array.from({ length: 18 }, () => {
+                    const particle = document.createElement('span');
+                    particle.className = 'mouse-trail';
+                    particle.setAttribute('aria-hidden', 'true');
+                    document.body.appendChild(particle);
+                    return particle;
+                });
+            }
+
+            function emitTrailParticle(x, y) {
+                if (Math.hypot(x - previousTrailX, y - previousTrailY) < 10) return;
+
+                ensureTrailParticles();
+                const particle = trailParticles[trailIndex];
+                trailIndex = (trailIndex + 1) % trailParticles.length;
+                previousTrailX = x;
+                previousTrailY = y;
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.getAnimations().forEach((animation) => animation.cancel());
+                particle.animate([
+                    { opacity: 0.8, transform: 'translate(-50%, -50%) scale(1)' },
+                    { opacity: 0, transform: 'translate(-50%, -50%) scale(0.15)' }
+                ], {
+                    duration: 520,
+                    easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                    fill: 'forwards'
+                });
+            }
+
+            document.addEventListener('pointermove', (event) => {
+                if (!isSupportedPointer(event)) return;
+                document.body.classList.add('pointer-effects-active');
+                pointerX = event.clientX;
+                pointerY = event.clientY;
+                if (pointerFrame) return;
+
+                pointerFrame = window.requestAnimationFrame(() => {
+                    document.documentElement.style.setProperty('--mouse-x', `${pointerX}px`);
+                    document.documentElement.style.setProperty('--mouse-y', `${pointerY}px`);
+                    const blobX = (pointerX - window.innerWidth / 2) / 15;
+                    const blobY = (pointerY - window.innerHeight / 2) / 15;
+                    blob.style.transform = `translate(${blobX}px, ${blobY}px)`;
+                    emitTrailParticle(pointerX, pointerY);
+                    pointerFrame = null;
+                });
+            }, { passive: true });
+
+            document.querySelectorAll('.glass-card').forEach((card) => {
+                card.addEventListener('pointermove', (event) => {
+                    if (!isSupportedPointer(event)) return;
+                    const bounds = card.getBoundingClientRect();
+                    const rotateX = ((event.clientY - bounds.top) / bounds.height - 0.5) * -3;
+                    const rotateY = ((event.clientX - bounds.left) / bounds.width - 0.5) * 3;
+                    card.style.setProperty('--tilt-x', `${rotateX.toFixed(2)}deg`);
+                    card.style.setProperty('--tilt-y', `${rotateY.toFixed(2)}deg`);
+                }, { passive: true });
+
+                card.addEventListener('pointerleave', () => {
+                    card.style.setProperty('--tilt-x', '0deg');
+                    card.style.setProperty('--tilt-y', '0deg');
+                });
+            });
+        }
     </script>
 </body>
 </html>
