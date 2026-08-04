@@ -58,6 +58,7 @@ temp_voice_*
 # Chat History / Logs
 # ==========================
 chat_history.json
+ai_modes.json
 
 # ==========================
 # VS Code / IDE

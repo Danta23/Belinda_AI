@@ -39,9 +39,10 @@
 
 ### 🧠 Intelligence & Conversation
 - **Groq AI Integration**: Lightning-fast, intelligent conversations using Llama 3 models.
+- **Flexible AI Mode**: Switch per user between cloud AI and a local Ollama model using `!mode cloud` or `!mode local`.
 - **Voice Note Support**: Send Voice Notes to the bot to get transcribed AI-generated replies when AI mode is ON.
 - **Context Awareness**: Remembers recent chat history for more natural responses.
-- **Default-OFF Logic**: AI is disabled by default for privacy; activate it per-chat using `!bot`.
+- **Smart AI Defaults**: AI starts automatically for direct contacts and stays off by default in groups; admins can toggle it per chat using `!bot`.
 
 ### 💻 System & Developer Tools
 - **Real-time Shell Executor**: Execute terminal commands directly from WhatsApp.
@@ -190,6 +191,9 @@ FLASK_PORT=8000
 # Use http://localhost:8000 for Docker, http://127.0.0.1:8000 for Local
 PYTHON_URL=http://localhost:8000
 SESSION_NAME=auth_info
+OLLAMA_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=llama3.2
+OLLAMA_TIMEOUT_MS=120000
 
 # --- Connection Tuning ---
 BRIDGE_HOST=127.0.0.1

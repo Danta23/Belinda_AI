@@ -31,6 +31,129 @@ const toxicWords = [
     'anying', 'anyink', 'goblog', 'belegug', 'sia', 'sia mah', 'maneh', 'kebluk', 'modar', 'kokod', 'beungeut', 'gejul', 'boro'
 ];
 const pythonUrl = process.env.PYTHON_URL || 'http://127.0.0.1:8001';
+const ollamaUrl = (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
+const ollamaModel = process.env.OLLAMA_MODEL || 'llama3.2';
+const ollamaTimeoutMs = Number.parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10);
+let aiRequestSequence = 0;
+
+function logAi(level, event, details = '') {
+    const suffix = details ? ` | ${details}` : '';
+    console[level](`[${new Date().toISOString()}] [AI] [${event}]${suffix}`);
+}
+
+function getAxiosErrorDetails(error) {
+    const status = error.response?.status;
+    const code = error.code;
+    return [
+        status ? `HTTP ${status}` : null,
+        code || null,
+        error.message
+    ].filter(Boolean).join(' | ');
+}
+
+async function checkAiServices() {
+    logAi('log', 'STARTUP', `cloud=${pythonUrl} | ollama=${ollamaUrl} | model=${ollamaModel}`);
+    logAi('log', 'DEFAULTS', 'contact=ON | group=OFF | response_mode=CLOUD');
+
+    try {
+        const response = await axios.get(`${pythonUrl}/health`, { timeout: 5000 });
+        logAi('log', 'CLOUD_READY', `status=${response.data?.status || 'ok'}`);
+    } catch (e) {
+        logAi('warn', 'CLOUD_UNAVAILABLE', getAxiosErrorDetails(e));
+    }
+
+    try {
+        const response = await axios.get(`${ollamaUrl}/api/tags`, { timeout: 5000 });
+        const models = Array.isArray(response.data?.models)
+            ? response.data.models.map(model => model.name)
+            : [];
+        const modelReady = models.some(name => name === ollamaModel || name === `${ollamaModel}:latest`);
+        if (modelReady) {
+            logAi('log', 'OLLAMA_READY', `model=${ollamaModel}`);
+        } else {
+            logAi('warn', 'OLLAMA_MODEL_MISSING', `model=${ollamaModel} | run: ollama pull ${ollamaModel}`);
+        }
+    } catch (e) {
+        logAi('warn', 'OLLAMA_UNAVAILABLE', getAxiosErrorDetails(e));
+    }
+}
+
+// --- AI RESPONSE MODE ---
+const aiModeFile = 'ai_modes.json';
+function loadAiModes() {
+    if (!fs.existsSync(aiModeFile)) return {};
+
+    try {
+        const data = JSON.parse(fs.readFileSync(aiModeFile, 'utf8'));
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+        return Object.fromEntries(
+            Object.entries(data).filter(([, mode]) => mode === 'local' || mode === 'cloud')
+        );
+    } catch (e) {
+        console.error(`Error loading AI modes: ${e.message}`);
+        return {};
+    }
+}
+
+function saveAiModes(modes) {
+    fs.writeFileSync(aiModeFile, JSON.stringify(modes, null, 2));
+}
+
+const aiModes = loadAiModes();
+const localConversations = {};
+
+function getAiMode(userId) {
+    return aiModes[userId] || 'cloud';
+}
+
+async function getTextAiResponse(sender, userId, message) {
+    const mode = getAiMode(userId);
+    const requestId = `${Date.now().toString(36)}-${++aiRequestSequence}`;
+    const startedAt = Date.now();
+    logAi('log', 'REQUEST', `id=${requestId} | mode=${mode} | input_chars=${message.length}`);
+
+    try {
+        let reply;
+        if (mode === 'cloud') {
+            const response = await axios.post(`${pythonUrl}/chat`, { sender, msg: message });
+            reply = response.data;
+        } else {
+            const systemPrompt = `You are ${process.env.AI_NAME || 'Belinda AI'}, ${process.env.AI_PERSONALITY || 'an intelligent assistant created by Studio 234 (Danta)'}.`;
+            const conversation = localConversations[userId] || [];
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                ...conversation,
+                { role: 'user', content: message }
+            ];
+            const response = await axios.post(`${ollamaUrl}/api/chat`, {
+                model: ollamaModel,
+                messages,
+                stream: false
+            }, {
+                timeout: Number.isFinite(ollamaTimeoutMs) ? ollamaTimeoutMs : 120000
+            });
+            reply = response.data?.message?.content;
+
+            if (reply && typeof reply === 'string') {
+                localConversations[userId] = [
+                    ...conversation,
+                    { role: 'user', content: message },
+                    { role: 'assistant', content: reply }
+                ].slice(-20);
+            }
+        }
+
+        if (!reply || typeof reply !== 'string') {
+            throw new Error(`${mode} AI returned an empty response`);
+        }
+
+        logAi('log', 'RESPONSE', `id=${requestId} | duration_ms=${Date.now() - startedAt} | output_chars=${reply.length}`);
+        return reply;
+    } catch (e) {
+        logAi('error', 'REQUEST_FAILED', `id=${requestId} | duration_ms=${Date.now() - startedAt} | ${getAxiosErrorDetails(e)}`);
+        throw e;
+    }
+}
 
 // --- CHAT HISTORY ---
 const historyFile = 'chat_history.json';
@@ -104,6 +227,7 @@ function normalizeText(str) {
 async function connectWA() {
     console.log("⏳ Starting connection in 5 seconds to wait for network...");
     await new Promise(resolve => setTimeout(resolve, 5000));
+    await checkAiServices();
 
     const { state, saveCreds } = await useMultiFileAuthState(process.env.SESSION_NAME || 'auth_info');
 
@@ -1483,6 +1607,7 @@ async function connectWA() {
                         `📜 !rules (Group Rules)\n` +
                         `✨ !font {teks}\n` +
                         `ℹ️ !info (AI Status)\n` +
+                        `🧠 !mode {local|cloud} (AI provider)\n` +
                         `📝 !log (Recent logs)\n\n` +
                         `*Education (Quiz):*\n` +
                         `📝 !quiz [amount] [mapel] [level]\n` +
@@ -1584,14 +1709,48 @@ async function connectWA() {
 
             if (cmd === '!bot') {
                 if (!(await isAdmin())) return;
-                const res = await axios.post(`${pythonUrl}/status`, { sender, action: "toggle" });
+                const res = await axios.post(`${pythonUrl}/status`, { sender, action: "toggle", is_group: isGroup });
                 return sock.sendMessage(sender, { text: `🤖 AI: ${res.data.active ? 'ON' : 'OFF'}` });
             }
 
-            if (cmd === '!info') {
-                const res = await axios.post(`${pythonUrl}/status`, { sender, action: "get" });
+            if (cmd === '!mode') {
+                const mode = args[1]?.toLowerCase();
+                if (!mode) {
+                    return sock.sendMessage(sender, {
+                        text: `🧠 AI mode: *${getAiMode(participant).toUpperCase()}*\n\nUsage: *!mode local* or *!mode cloud*`
+                    });
+                }
+                if (mode !== 'local' && mode !== 'cloud') {
+                    return sock.sendMessage(sender, { text: "❌ Invalid mode. Use *!mode local* or *!mode cloud*." });
+                }
+
+                const previousMode = aiModes[participant];
+                aiModes[participant] = mode;
+                try {
+                    saveAiModes(aiModes);
+                } catch (e) {
+                    if (previousMode) {
+                        aiModes[participant] = previousMode;
+                    } else {
+                        delete aiModes[participant];
+                    }
+                    console.error(`Error saving AI mode: ${e.message}`);
+                    return sock.sendMessage(sender, { text: "❌ Failed to save the AI mode. Please check the bot's file permissions." });
+                }
+                if (mode === 'cloud') delete localConversations[participant];
+
+                const provider = mode === 'local'
+                    ? `Ollama (${ollamaModel})`
+                    : 'current cloud AI';
                 return sock.sendMessage(sender, {
-                    text: `*ℹ️ STATUS*\nAI: ${res.data.active ? 'ON ✅' : 'OFF ❌'}\nQuiz: Active ✅`
+                    text: `✅ AI mode changed to *${mode.toUpperCase()}*.\nResponses will now use ${provider}.`
+                });
+            }
+
+            if (cmd === '!info') {
+                const res = await axios.post(`${pythonUrl}/status`, { sender, action: "get", is_group: isGroup });
+                return sock.sendMessage(sender, {
+                    text: `*ℹ️ STATUS*\nChat: ${isGroup ? 'GROUP' : 'CONTACT'}\nAI: ${res.data.active ? 'ON ✅' : 'OFF ❌'}\nMode: ${getAiMode(participant).toUpperCase()}\nQuiz: Active ✅`
                 });
             }
 
@@ -2176,13 +2335,19 @@ async function connectWA() {
         // RESPON AI
         if (text && !text.startsWith('!')) {
             try {
-                const st = await axios.post(`${pythonUrl}/status`, { sender, action: "get" });
+                const st = await axios.post(`${pythonUrl}/status`, { sender, action: "get", is_group: isGroup });
                 if (st.data.active) {
                     await sock.sendPresenceUpdate('composing', sender);
-                    const res = await axios.post(`${pythonUrl}/chat`, { sender, msg: text });
-                    await sock.sendMessage(sender, { text: res.data });
+                    const response = await getTextAiResponse(sender, participant, text);
+                    await sock.sendMessage(sender, { text: response });
                 }
-            } catch (e) { }
+            } catch (e) {
+                console.error(`AI response error (${getAiMode(participant)}):`, e.message);
+                const hint = getAiMode(participant) === 'local'
+                    ? ` Make sure Ollama is running at ${ollamaUrl} and model "${ollamaModel}" is installed.`
+                    : '';
+                await sock.sendMessage(sender, { text: `❌ AI response failed.${hint}` });
+            }
         } else {
             // Check for audio in standard, ephemeral, or view-once messages
             const msg = m.message;
@@ -2194,7 +2359,7 @@ async function connectWA() {
 
             if (audioMsg) {
                 try {
-                    const st = await axios.post(`${pythonUrl}/status`, { sender, action: "get" });
+                    const st = await axios.post(`${pythonUrl}/status`, { sender, action: "get", is_group: isGroup });
                     if (st.data.active) {
                         await sock.sendPresenceUpdate('recording', sender);
                         const { downloadMediaMessage } = require('baileys');

@@ -390,6 +390,9 @@ class BelindaApp(toga.App):
             ("--- Bridge Settings ---", None),
             ("PYTHON_URL", "http://localhost:8001"),
             ("SESSION_NAME", "auth_info"),
+            ("OLLAMA_URL", "http://127.0.0.1:11434"),
+            ("OLLAMA_MODEL", "llama3.2"),
+            ("OLLAMA_TIMEOUT_MS", "120000"),
             ("--- Connection Tuning ---", None),
             ("BRIDGE_HOST", "127.0.0.1"),
             ("BRIDGE_PORT", "9000")

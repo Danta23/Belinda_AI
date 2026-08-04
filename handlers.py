@@ -83,9 +83,12 @@ def get_ai_response(message, system_prompt=None, recent_context="", model_index=
 def handle_status(data):
     sender = data.get("sender")
     action = data.get("action")
+    is_group = data.get("is_group")
+    if not isinstance(is_group, bool):
+        is_group = str(sender).endswith("@g.us")
 
     if sender not in bot_status:
-        bot_status[sender] = False
+        bot_status[sender] = not is_group
 
     if action == "toggle":
         bot_status[sender] = not bot_status[sender]
