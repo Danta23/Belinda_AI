@@ -376,6 +376,16 @@ npm install
 
 ## 📝 Maintenance & Logs
 
+### Change Log (v1.4.0) — August 4, 2026
+- **Flexible AI Providers**: Added per-user `!mode local` and `!mode cloud` selection with cloud mode as the default.
+- **Local Ollama Support**: Added configurable Ollama URL, model, timeout, and conversation context for text responses.
+- **Smart Chat Defaults**: AI now starts ON for direct contacts and remains OFF by default in groups.
+- **Improved Status UX**: `!info` displays the detected chat type, AI state, and selected response provider.
+- **Persistent Preferences**: User provider choices are saved in `ai_modes.json` across bot restarts.
+- **Startup Diagnostics**: Added cloud/Ollama readiness checks, missing-model guidance, request IDs, response timing, and privacy-safe logs.
+- **Backend Health Check**: Added the `GET /health` endpoint for deployment monitoring and troubleshooting.
+- **Documentation & Website**: Added setup guides, troubleshooting details, responsive feature pages, and an AI command reference.
+
 ### Change Log (v1.3.0)
 - **Full OS Support**: Native scripts for Windows, Mac, Linux (Bash/Fish), and Android.
 - **Arch Docker Integration**: Container now mirrors a full Arch Linux distro.
