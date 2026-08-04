@@ -1,0 +1,43 @@
+@import url("https://giscus.app/themes/dark.css");
+
+html,
+body,
+.gsc-main {
+    background: #05070a !important;
+}
+
+.gsc-main {
+    --color-canvas-default: #05070a;
+    --color-canvas-overlay: #0b0f14;
+    --color-canvas-inset: #020305;
+    --color-canvas-subtle: #0b0f14;
+    --color-border-default: #252c35;
+    --color-border-muted: #171c23;
+    --color-fg-default: #f0f3f6;
+    --color-fg-muted: #9da7b3;
+    --color-fg-subtle: #7d8792;
+}
+
+.gsc-comment-box,
+.gsc-comment-box-tabs,
+.gsc-comment-box-textarea,
+.gsc-comment-box-textarea-extras {
+    background-color: var(--color-canvas-default) !important;
+}
+
+@media (max-width: 480px) {
+    .gsc-main,
+    .gsc-comments {
+        gap: 1rem;
+    }
+
+    .gsc-comment-box-bottom {
+        padding: 0.5rem;
+    }
+
+    .gsc-comment-box-buttons,
+    .gsc-comment-box-buttons .btn {
+        justify-content: center;
+        width: 100%;
+    }
+}

@@ -16,6 +16,8 @@
             --glass-border: rgba(255, 255, 255, 0.1);
             --text-main: #ffffff;
             --accent: #007aff;
+            --forum-bg: #05070a;
+            --forum-border: rgba(255, 255, 255, 0.14);
             --blur: 20px;
             --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -26,6 +28,8 @@
             --glass-border: rgba(0, 0, 0, 0.1);
             --text-main: #1d1d1f;
             --accent: #0066cc;
+            --forum-bg: #ffffff;
+            --forum-border: rgba(0, 0, 0, 0.12);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
@@ -247,6 +251,46 @@
             padding: 12px 16px;
         }
 
+        #comment-container {
+            background: var(--forum-bg);
+            border: 1px solid var(--forum-border);
+            border-radius: 16px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 45px rgba(0, 0, 0, 0.22);
+            margin-top: 24px;
+            padding: 20px;
+            transition: var(--transition);
+        }
+
+        .giscus, .giscus-frame {
+            background: var(--forum-bg);
+            border-radius: 12px;
+            color-scheme: dark;
+            display: block;
+            min-width: 0;
+            width: 100%;
+        }
+
+        .light-mode #comment-container {
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 18px 45px rgba(0, 0, 0, 0.08);
+        }
+
+        .light-mode .giscus, .light-mode .giscus-frame { color-scheme: light; }
+
+        .forum-live-status {
+            align-items: center;
+            display: flex;
+            font-size: 0.82rem;
+            gap: 9px;
+            margin-top: 14px;
+            opacity: 0.72;
+        }
+
+        .forum-live-status .status-dot {
+            flex: 0 0 auto;
+            height: 7px;
+            width: 7px;
+        }
+
         .section-heading { margin-bottom: 24px; }
         .section-heading p { max-width: 680px; }
         .step-number { color: var(--accent); font-size: 0.8rem; font-weight: 600; }
@@ -271,6 +315,14 @@
             .status-row, .feature-grid, .step-grid { grid-template-columns: 1fr; }
             .theme-toggle { bottom: 95px; right: 20px; }
             h1 { font-size: 2rem; }
+            #blog .glass-card { padding: 18px; }
+            #comment-container { border-radius: 14px; padding: 12px; }
+        }
+
+        @media (max-width: 420px) {
+            main { padding-left: 14px; padding-right: 14px; }
+            #blog .glass-card { padding: 14px; }
+            #comment-container { margin-top: 18px; padding: 8px; }
         }
     </style>
 </head>
@@ -488,18 +540,22 @@
             <h1>Discussion Forum</h1>
             <div class="glass-card">
                 <p>Silahkan masuk menggunakan akun <strong>GitHub</strong> untuk menulis komentar atau berdiskusi.</p>
-                <div id="comment-container" style="margin-top: 30px;">
+                <div class="forum-live-status" role="status" aria-live="polite">
+                    <span class="status-dot"></span>
+                    <span id="giscus-live-status">Live updates every 15 seconds</span>
+                </div>
+                <div id="comment-container">
                     <script src="https://giscus.app/client.js"
                         data-repo="Danta23/Belinda_AI"
-                        data-repo-id="R_kgDOME6S_A"
+                        data-repo-id="R_kgDORQFt1Q"
                         data-category="Announcements"
-                        data-category-id="DIC_kwDOME6S_M4CgXG5"
+                        data-category-id="DIC_kwDORQFt1c4C2xAC"
                         data-mapping="pathname"
                         data-strict="0"
                         data-reactions-enabled="1"
-                        data-emit-metadata="0"
+                        data-emit-metadata="1"
                         data-input-position="top"
-                        data-theme="dark_dimmed"
+                        data-theme="dark"
                         data-lang="en"
                         crossorigin="anonymous"
                         async>
@@ -510,8 +566,61 @@
     </main>
 
     <script>
+        const darkGiscusTheme = new URL('giscus-dark.css', window.location.href).href;
+        const giscusRefreshIntervalMs = 15000;
+
         // Initialize Lucide Icons
         lucide.createIcons();
+
+        function updateGiscusTheme(isLight) {
+            const iframe = document.querySelector('iframe.giscus-frame');
+            if (!iframe) return;
+
+            const theme = isLight ? 'light' : darkGiscusTheme;
+            if (iframe.dataset.activeTheme === theme) return;
+
+            iframe.dataset.activeTheme = theme;
+            iframe.contentWindow.postMessage({ giscus: { setConfig: { theme } } }, 'https://giscus.app');
+        }
+
+        function setGiscusLiveStatus(message) {
+            const status = document.getElementById('giscus-live-status');
+            if (status) status.textContent = message;
+        }
+
+        function refreshGiscus() {
+            const forum = document.getElementById('blog');
+            const iframe = document.querySelector('iframe.giscus-frame');
+            if (!forum?.classList.contains('active') || !iframe || document.hidden) return;
+
+            if (document.activeElement === iframe) {
+                setGiscusLiveStatus('Live updates paused while you interact');
+                return;
+            }
+
+            setGiscusLiveStatus('Checking for new comments and reactions...');
+            const isLight = document.body.classList.contains('light-mode');
+            const theme = isLight ? 'light' : darkGiscusTheme;
+            const src = new URL(iframe.src);
+            src.searchParams.set('theme', theme);
+            src.searchParams.set('_refresh', Date.now().toString());
+            iframe.dataset.activeTheme = theme;
+            iframe.addEventListener('load', () => {
+                setGiscusLiveStatus('Live updates every 15 seconds');
+            }, { once: true });
+            iframe.src = src.href;
+        }
+
+        window.addEventListener('message', (event) => {
+            if (event.origin !== 'https://giscus.app' || !event.data?.giscus) return;
+            updateGiscusTheme(document.body.classList.contains('light-mode'));
+        });
+
+        window.addEventListener('focus', refreshGiscus);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) refreshGiscus();
+        });
+        window.setInterval(refreshGiscus, giscusRefreshIntervalMs);
 
         // Sidebar Toggle
         function toggleSidebar() {
@@ -542,11 +651,7 @@
             lucide.createIcons();
 
             // Update Giscus Theme via Message
-            const iframe = document.querySelector('iframe.giscus-frame');
-            if (iframe) {
-                const theme = isLight ? 'light' : 'dark_dimmed';
-                iframe.contentWindow.postMessage({ giscus: { setConfig: { theme } } }, 'https://giscus.app');
-            }
+            updateGiscusTheme(isLight);
         }
 
         // Smooth Blob Movement (Parallax Effect)
