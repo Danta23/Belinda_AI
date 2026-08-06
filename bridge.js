@@ -277,6 +277,7 @@ async function connectWA() {
         }
         if (connection === 'open') {
             console.log(`✅ BOT BELINDA ONLINE (Bridge: ${bridgeHost}:${bridgePort})`);
+            console.log("👁️ Auto-read receipts enabled for all incoming chats.");
         }
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode || 0;
@@ -405,6 +406,25 @@ async function connectWA() {
 
     // --- MESSAGE HANDLER ---
     sock.ev.on('messages.upsert', async ({ messages }) => {
+        const unreadKeys = messages
+            .filter(({ key, message }) => (
+                message
+                && !key.fromMe
+                && key.remoteJid
+                && key.remoteJid !== 'status@broadcast'
+            ))
+            .map(({ key }) => key);
+
+        if (unreadKeys.length > 0) {
+            try {
+                await sock.readMessages(unreadKeys);
+            } catch (error) {
+                console.error(
+                    `❌ [AUTO-READ FAILED] Could not mark ${unreadKeys.length} incoming message(s) as read: ${error.message}`
+                );
+            }
+        }
+
         const m = messages[0];
         if (!m.message || m.key.fromMe) return;
 
