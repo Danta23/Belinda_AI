@@ -527,12 +527,108 @@ async function connectWA() {
             const cmd = args[0].toLowerCase();
 
             if (cmd === '!kick') {
-                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Only admins can use this." });
-                const target = args[1]?.replace('@', '').replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+                if (!isGroup) return sock.sendMessage(sender, { text: "❌ Perintah ini hanya dapat digunakan di dalam grup." });
+                if (!(await isAdmin())) return sock.sendMessage(sender, { text: "❌ Hanya admin yang dapat menggunakan perintah ini." });
+
+                const extractNum = (id) => id ? id.match(/\d+/)?.[0] : null;
+                const subCmd = args[1]?.toLowerCase();
+
+                if (subCmd === 'all') {
+                    const meta = await sock.groupMetadata(sender).catch(() => null);
+                    if (!meta) return sock.sendMessage(sender, { text: "❌ Gagal mengambil data grup." });
+
+                    const botNum = extractNum(sock.user?.id);
+                    const botLidNum = extractNum(sock.user?.lid || sock.authState?.creds?.me?.lid);
+                    const issuerNum = extractNum(participant);
+                    const groupOwnerNum = extractNum(meta.owner || meta.subjectOwner);
+                    const superAdminNums = meta.participants
+                        .filter(p => p.admin === 'superadmin')
+                        .map(p => extractNum(p.id));
+                    const hardcodedOwnerNum = extractNum("6281905230909");
+
+                    const protectedNums = new Set([
+                        botNum,
+                        botLidNum,
+                        issuerNum,
+                        groupOwnerNum,
+                        hardcodedOwnerNum,
+                        ...superAdminNums
+                    ].filter(Boolean));
+
+                    const targets = meta.participants
+                        .filter(p => !protectedNums.has(extractNum(p.id)))
+                        .map(p => p.id);
+
+                    if (targets.length === 0) {
+                        return sock.sendMessage(sender, { text: "ℹ️ Tidak ada anggota lain yang bisa dikeluarkan. Hanya tersisa Owner dan Bot." });
+                    }
+
+                    await sock.sendMessage(sender, { text: `👢 *[KICK ALL]* Mengeluarkan ${targets.length} anggota dari grup...` });
+
+                    let removedCount = 0;
+                    const chunkSize = 5;
+                    for (let i = 0; i < targets.length; i += chunkSize) {
+                        const chunk = targets.slice(i, i + chunkSize);
+                        try {
+                            await sock.groupParticipantsUpdate(sender, chunk, 'remove');
+                            removedCount += chunk.length;
+                        } catch (err) {
+                            console.error("Kick all batch error:", err.message);
+                            for (const targetId of chunk) {
+                                try {
+                                    await sock.groupParticipantsUpdate(sender, [targetId], 'remove');
+                                    removedCount++;
+                                } catch (e) {
+                                    console.error(`Gagal kick ${targetId}:`, e.message);
+                                }
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                            }
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+
+                    return sock.sendMessage(sender, { text: `✅ Selesai! Berhasil mengeluarkan ${removedCount} anggota. Grup sekarang hanya tersisa Owner dan Bot Belinda AI.` });
+                }
+
+                // Single member kick
+                const quotedParticipant = m.message?.extendedTextMessage?.contextInfo?.participant;
+                const mentionedJid = m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
+                let target = mentionedJid || quotedParticipant;
+
+                if (!target && args[1]) {
+                    const rawNum = args[1].replace('@', '').replace(/[^0-9]/g, '');
+                    if (rawNum) target = rawNum + '@s.whatsapp.net';
+                }
+
+                if (!target) {
+                    return sock.sendMessage(sender, {
+                        text: "⚠️ *Format Penggunaan !kick:*\n• `!kick all` (keluarkan semua member kecuali Owner & Bot)\n• `!kick @user` (tag member)\n• `!kick {nomor}` (contoh: !kick 628xxx)\n• Reply pesan member dengan `!kick`"
+                    });
+                }
+
+                const targetNum = extractNum(target);
+                const botNum = extractNum(sock.user?.id);
+                const botLidNum = extractNum(sock.user?.lid || sock.authState?.creds?.me?.lid);
+                const issuerNum = extractNum(participant);
+                const hardcodedOwnerNum = extractNum("6281905230909");
+
+                const meta = await sock.groupMetadata(sender).catch(() => null);
+                const groupOwnerNum = extractNum(meta?.owner || meta?.subjectOwner);
+                const superAdminNums = meta ? meta.participants.filter(p => p.admin === 'superadmin').map(p => extractNum(p.id)) : [];
+
+                const protectedNums = new Set([botNum, botLidNum, issuerNum, groupOwnerNum, hardcodedOwnerNum, ...superAdminNums].filter(Boolean));
+
+                if (protectedNums.has(targetNum)) {
+                    return sock.sendMessage(sender, { text: "❌ Tidak dapat mengeluarkan Owner atau Bot Belinda AI." });
+                }
+
                 try {
                     await sock.groupParticipantsUpdate(sender, [target], 'remove');
-                    await sock.sendMessage(sender, { text: `👢 Removed ${args[1]} from the group.` });
-                } catch (e) { sock.sendMessage(sender, { text: "⚠️ Failed to remove member." }); }
+                    await sock.sendMessage(sender, { text: `👢 Berhasil mengeluarkan @${targetNum} dari grup.`, mentions: [target] });
+                } catch (e) {
+                    console.error("Kick error:", e.message);
+                    await sock.sendMessage(sender, { text: "⚠️ Gagal mengeluarkan member. Pastikan Bot adalah Admin grup." });
+                }
                 return;
             }
 
@@ -1644,7 +1740,7 @@ async function connectWA() {
                         `👥 !absen (List members)\n` +
                         `📋 !list {mode} {name}\n` +
                         `⏳ !limit {num|inf}\n` +
-                        `➕ !add / 👢 !kick {nomor}\n` +
+                        `➕ !add / 👢 !kick {nomor|all}\n` +
                         `🔓 !open / 🔒 !close\n` +
                         `🧹 !zero (Clear context)\n`
                 });
