@@ -366,7 +366,7 @@ npm install
 | `!gen scr:{ext}`| Generate Script (py, js, etc) | All |
 | `!gen 3dm:{ext}`| AI Generate/Search 3D Models | All |
 | `!shell {cmd}` | Run Linux commands (real-time) | Admin |
-| `!kick {all|@user}` / `!add` | Member Management / Kick all | Admin |
+| `!kick {all\|@user}` / `!add` | Member Management / Kick all | Admin |
 | `!open` / `!close`| Group permission control | Admin |
 | `!zero` | Wipe chat context memory | Admin |
 | `!log` | View recent chat logs | All |
