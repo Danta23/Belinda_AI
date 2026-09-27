@@ -411,12 +411,18 @@ async function connectWA() {
 
     // --- MESSAGE HANDLER ---
     sock.ev.on('messages.upsert', async ({ messages }) => {
+        const isIgnoredJid = (jid) => {
+            if (!jid || typeof jid !== 'string') return false;
+            return jid === 'status@broadcast' || jid.endsWith('@newsletter') || jid.endsWith('@broadcast');
+        };
+
         const unreadKeys = messages
             .filter(({ key, message }) => (
                 message
                 && !key.fromMe
                 && key.remoteJid
-                && key.remoteJid !== 'status@broadcast'
+                && !isIgnoredJid(key.remoteJid)
+                && !isIgnoredJid(key.participant)
             ))
             .map(({ key }) => key);
 
@@ -434,6 +440,10 @@ async function connectWA() {
         if (!m.message || m.key.fromMe) return;
 
         const sender = m.key.remoteJid;
+        const participant = m.key.participant || sender;
+
+        // Abaikan saluran berita (newsletter), status WA, dan broadcast agar tidak dibalas & hemat token
+        if (isIgnoredJid(sender) || isIgnoredJid(participant)) return;
 
         const buttonText = m.message.buttonsResponseMessage?.selectedDisplayText || m.message.templateButtonReplyMessage?.selectedDisplayText || "";
         const buttonId = m.message.buttonsResponseMessage?.selectedButtonId || m.message.templateButtonReplyMessage?.selectedId || "";
@@ -450,7 +460,6 @@ async function connectWA() {
         const text = (interactiveId || buttonId || buttonText || text_orig).trim();
 
         const isGroup = sender.endsWith('@g.us');
-        const participant = m.key.participant || sender;
 
         // --- AFK SYSTEM: AUTO-CLEAR ---
         if (afkData[participant]) {

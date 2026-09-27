@@ -112,8 +112,21 @@ def get_ai_response(message, system_prompt=None, recent_context="", model_index=
             return get_ai_response(message, system_prompt, recent_context, model_index + 1)
         return f"⚠️ Technical issue with Belinda AI server: {str(e)}"
 
+def is_ignored_sender(sender):
+    if not sender:
+        return True
+    s = str(sender).lower().strip()
+    return s == "status@broadcast" or s.endswith("@newsletter") or s.endswith("@broadcast")
+
 def handle_status(data):
     sender = data.get("sender")
+    if is_ignored_sender(sender):
+        return jsonify({
+            "active": False,
+            "history_count": 0,
+            "recent_history": []
+        })
+
     action = data.get("action")
     is_group = data.get("is_group")
     if not isinstance(is_group, bool):
@@ -409,6 +422,9 @@ def handle_chat(data):
     sender = data.get("sender")
     msg = data.get("msg")
 
+    if is_ignored_sender(sender):
+        return "⚠️ Ignored sender (status/newsletter/broadcast)."
+
     if not bot_status.get(sender, False):
         return "⚠️ Belinda AI is currently OFF."
 
@@ -423,6 +439,9 @@ def handle_chat(data):
 
 def handle_voice(req):
     sender = req.form.get("sender")
+
+    if is_ignored_sender(sender):
+        return "⚠️ Ignored sender (status/newsletter/broadcast)."
     
     if not bot_status.get(sender, False):
         return "⚠️ Belinda AI is currently OFF."
