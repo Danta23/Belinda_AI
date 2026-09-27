@@ -283,21 +283,26 @@ async function connectWA() {
             const reason = lastDisconnect?.error?.output?.statusCode || 0;
             const shouldReconnect = (
                 reason !== DisconnectReason.loggedOut &&
-                reason !== DisconnectReason.badSession &&
                 reason !== DisconnectReason.connectionReplaced
             );
 
             console.log(`❌ Connection closed. Reason code: ${reason}. Reconnecting: ${shouldReconnect}`);
 
-            if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.badSession) {
-                console.log("⚠️ Session is invalid or logged out. Please delete the session folder and scan again.");
+            if (reason === DisconnectReason.loggedOut) {
+                console.log("⚠️ Sesi telah keluar (logged out) dari perangkat. Silakan hapus folder auth_info dan scan QR ulang.");
             } else if (reason === DisconnectReason.connectionReplaced) {
-                console.log("⚠️ Connection replaced by another session. Stopping current bridge.");
+                console.log("⚠️ Koneksi digantikan oleh sesi lain. Menghentikan bridge ini.");
+            } else if (reason === DisconnectReason.badSession) {
+                console.log("⚠️ Stream atau socket error (kode 500). Menyambung kembali dalam 10s...");
+                if (shouldReconnect) setTimeout(connectWA, 10000);
+            } else if (reason === DisconnectReason.restartRequired) {
+                console.log("⚠️ WhatsApp meminta restart koneksi (kode 515). Menyambung kembali dalam 3s...");
+                if (shouldReconnect) setTimeout(connectWA, 3000);
             } else if (reason === 408 || reason === 503) {
-                console.log("⚠️ Server error or timeout. Retrying in 20s...");
-                if (shouldReconnect) setTimeout(connectWA, 20000);
+                console.log("⚠️ Server error or timeout (408/503). Retrying in 15s...");
+                if (shouldReconnect) setTimeout(connectWA, 15000);
             } else if (shouldReconnect) {
-                const delay = 10000;
+                const delay = 5000;
                 console.log(`⏳ Reconnecting in ${delay / 1000}s...`);
                 setTimeout(connectWA, delay);
             }

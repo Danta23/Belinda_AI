@@ -18,14 +18,40 @@ if not groq_api_key:
 
 client = Groq(api_key=groq_api_key.strip())
 
-# Fallback model list
-MODEL_LIST = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-70b-versatile",
-    "llama3-70b-8192",
-    "llama3-8b-8192",
-    "gemma2-9b-it"
-]
+# Active and fallback model list
+def get_available_models():
+    """Get active models from Groq prioritizing chat models and custom configuration."""
+    preferred = [
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "allam-2-7b",
+        "llama-3.3-70b-versatile",
+        "llama-3.1-70b-versatile",
+        "llama3-70b-8192",
+        "llama3-8b-8192",
+    ]
+    custom_model = os.getenv("GROQ_MODEL")
+    models = [custom_model.strip()] if custom_model and custom_model.strip() else []
+
+    try:
+        remote_models = client.models.list().data
+        remote_ids = {m.id for m in remote_models}
+        for m in preferred:
+            if m in remote_ids and m not in models:
+                models.append(m)
+        for m in remote_ids:
+            if m not in models and not any(x in m.lower() for x in ["whisper", "guard", "orpheus", "safeguard", "embed"]):
+                models.append(m)
+    except Exception as e:
+        print(f"⚠️ Could not fetch dynamic models from Groq: {e}", file=sys.stderr)
+        for m in preferred:
+            if m not in models:
+                models.append(m)
+
+    return models or ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"]
+
+MODEL_LIST = get_available_models()
 
 # Bot status per sender
 bot_status = {}
@@ -44,8 +70,9 @@ def load_chat_history():
     return []
 
 def get_ai_response(message, system_prompt=None, recent_context="", model_index=0):
+    global MODEL_LIST
     if model_index >= len(MODEL_LIST):
-        return "⚠️ All free models are busy. Please try again later."
+        return "⚠️ All free models are busy or temporarily unavailable. Please try again later."
 
     now = datetime.now()
     waktu_sekarang = now.strftime("%A, %d %B %Y | %H:%M:%S")
@@ -73,10 +100,15 @@ def get_ai_response(message, system_prompt=None, recent_context="", model_index=
             temperature=0.7,
             max_tokens=2048 if "doc" in str(system_prompt).lower() else ai_max_tokens,
         )
-        return completion.choices[0].message.content
+        msg_obj = completion.choices[0].message
+        content = (msg_obj.content or getattr(msg_obj, "reasoning", "") or "").strip()
+        if not content:
+            print(f"⚠️ Model '{current_model}' returned empty content, trying fallback...", file=sys.stderr)
+            return get_ai_response(message, system_prompt, recent_context, model_index + 1)
+        return content
     except Exception as e:
-        error_str = str(e).lower()
-        if "rate_limit" in error_str or "429" in error_str:
+        print(f"⚠️ Groq model '{current_model}' failed ({e}), falling back to next model...", file=sys.stderr)
+        if model_index + 1 < len(MODEL_LIST):
             return get_ai_response(message, system_prompt, recent_context, model_index + 1)
         return f"⚠️ Technical issue with Belinda AI server: {str(e)}"
 
